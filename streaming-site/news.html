@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电影资讯 - Syn Player</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="player-page">
+
+<!-- ===== Navigation ===== -->
+<nav class="navbar" id="navbar">
+    <button class="hamburger" id="hamburgerBtn"><i class="fas fa-bars"></i></button>
+    <a href="index.html" class="logo">
+        <span style="font-size:28px;font-weight:800;color:#e50914;">SYN</span><span style="font-size:28px;font-weight:700;color:#fff;">PLAYER</span>
+    </a>
+    <ul class="nav-menu" id="navMenu">
+        <li><a href="index.html"><i class="fas fa-home"></i> 首页</a></li>
+        <li><a href="javascript:;"><i class="fas fa-film"></i> 电影 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">英语</a></li><li><a href="javascript:;">中文</a></li><li><a href="javascript:;">印地语</a></li><li><a href="javascript:;">阿拉伯语</a></li><li><a href="javascript:;">俄语</a></li>
+            </ul>
+        </li>
+        <li><a href="javascript:;"><i class="fas fa-tv"></i> 电视剧 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">真人秀</a></li><li><a href="javascript:;">喜剧</a></li><li><a href="javascript:;">剧情</a></li><li><a href="javascript:;">犯罪</a></li><li><a href="javascript:;">惊悚</a></li>
+            </ul>
+        </li>
+        <li><a href="javascript:;"><i class="fas fa-laptop"></i> 网络节目 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">剧情</a></li><li><a href="javascript:;">惊悚</a></li><li><a href="javascript:;">真人秀</a></li><li><a href="javascript:;">犯罪</a></li><li><a href="javascript:;">喜剧</a></li>
+            </ul>
+        </li>
+        <li><a href="javascript:;"><i class="fas fa-th-large"></i> 频道</a></li>
+        <li><a href="javascript:;"><i class="fas fa-music"></i> 音乐 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">中文</a></li><li><a href="javascript:;">英语</a></li><li><a href="javascript:;">阿拉伯语</a></li><li><a href="javascript:;">旁遮普语</a></li><li><a href="javascript:;">俄语</a></li>
+            </ul>
+        </li>
+        <li><a href="live-tv.html"><i class="fas fa-broadcast-tower"></i> 电视直播 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">央视综合 CCTV-1</a></li><li><a href="javascript:;">央视新闻 CCTV-13</a></li><li><a href="javascript:;">湖南卫视</a></li><li><a href="javascript:;">浙江卫视</a></li><li><a href="javascript:;">东方卫视</a></li><li><a href="javascript:;">江苏卫视</a></li><li><a href="javascript:;">北京卫视</a></li><li><a href="javascript:;">体育频道 CCTV-5</a></li>
+            </ul>
+        </li>
+        <li><a href="news.html" class="active"><i class="fas fa-newspaper"></i> 资讯</a></li>
+    </ul>
+    <div class="nav-right">
+        <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="searchInput" placeholder="搜索电影、电视剧...">
+            <button class="search-clear" id="searchClear" style="display:none;"><i class="fas fa-times"></i></button>
+        </div>
+        <a href="javascript:;" class="nav-icon" title="我的列表"><i class="fas fa-bookmark"></i></a>
+        <button class="nav-icon theme-toggle" id="themeToggle" title="切换主题"><i class="fas fa-moon"></i></button>
+        <a href="javascript:;" class="nav-icon" title="登录"><i class="fas fa-user-circle"></i></a>
+    </div>
+</nav>
+
+<!-- ===== News Page Container ===== -->
+<div class="news-container">
+    <section class="news-hero">
+        <div class="news-hero-content">
+            <h1><i class="fas fa-newspaper"></i> 电影资讯</h1>
+            <p>全球最新电影新闻、影评、票房、产业动态 — 内容来源：全球电影资讯网</p>
+            <p class="news-update-info" id="newsUpdateInfo" style="font-size:12px;color:var(--text-muted);margin-top:4px;"></p>
+        </div>
+    </section>
+
+    <div class="news-categories" id="newsCategories">
+        <button class="news-cat-btn active" data-cat="all">全部</button>
+        <button class="news-cat-btn" data-cat="huayudianying.html">华语</button>
+        <button class="news-cat-btn" data-cat="oumeidianying.html">欧美</button>
+        <button class="news-cat-btn" data-cat="xianggang.html">香港</button>
+        <button class="news-cat-btn" data-cat="hanguo.html">韩国</button>
+        <button class="news-cat-btn" data-cat="riben.html">日本</button>
+        <button class="news-cat-btn" data-cat="yingping.html">影评</button>
+        <button class="news-cat-btn" data-cat="piaofang.html">票房</button>
+        <button class="news-cat-btn" data-cat="zongyi.html">综艺</button>
+    </div>
+
+    <section class="news-headlines" id="newsHeadlines" style="display:none;">
+        <h3 class="news-section-title"><i class="fas fa-fire"></i> 热点头条</h3>
+        <div class="headlines-grid" id="headlinesGrid"></div>
+    </section>
+
+    <section class="news-articles">
+        <h3 class="news-section-title"><i class="fas fa-clock"></i> 最新资讯</h3>
+        <div class="articles-grid" id="articlesGrid">
+            <div class="news-loading">
+                <div class="loading-spinner"></div>
+                <p>正在加载最新电影资讯...</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="news-load-more" id="loadMoreWrap" style="display:none;">
+        <button class="btn-load-more" id="loadMoreBtn">加载更多 <i class="fas fa-chevron-down"></i></button>
+    </div>
+</div>
+
+<!-- ===== Back to Top ===== -->
+<button class="back-to-top" id="backToTop" title="返回顶部"><i class="fas fa-arrow-up"></i></button>
+
+<!-- ===== Article Detail Overlay ===== -->
+<div class="article-overlay" id="articleOverlay">
+    <div class="article-overlay-backdrop"></div>
+    <div class="article-detail">
+        <button class="article-close" id="articleClose"><i class="fas fa-times"></i></button>
+        <div class="article-detail-inner" id="articleDetailInner">
+            <div class="article-detail-loading">
+                <div class="loading-spinner"></div>
+                <p>正在加载文章...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+<script>
+(function() {
+    var currentPage = 1;
+    var currentCat = 'all';
+    var allArticles = [];
+    var headlinesData = [];
+
+    var articlesGrid = document.getElementById('articlesGrid');
+    var headlinesGrid = document.getElementById('headlinesGrid');
+    var newsHeadlines = document.getElementById('newsHeadlines');
+    var loadMoreWrap = document.getElementById('loadMoreWrap');
+    var loadMoreBtn = document.getElementById('loadMoreBtn');
+    var overlay = document.getElementById('articleOverlay');
+    var detailInner = document.getElementById('articleDetailInner');
+    var closeBtn = document.getElementById('articleClose');
+
+    function extractId(url) {
+        var m = url.match(/\/article\/(\d+)\.html/);
+        return m ? m[1] : null;
+    }
+
+    function showLoading() {
+        articlesGrid.innerHTML = '<div class="news-loading"><div class="loading-spinner"></div><p>正在加载最新电影资讯...</p></div>';
+    }
+
+    function showError(msg) {
+        articlesGrid.innerHTML = '<div class="news-error"><i class="fas fa-exclamation-circle"></i><p>' + (msg || '加载失败，请稍后重试') + '</p></div>';
+    }
+
+    function setLoadMoreLoading(loading) {
+        if (!loadMoreBtn) return;
+        if (loading) {
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.innerHTML = '<span class="btn-loading-spinner"></span> 加载中...';
+        } else {
+            loadMoreBtn.disabled = false;
+            loadMoreBtn.innerHTML = '加载更多 <i class="fas fa-chevron-down"></i>';
+        }
+    }
+
+    function renderHeadlines() {
+        if (!headlinesData.length) {
+            newsHeadlines.style.display = 'none';
+            return;
+        }
+        newsHeadlines.style.display = '';
+        var html = '';
+        headlinesData.forEach(function(item, i) {
+            var imgUrl = item.image ? '/api/news/image-proxy?url=' + encodeURIComponent(item.image) : '';
+            var imgStyle = imgUrl ? ' style="background-image: url(' + imgUrl + ')"' : '';
+            var aid = extractId(item.url);
+            html += '<div class="headline-card headline-' + (i + 1) + '"' + imgStyle + ' data-aid="' + aid + '">';
+            html += '<div class="headline-overlay"></div>';
+            html += '<div class="headline-info">';
+            html += '<span class="headline-num">' + (i + 1).toString().padStart(2, '0') + '</span>';
+            html += '<div class="headline-text">';
+            html += '<h3>' + item.title + '</h3>';
+            html += '<p>' + (item.excerpt || '').substring(0, 100) + '...</p>';
+            html += '<span class="headline-date">' + (item.date || '') + '</span>';
+            html += '</div></div></div>';
+        });
+        headlinesGrid.innerHTML = html;
+    }
+
+    function buildArticleCard(item) {
+        var aid = extractId(item.url);
+        var html = '<article class="news-card" data-aid="' + aid + '">';
+        html += '<div class="news-card-body">';
+        html += '<span class="news-card-cat">' + (item.category || '资讯') + '</span>';
+        html += '<h3><span class="article-link">' + item.title + '</span></h3>';
+        html += '<p class="news-card-excerpt">' + (item.excerpt || '') + '...</p>';
+        html += '<div class="news-card-meta">';
+        html += '<span><i class="far fa-clock"></i> ' + (item.date || '') + '</span>';
+        html += '<span class="read-link">阅读全文 <i class="fas fa-arrow-right"></i></span>';
+        html += '</div></div></article>';
+        return html;
+    }
+
+    function renderArticles(articles) {
+        articlesGrid.innerHTML = articles.map(buildArticleCard).join('');
+    }
+
+    function appendArticles(newArticles) {
+        var fragment = document.createElement('div');
+        fragment.innerHTML = newArticles.map(buildArticleCard).join('');
+        while (fragment.firstChild) {
+            articlesGrid.appendChild(fragment.firstChild);
+        }
+    }
+
+    function fetchNews(page, cat) {
+        // Only show full loading for initial page, not "load more"
+        if (page === 1) {
+            showLoading();
+        } else {
+            setLoadMoreLoading(true);
+        }
+
+        var url = '/api/news?page=' + page;
+        if (cat && cat !== 'all') {
+            url = '/api/news/category/' + cat;
+        }
+        fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.success) throw new Error(data.error || 'Request failed');
+                var articles = data.articles || [];
+                if (page === 1) {
+                    allArticles = articles;
+                    headlinesData = data.headlines || [];
+                    renderHeadlines();
+                    renderArticles(allArticles);
+                } else {
+                    allArticles = allArticles.concat(articles);
+                    appendArticles(articles);
+                }
+                setLoadMoreLoading(false);
+                loadMoreWrap.style.display = articles.length >= 10 ? '' : 'none';
+
+                // Update "last updated" indicator
+                if (data.lastUpdate) {
+                    var ago = Math.round((Date.now() - new Date(data.lastUpdate).getTime()) / 60000);
+                    var agoText = ago < 1 ? '刚刚' : ago + ' 分钟前';
+                    document.getElementById('newsUpdateInfo').innerHTML = '<i class="fas fa-sync-alt"></i> 数据更新于 ' + agoText + '（每5分钟自动同步）';
+                }
+            })
+            .catch(function(err) {
+                if (page === 1) {
+                    showError('资讯加载失败：' + err.message + '。请确保后端服务已启动。');
+                } else {
+                    setLoadMoreLoading(false);
+                }
+                loadMoreWrap.style.display = 'none';
+            });
+    }
+
+    // Open article detail modal
+    function openArticle(id) {
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        detailInner.innerHTML = '<div class="article-detail-loading"><div class="loading-spinner"></div><p>正在加载文章...</p></div>';
+
+        fetch('/api/news/article/' + id)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.success) throw new Error(data.error || 'Request failed');
+                var art = data.article;
+                var html = '';
+
+                html += '<header class="article-detail-header">';
+                if (art.category) html += '<span class="article-detail-cat">' + art.category + '</span>';
+                html += '<h1>' + art.title + '</h1>';
+                html += '<div class="article-detail-meta">';
+                if (art.date) html += '<span><i class="far fa-clock"></i> ' + art.date + '</span>';
+                if (art.source) html += '<span><i class="far fa-newspaper"></i> 来源：' + art.source + '</span>';
+                html += '</div></header>';
+
+                html += '<div class="article-detail-body">' + (art.content || '<p>暂无内容</p>') + '</div>';
+
+                detailInner.innerHTML = html;
+            })
+            .catch(function(err) {
+                detailInner.innerHTML = '<div class="article-detail-error"><i class="fas fa-exclamation-circle"></i><p>文章加载失败：' + err.message + '</p></div>';
+            });
+    }
+
+    function closeArticle() {
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    // Click handlers for article cards - delegated
+    articlesGrid.addEventListener('click', function(e) {
+        var card = e.target.closest('.news-card');
+        if (!card) return;
+        var aid = card.dataset.aid;
+        if (aid) openArticle(aid);
+    });
+
+    headlinesGrid.addEventListener('click', function(e) {
+        var card = e.target.closest('.headline-card');
+        if (!card) return;
+        var aid = card.dataset.aid;
+        if (aid) openArticle(aid);
+    });
+
+    // Close button
+    closeBtn.addEventListener('click', closeArticle);
+
+    // Close on backdrop click
+    overlay.querySelector('.article-overlay-backdrop').addEventListener('click', closeArticle);
+
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && overlay.classList.contains('active')) {
+            closeArticle();
+        }
+    });
+
+    // Category tab clicks
+    document.getElementById('newsCategories').addEventListener('click', function(e) {
+        var btn = e.target.closest('.news-cat-btn');
+        if (!btn) return;
+        document.querySelectorAll('.news-cat-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        currentCat = btn.dataset.cat;
+        currentPage = 1;
+        fetchNews(currentPage, currentCat);
+    });
+
+    // Load more
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', function() {
+            currentPage++;
+            fetchNews(currentPage, currentCat);
+        });
+    }
+
+    // Back to top button
+    var backToTop = document.getElementById('backToTop');
+    var backToTopVisible = false;
+
+    function toggleBackToTop() {
+        var scrolled = window.scrollY > 600;
+        if (scrolled !== backToTopVisible) {
+            backToTopVisible = scrolled;
+            backToTop.classList.toggle('visible', scrolled);
+        }
+    }
+
+    backToTop.addEventListener('click', function() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    window.addEventListener('scroll', toggleBackToTop, { passive: true });
+
+    // Initial load
+    fetchNews(1, 'all');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Syn Player</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dplayer@2/dist/DPlayer.min.css">
+    <style>
+        /* DPlayer theme overrides — match site dark theme */
+        .dplayer { border-radius: 8px; overflow: hidden; }
+        .dplayer-controller { background: rgba(0,0,0,0.85) !important; }
+        .dplayer-bar-wrap { margin: 0 15px !important; }
+        .dplayer-controller .dplayer-bar-wrap .dplayer-bar .dplayer-bar-inner { background: var(--red) !important; }
+        .dplayer-controller .dplayer-bar-wrap .dplayer-bar .dplayer-thumb { background: #fff !important; }
+        .dplayer-controller .dplayer-icons .dplayer-icon:hover { color: var(--red) !important; }
+        .dplayer-controller .dplayer-icons .dplayer-toggle input:checked + .dplayer-toggle-icon { background: var(--red) !important; }
+        .dplayer-controller .dplayer-icons .dplayer-volume .dplayer-volume-bar .dplayer-volume-bar-inner { background: var(--red) !important; }
+        .dplayer-controller .dplayer-icons .dplayer-setting .dplayer-setting-item input:checked + .dplayer-toggle-icon { background: var(--red) !important; }
+        .dplayer-comment-setting .dplayer-icon-setting:hover { color: var(--red) !important; }
+        .dplayer-menu .dplayer-menu-item:hover { background-color: rgba(229,9,20,0.1) !important; }
+        .dplayer-menu .dplayer-menu-item.dplayer-menu-item-active { color: var(--red) !important; }
+        .dplayer-notice { opacity: 0.9; font-size: 13px; }
+
+        /* Player area */
+        #dplayer { aspect-ratio: 16 / 9; width: 100%; max-height: 65vh; background: #000; border-radius: 8px; }
+        .dplayer-video-wrap { border-radius: 8px; }
+
+        /* Poster + info layout */
+        @media (max-width: 600px) {
+            .video-info-layout { flex-direction: column; }
+            .video-info-poster { width: 80px; }
+        }
+
+        /* Error overlay — sits on top of DPlayer */
+        .player-error-wrap { position: relative; }
+        .player-error-overlay {
+            position: absolute; inset: 0; display: none; flex-direction: column;
+            align-items: center; justify-content: center; gap: 12px;
+            background: rgba(0,0,0,0.82); z-index: 10; border-radius: 8px;
+        }
+        .player-error-overlay.show { display: flex; }
+        .player-error-overlay i { font-size: 36px; color: var(--red); }
+        .player-error-overlay p { color: var(--text-secondary); font-size: 14px; margin: 0; }
+        .player-error-overlay button {
+            padding: 8px 20px; border-radius: 4px; font-size: 13px; cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.1); color: #fff;
+            transition: all 0.2s; margin: 0 4px;
+        }
+        .player-error-overlay button:hover { background: var(--red); border-color: var(--red); }
+
+        /* Video info spacing */
+        .vod-lines { margin: 12px 0; }
+        /* Hide info section until data loads — prevent flash of hardcoded content */
+        .video-info { visibility: hidden; }
+        .video-info.loaded { visibility: visible; }
+    </style>
+</head>
+<body class="player-page">
+<script>
+if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
+</script>
+
+
+<!-- ===== Navigation ===== -->
+<nav class="navbar" id="navbar">
+    <button class="hamburger" id="hamburgerBtn">
+        <i class="fas fa-bars"></i>
+    </button>
+    <a href="index.html" class="logo">
+        <span style="font-size:28px;font-weight:800;color:#e50914;">SYN</span><span style="font-size:28px;font-weight:700;color:#fff;">PLAYER</span>
+    </a>
+    <ul class="nav-menu" id="navMenu">
+        <li><a href="index.html"><i class="fas fa-home"></i> 首页</a></li>
+        <li>
+            <a href="javascript:;"><i class="fas fa-film"></i> 电影 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">英语</a></li>
+                <li><a href="javascript:;">中文</a></li>
+                <li><a href="javascript:;">印地语</a></li>
+                <li><a href="javascript:;">阿拉伯语</a></li>
+                <li><a href="javascript:;">俄语</a></li>
+            </ul>
+        </li>
+        <li>
+            <a href="javascript:;"><i class="fas fa-tv"></i> 电视剧 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">真人秀</a></li>
+                <li><a href="javascript:;">喜剧</a></li>
+                <li><a href="javascript:;">剧情</a></li>
+                <li><a href="javascript:;">犯罪</a></li>
+                <li><a href="javascript:;">惊悚</a></li>
+            </ul>
+        </li>
+        <li>
+            <a href="javascript:;"><i class="fas fa-laptop"></i> 网络节目 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">剧情</a></li>
+                <li><a href="javascript:;">惊悚</a></li>
+                <li><a href="javascript:;">真人秀</a></li>
+                <li><a href="javascript:;">犯罪</a></li>
+                <li><a href="javascript:;">喜剧</a></li>
+            </ul>
+        </li>
+        <li><a href="javascript:;"><i class="fas fa-th-large"></i> 频道</a></li>
+        <li>
+            <a href="javascript:;"><i class="fas fa-music"></i> 音乐 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">中文</a></li>
+                <li><a href="javascript:;">英语</a></li>
+                <li><a href="javascript:;">阿拉伯语</a></li>
+                <li><a href="javascript:;">旁遮普语</a></li>
+                <li><a href="javascript:;">俄语</a></li>
+            </ul>
+        </li>
+        <li>
+            <a href="live-tv.html"><i class="fas fa-broadcast-tower"></i> 电视直播 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="live-tv.html#cctv1">央视综合 CCTV-1</a></li>
+                <li><a href="live-tv.html#cctv13">央视新闻 CCTV-13</a></li>
+                <li><a href="live-tv.html#hunan">湖南卫视</a></li>
+                <li><a href="live-tv.html#zhejiang">浙江卫视</a></li>
+                <li><a href="live-tv.html#dongfang">东方卫视</a></li>
+                <li><a href="live-tv.html#jiangsu">江苏卫视</a></li>
+                <li><a href="live-tv.html#beijing">北京卫视</a></li>
+                <li><a href="live-tv.html#cctv5">体育频道 CCTV-5</a></li>
+            </ul>
+        </li>
+        <li><a href="news.html"><i class="fas fa-newspaper"></i> 资讯</a></li>
+    </ul>
+    <div class="nav-right">
+        <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="searchInput" placeholder="搜索电影、电视剧...">
+            <button class="search-clear" id="searchClear" style="display:none;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <a href="javascript:;" class="nav-icon" title="我的列表">
+            <i class="fas fa-bookmark"></i>
+        </a>
+        <button class="nav-icon theme-toggle" id="themeToggle" title="切换主题">
+            <i class="fas fa-moon"></i>
+        </button>
+        <a href="/login" class="nav-icon" title="登录">
+            <i class="fas fa-user-circle"></i>
+        </a>
+        <button class="nav-icon" id="logoutBtn" title="退出登录" style="background:none;border:none;cursor:pointer;">
+            <i class="fas fa-sign-out-alt" style="color:#e50914;"></i>
+        </button>
+    </div>
+</nav>
+
+<!-- ===== Player Container ===== -->
+<div class="player-container">
+
+    <!-- Main Video Area -->
+    <div class="video-main">
+        <div class="player-error-wrap">
+            <div id="dplayer"></div>
+            <div class="player-error-overlay" id="playerError">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p id="playerErrorMsg">播放失败</p>
+                <div>
+                    <button id="playerRetryBtn">重试</button>
+                    <button id="playerNextLineBtn">切换线路</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Multi-Source Line Switcher -->
+        <div class="vod-lines" id="vodLines" style="display:none;">
+            <div class="vod-source-tabs" id="vodSourceTabs"></div>
+            <div class="vod-episode-list" id="vodEpisodeList"></div>
+        </div>
+
+        <!-- Video Info -->
+        <div class="video-info">
+            <div class="video-info-layout">
+                <div class="video-info-poster">
+                    <img src="" alt="" id="infoPoster" style="display:none;">
+                </div>
+                <div class="video-info-content">
+                    <h2>速度与激情 9</h2>
+                    <div class="video-meta">
+                        <span class="rating-badge"><i class="fas fa-star"></i> 8.5 / 10</span>
+                        <span>2021</span>
+                        <span>2h 23m</span>
+                        <span>动作 / 冒险</span>
+                        <span>HD</span>
+                    </div>
+                    <div class="video-actions">
+                        <button id="likeBtn"><i class="far fa-thumbs-up"></i> 赞 12.5K</button>
+                        <button id="dislikeBtn"><i class="far fa-thumbs-down"></i> 踩</button>
+                        <button><i class="fas fa-share"></i> 分享</button>
+                        <button><i class="fas fa-bookmark"></i> 收藏</button>
+                        <button><i class="fas fa-download"></i> 下载</button>
+                    </div>
+                    <div class="video-description">
+                        <p>多姆·托雷托与他的家人们面对迄今为止最危险的对手。从伦敦到东京，从中东到爱丁堡，再到阿塞拜疆的秘密基地，他们将不惜一切代价阻止一场惊天阴谋。</p>
+                        <p style="margin-top:8px;"><strong>导演:</strong> 林诣彬 &nbsp;|&nbsp; <strong>主演:</strong> 范·迪塞尔, 约翰·塞纳, 米歇尔·罗德里格兹</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Related Videos Sidebar -->
+    <aside class="related-sidebar" id="relatedSidebar">
+        <h4>相关推荐</h4>
+        <div class="related-list" id="relatedList"></div>
+    </aside>
+
+</div>
+
+<!-- ===== Footer ===== -->
+<footer class="footer">
+    <div class="footer-middle">
+        <div class="footer-about">
+            <span style="font-size:22px;font-weight:800;color:#e50914;">SYN</span><span style="font-size:22px;font-weight:700;color:#fff;">PLAYER</span>
+            <p>Syn Player 是一个视频流媒体平台，提供来自顶级制片人和发行商的数千小时优质、独家原创内容。</p>
+            <a href="javascript:;" class="read-more">了解更多 →</a>
+        </div>
+        <div class="footer-links">
+            <h4>探索</h4>
+            <ul>
+                <li><a href="index.html">首页</a></li>
+                <li><a href="javascript:;">网络节目</a></li>
+                <li><a href="javascript:;">电影</a></li>
+                <li><a href="javascript:;">电视剧</a></li>
+                <li><a href="javascript:;">频道</a></li>
+            </ul>
+        </div>
+        <div class="footer-links">
+            <h4>公司</h4>
+            <ul>
+                <li><a href="javascript:;">关于我们</a></li>
+                <li><a href="javascript:;">联系我们</a></li>
+                <li><a href="javascript:;">隐私政策</a></li>
+                <li><a href="javascript:;">服务条款</a></li>
+            </ul>
+        </div>
+        <div class="footer-links">
+            <h4>关注我们</h4>
+            <div class="social-icons">
+                <a href="javascript:;"><i class="fab fa-facebook-f"></i></a>
+                <a href="javascript:;"><i class="fab fa-twitter"></i></a>
+                <a href="javascript:;"><i class="fab fa-instagram"></i></a>
+                <a href="javascript:;"><i class="fab fa-youtube"></i></a>
+            </div>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <p>&copy; 2025 Syn Player. All rights reserved.</p>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<!-- DPlayer: load from local node_modules -->
+<script src="/node_modules/dplayer/dist/DPlayer.min.js" onerror="
+    console.warn('DPlayer unavailable, using native player controls');
+    window.DPLoadFailed = true;
+"></script>
+<script src="script.js"></script>
+<script>
+// ============================================================
+//  Syn Player — DPlayer + HLS.js + Multi-Source VOD
+// ============================================================
+(function() {
+    var dp = null;
+    var vodSources = [];
+    var currentSourceIdx = 0;
+    var currentEpisodeIdx = 0;
+    var currentUrl = '';
+    var retryCount = 0;
+    var maxRetries = 2;
+    var progressTimer = null;
+
+    var playerError = document.getElementById('playerError');
+    var playerErrorMsg = document.getElementById('playerErrorMsg');
+    var playerRetryBtn = document.getElementById('playerRetryBtn');
+    var playerNextLineBtn = document.getElementById('playerNextLineBtn');
+    var vodLines = document.getElementById('vodLines');
+    var vodSourceTabs = document.getElementById('vodSourceTabs');
+    var vodEpisodeList = document.getElementById('vodEpisodeList');
+    var dplayerBox = document.getElementById('dplayer');
+
+    var videoId = new URLSearchParams(window.location.search).get('id');
+    var savedTime = parseFloat(localStorage.getItem('playTime_' + (videoId || 'default'))) || 0;
+
+    // ============ DPlayer Init (with HLS.js fallback) ============
+    function getVideoType(url) {
+        if (!url) return 'auto';
+        var u = url.toLowerCase();
+        if (u.indexOf('.m3u8') > -1) return 'hls';
+        if (u.indexOf('.mp4') > -1) return 'mp4';
+        if (u.indexOf('.flv') > -1) return 'flv';
+        if (u.indexOf('.webm') > -1) return 'auto';
+        return 'auto';
+    }
+
+    var dplayerRetries = 0;
+
+    function initDPlayer(url) {
+        if (dp) { try { dp.destroy(); } catch(e) {} dp = null; }
+        stopProgressSave();
+        retryCount = 0;
+        dplayerRetries = 0;
+        currentUrl = url;
+
+        // Fallback to native HLS.js with controls if DPlayer didn't load
+        if (typeof DPlayer === 'undefined') {
+            console.warn('DPlayer not available, using native player with controls');
+            initNativeHLS(url);
+            return;
+        }
+
+        try {
+            dp = new DPlayer({
+                container: dplayerBox,
+                live: false,
+                autoplay: false,
+                theme: '#e50914',
+                loop: false,
+                lang: 'zh-cn',
+                screenshot: false,
+                hotkey: true,
+                preload: 'auto',
+                airplay: true,
+                volume: parseFloat(localStorage.getItem('syn_volume') || '0.7'),
+                video: {
+                    url: url,
+                    type: getVideoType(url),
+                    pic: ''
+                },
+                contextmenu: [
+                    { text: 'Syn Player', link: '/' },
+                    { text: '反馈问题', link: 'javascript:;' }
+                ]
+            });
+        } catch(e) {
+            console.error('DPlayer init failed, using native HLS:', e.message);
+            initNativeHLS(url);
+            return;
+        }
+
+        // Seek to saved position
+        dp.on('loadedmetadata', function() {
+            if (savedTime > 3) {
+                dp.seek(savedTime);
+                savedTime = 0;
+            }
+            hideError();
+        });
+
+        dp.on('canplay', function() {
+            hideError();
+            if (loadWatchdog) clearTimeout(loadWatchdog);
+        });
+
+        // Error handling — retry current source once before switching
+        dp.on('error', function() {
+            if (dplayerRetries < 1) {
+                dplayerRetries++;
+                console.warn('DPlayer error, retrying current source (' + dplayerRetries + '/1)');
+                try { dp.destroy(); } catch(e) {}
+                dp = null;
+                initDPlayer(currentUrl);
+            } else {
+                tryNextLine();
+            }
+        });
+
+        // Save progress
+        dp.on('timeupdate', function() {
+            if (progressTimer) clearTimeout(progressTimer);
+            progressTimer = setTimeout(function() {
+                var t = dp.video.currentTime;
+                if (t > 0) localStorage.setItem('playTime_' + (videoId || 'default'), t);
+            }, 2000);
+        });
+
+        // Save volume
+        dp.on('volumechange', function() {
+            localStorage.setItem('syn_volume', dp.video.volume);
+        });
+    }
+
+    // Native HLS.js fallback when DPlayer is unavailable
+    var nativeHls = null;
+    function initNativeHLS(url) {
+        destroyNativeHLS();
+        dplayerBox.innerHTML = '<video id="nativeVideo" style="width:100%;height:100%;object-fit:contain;background:#000;border-radius:8px;" crossorigin="anonymous" playsinline controls controlslist="nodownload"></video>';
+        var videoEl = document.getElementById('nativeVideo');
+
+        if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+            nativeHls = new Hls({
+                enableWorker: true,
+                manifestLoadTimeOut: 15000,
+                manifestLoadRetryLimit: 3
+            });
+            nativeHls.on(Hls.Events.MANIFEST_PARSED, function() {
+                videoEl.play().catch(function() {});
+                hideError();
+                if (loadWatchdog) clearTimeout(loadWatchdog);
+            });
+            nativeHls.on(Hls.Events.ERROR, function(event, data) {
+                if (data.fatal) {
+                    if (retryCount < maxRetries) { retryCount++; nativeHls.startLoad(); }
+                    else tryNextLine();
+                }
+            });
+            nativeHls.loadSource(url);
+            nativeHls.attachMedia(videoEl);
+        } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+            videoEl.src = url;
+            videoEl.addEventListener('loadedmetadata', function() { hideError(); });
+        } else {
+            videoEl.src = url;
+        }
+
+        // Seek to saved position
+        videoEl.addEventListener('loadedmetadata', function() {
+            if (savedTime > 3) { videoEl.currentTime = savedTime; savedTime = 0; }
+        });
+
+        // Save progress
+        videoEl.addEventListener('timeupdate', function() {
+            if (progressTimer) clearTimeout(progressTimer);
+            progressTimer = setTimeout(function() {
+                var t = videoEl.currentTime;
+                if (t > 0) localStorage.setItem('playTime_' + (videoId || 'default'), t);
+            }, 2000);
+        });
+
+        videoEl.addEventListener('volumechange', function() {
+            localStorage.setItem('syn_volume', videoEl.volume);
+        });
+    }
+
+    function destroyNativeHLS() {
+        if (nativeHls) { nativeHls.destroy(); nativeHls = null; }
+        var nv = document.getElementById('nativeVideo');
+        if (nv) nv.remove();
+    }
+
+    function stopProgressSave() {
+        if (progressTimer) { clearTimeout(progressTimer); progressTimer = null; }
+    }
+
+    // ============ Multi-Source Line Switching ============
+    function getPlayUrl(ep) {
+        var url = ep.play_url;
+        if (!url) return url;
+        // Proxy all external video URLs through server for Referer spoofing and CORS
+        if (url.indexOf('http') === 0 && url.indexOf(window.location.origin) !== 0) {
+            return '/api/vod/m3u8-proxy?url=' + encodeURIComponent(url);
+        }
+        return url;
+    }
+
+    var loadWatchdog = null;
+
+    function playCurrentSource() {
+        var source = vodSources[currentSourceIdx];
+        if (!source || !source.episodes[currentEpisodeIdx]) return;
+        var ep = source.episodes[currentEpisodeIdx];
+        initDPlayer(getPlayUrl(ep));
+        // Save source/episode indices for page refresh persistence
+        localStorage.setItem('syn_source_' + (videoId || '0'), currentSourceIdx);
+        localStorage.setItem('syn_episode_' + (videoId || '0'), currentEpisodeIdx);
+        // Watchdog: if video doesn't start within 18s, switch source
+        if (loadWatchdog) clearTimeout(loadWatchdog);
+        loadWatchdog = setTimeout(function() {
+            if (currentSourceIdx < vodSources.length - 1) {
+                console.warn('Load timeout, switching source');
+                tryNextLine();
+            }
+        }, 18000);
+    }
+
+    function tryNextLine() {
+        // Skip to next SOURCE immediately (don't waste time on other episodes of a broken source)
+        if (currentSourceIdx + 1 < vodSources.length) {
+            currentSourceIdx++;
+            currentEpisodeIdx = 0;
+            var s = vodSources[currentSourceIdx];
+            showError('自动切换至: ' + s.source_name, false);
+            playCurrentSource();
+            renderAll();
+            setTimeout(hideError, 2000);
+        } else {
+            showError('所有线路均播放失败，请稍后再试', true);
+        }
+    }
+
+    // ============ Source & Episode UI ============
+    // Source tabs are hidden — auto-switch to first working source
+    // Only episode list is shown for multi-episode sources
+    function renderAll() {
+        renderSourceTabs();
+        renderEpisodeList();
+    }
+
+    function renderSourceTabs() {
+        // Hide source tabs — auto-switch handles source selection
+        vodSourceTabs.style.display = 'none';
+    }
+
+    function renderEpisodeList() {
+        var source = vodSources[currentSourceIdx];
+        if (!source || source.episodes.length <= 1) {
+            vodEpisodeList.style.display = 'none';
+            vodLines.style.display = 'none';
+            return;
+        }
+        vodLines.style.display = 'block';
+        vodEpisodeList.style.display = 'flex';
+        vodEpisodeList.innerHTML = '<span class="vod-lines-label"><i class="fas fa-list"></i> 集数:</span>' +
+            source.episodes.map(function(ep, i) {
+                return '<button class="vod-line-btn' + (i === currentEpisodeIdx ? ' active' : '') + '" data-ep="' + i + '">' + (ep.episode_name || '第' + (i+1) + '集') + '</button>';
+            }).join('');
+
+        vodEpisodeList.querySelectorAll('.vod-line-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var idx = parseInt(this.dataset.ep);
+                if (idx === currentEpisodeIdx) return;
+                currentEpisodeIdx = idx;
+                playCurrentSource();
+                renderEpisodeList();
+            });
+        });
+    }
+
+    // Sort sources: m3u8-based URLs first (more likely to play directly)
+    function prioritizeSources(sources) {
+        return sources.slice().sort(function(a, b) {
+            var aHasM3u8 = (a.episodes[0] && a.episodes[0].play_url && a.episodes[0].play_url.indexOf('.m3u8') > -1) ? 1 : 0;
+            var bHasM3u8 = (b.episodes[0] && b.episodes[0].play_url && b.episodes[0].play_url.indexOf('.m3u8') > -1) ? 1 : 0;
+            return bHasM3u8 - aHasM3u8;
+        });
+    }
+
+    // ============ Error UI ============
+    function showError(msg, showBtns) {
+        playerError.classList.add('show');
+        playerErrorMsg.textContent = msg;
+        playerRetryBtn.style.display = showBtns ? 'inline-block' : 'none';
+        var hasNext = (vodSources[currentSourceIdx] && currentEpisodeIdx + 1 < vodSources[currentSourceIdx].episodes.length) || (currentSourceIdx + 1 < vodSources.length);
+        playerNextLineBtn.style.display = hasNext ? 'inline-block' : 'none';
+    }
+
+    function hideError() {
+        playerError.classList.remove('show');
+    }
+
+    playerRetryBtn.addEventListener('click', function() {
+        hideError();
+        if (vodSources.length > 0) { playCurrentSource(); } else { initDPlayer(currentUrl); }
+    });
+
+    playerNextLineBtn.addEventListener('click', function() {
+        hideError();
+        tryNextLine();
+    });
+
+    // ============ Load Video Data ============
+    // Priority: Admin-managed videos (SQLite) first, then VOD detail
+    function loadFromAPI(vid) {
+        // Try admin-managed videos first (they take priority over VODs)
+        fetch('/api/videos/' + vid)
+            .then(function(r) { return r.json(); })
+            .then(function(v) {
+                // If it has video_url and is an admin-managed video, render directly
+                if (v.source === 'video' && v.video_url) {
+                    renderLegacy(v);
+                    return;
+                }
+                // If it's a VOD or missing video_url, try VOD detail endpoint
+                return fetch('/api/vod/detail/' + vid)
+                    .then(function(r) { return r.json(); })
+                    .then(function(result) {
+                        if (result.success && result.data) {
+                            renderVOD(result.data);
+                        } else {
+                            // Fall back to the original response
+                            if (v.video_url) {
+                                renderLegacy(v);
+                            } else {
+                                showError('暂无播放地址', true);
+                            }
+                        }
+                    });
+            })
+            .catch(function() {
+                // If /api/videos/:id fails, try VOD detail
+                fetch('/api/vod/detail/' + vid)
+                    .then(function(r) { return r.json(); })
+                    .then(function(result) {
+                        if (result.success && result.data) {
+                            renderVOD(result.data);
+                        } else {
+                            showError('加载影片信息失败', true);
+                        }
+                    })
+                    .catch(function() { showError('加载影片信息失败', true); });
+            });
+    }
+
+    function renderVOD(v) {
+        document.title = (v.vod_name || '播放') + ' - Syn Player';
+        vodSources = [];
+
+        // Restore saved source/episode from previous session
+        var savedSource = parseInt(localStorage.getItem('syn_source_' + (videoId || '0'))) || 0;
+        var savedEpisode = parseInt(localStorage.getItem('syn_episode_' + (videoId || '0'))) || 0;
+
+        if (v.sources && v.sources.length > 0) {
+            vodSources = prioritizeSources(v.sources);
+            // Restore saved indices if still valid
+            if (savedSource < vodSources.length) currentSourceIdx = savedSource;
+            if (vodSources[currentSourceIdx] && savedEpisode < vodSources[currentSourceIdx].episodes.length) currentEpisodeIdx = savedEpisode;
+            renderAll();
+            playCurrentSource();
+        } else if (v.vod_play_url) {
+            var fromParam = v.vod_play_from ? '&from=' + encodeURIComponent(v.vod_play_from) : '';
+            fetch('/api/vod/parse-sources?url=' + encodeURIComponent(v.vod_play_url) + fromParam)
+                .then(function(r) { return r.json(); })
+                .then(function(result) {
+                    if (result.success && result.sources.length > 0) {
+                        vodSources = prioritizeSources(result.sources);
+                        if (savedSource < vodSources.length) currentSourceIdx = savedSource;
+                        if (vodSources[currentSourceIdx] && savedEpisode < vodSources[currentSourceIdx].episodes.length) currentEpisodeIdx = savedEpisode;
+                        renderAll();
+                        playCurrentSource();
+                    } else {
+                        fallbackLegacyPlay(v);
+                    }
+                })
+                .catch(function() { fallbackLegacyPlay(v); });
+        } else {
+            fallbackLegacyPlay(v);
+        }
+
+        updateInfoSection(v);
+    }
+
+    function fallbackLegacyPlay(v) {
+        var raw = String(v.video_url || v.vod_play_url || '').trim();
+        if (!raw) { showError('暂无播放地址', true); return; }
+
+        // Handle $$$ multi-source separator — use first source
+        if (raw.indexOf('$$$') > -1) raw = raw.split('$$$')[0].trim();
+        // Parse multi-episode format
+        if (raw.indexOf('$') > -1 || raw.indexOf('#') > -1) {
+            var parts = raw.split('#').filter(Boolean);
+            var episodes = [];
+            for (var i = 0; i < parts.length; i++) {
+                var dollarIdx = parts[i].indexOf('$');
+                if (dollarIdx >= 0) {
+                    var epUrl = parts[i].substring(dollarIdx + 1).trim();
+                    if (epUrl.indexOf('http') === 0) {
+                        episodes.push({
+                            episode_name: parts[i].substring(0, dollarIdx).trim(),
+                            play_url: epUrl
+                        });
+                    }
+                } else if (parts[i].indexOf('http') === 0) {
+                    episodes.push({
+                        episode_name: '第' + String(i + 1).padStart(2, '0') + '集',
+                        play_url: parts[i].trim()
+                    });
+                }
+            }
+            if (episodes.length > 0) {
+                vodSources = [{ source_name: '默认', episodes: episodes }];
+                renderAll();
+                playCurrentSource();
+                return;
+            }
+        }
+
+        vodSources = [{
+            source_name: '默认',
+            episodes: [{ episode_name: '默认', play_url: raw, type: 'm3u8' }]
+        }];
+        renderAll();
+        playCurrentSource();
+    }
+
+    function renderLegacy(v) {
+        document.title = (v.title || '播放') + ' - Syn Player';
+        if (!v.video_url) { showError('暂无播放地址', true); return; }
+
+        // Parse multi-episode format: name1$url1#name2$url2#...
+        var raw = String(v.video_url).trim();
+        // Handle $$$ multi-source separator — use first source
+        if (raw.indexOf('$$$') > -1) raw = raw.split('$$$')[0].trim();
+        if (raw.indexOf('$') > -1 || raw.indexOf('#') > -1) {
+            var parts = raw.split('#').filter(Boolean);
+            var episodes = [];
+            for (var i = 0; i < parts.length; i++) {
+                var dollarIdx = parts[i].indexOf('$');
+                if (dollarIdx >= 0) {
+                    var epUrl = parts[i].substring(dollarIdx + 1).trim();
+                    if (epUrl.indexOf('http') === 0) {
+                        episodes.push({
+                            episode_name: parts[i].substring(0, dollarIdx).trim(),
+                            play_url: epUrl
+                        });
+                    }
+                } else if (parts[i].indexOf('http') === 0) {
+                    episodes.push({
+                        episode_name: '第' + String(i + 1).padStart(2, '0') + '集',
+                        play_url: parts[i].trim()
+                    });
+                }
+            }
+            if (episodes.length > 0) {
+                vodSources = [{ source_name: '默认', episodes: episodes }];
+                renderAll();
+                playCurrentSource();
+                updateInfoSection(v);
+                return;
+            }
+        }
+
+        // Plain single URL
+        vodSources = [{
+            source_name: '默认',
+            episodes: [{ episode_name: '默认', play_url: raw, type: 'm3u8' }]
+        }];
+        renderAll();
+        playCurrentSource();
+        updateInfoSection(v);
+    }
+
+    function showNoVideoMessage() {
+        document.title = '高清播放 - Syn Player';
+        dplayerBox.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:360px;color:var(--text-muted);font-size:16px;">请从首页选择影片播放</div>';
+    }
+
+    // ============ Info Section ============
+    function updateInfoSection(v) {
+        document.querySelector('.video-info').classList.add('loaded');
+        var title = v.vod_name || v.title || '';
+        var rating = v.vod_score || v.douban_rating || v.rating || '';
+        var year = v.vod_year || v.year || '';
+        var genre = v.vod_type || v.type_name || v.genre || '';
+        var description = v.vod_content || v.description || '';
+        var director = v.vod_director || v.director || '';
+        var actor = v.vod_actor || v.actor || '';
+        var remarks = v.vod_remarks || '';
+        var pic = v.vod_pic || v.pic || v.image || '';
+
+        var posterImg = document.getElementById('infoPoster');
+        if (posterImg && pic) {
+            posterImg.src = pic;
+            posterImg.style.display = '';
+        }
+
+        var h2 = document.querySelector('.video-info h2');
+        if (h2 && title) h2.textContent = title;
+
+        var metaDiv = document.querySelector('.video-meta');
+        if (metaDiv) {
+            var html = '';
+            if (rating && rating !== '0.0') html += '<span class="rating-badge"><i class="fas fa-star"></i> ' + rating + ' / 10</span>';
+            if (year) html += '<span>' + year + '</span>';
+            if (genre) html += '<span>' + genre + '</span>';
+            if (remarks) html += '<span style="color:var(--red);">' + remarks + '</span>';
+            html += '<span>HD</span>';
+            metaDiv.innerHTML = html;
+        }
+
+        var descP = document.querySelector('.video-description p');
+        if (descP) {
+            descP.textContent = description || descP.textContent;
+        }
+
+        var directorP = document.querySelector('.video-description p:last-child');
+        if (directorP) {
+            var text = '';
+            if (director) text += '<strong>导演:</strong> ' + director;
+            if (director && actor) text += ' &nbsp;|&nbsp; ';
+            if (actor) text += '<strong>主演:</strong> ' + actor;
+            if (text) directorP.innerHTML = text;
+        }
+    }
+
+    // ============ Init ============
+    if (videoId) {
+        loadFromAPI(videoId);
+    } else {
+        showNoVideoMessage();
+    }
+
+    // Cleanup
+    window.addEventListener('beforeunload', function() {
+        if (dp) { try { dp.destroy(); } catch(e) {} dp = null; }
+        destroyNativeHLS();
+        stopProgressSave();
+    });
+
+    // Security
+    document.oncontextmenu = function() { return false; };
+    document.addEventListener('keydown', function(e) {
+        if ([123, 116, 85, 83].indexOf(e.keyCode) > -1) e.preventDefault();
+    });
+})();
+</script>
+</body>
+</html>

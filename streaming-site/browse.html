@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>浏览 - Syn Player</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="player-page">
+
+<!-- ===== Navigation ===== -->
+<nav class="navbar" id="navbar">
+    <button class="hamburger" id="hamburgerBtn"><i class="fas fa-bars"></i></button>
+    <a href="index.html" class="logo">
+        <span style="font-size:28px;font-weight:800;color:#e50914;">SYN</span><span style="font-size:28px;font-weight:700;color:#fff;">PLAYER</span>
+    </a>
+    <ul class="nav-menu" id="navMenu">
+        <li><a href="index.html"><i class="fas fa-home"></i> 首页</a></li>
+        <li><a href="browse.html?section=trendingMovies&title=电影"><i class="fas fa-film"></i> 电影 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=动作片">动作片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=喜剧片">喜剧片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=科幻片">科幻片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=爱情片">爱情片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=恐怖片">恐怖片</a></li>
+            </ul>
+        </li>
+        <li><a href="browse.html?section=trendingTV&title=电视剧"><i class="fas fa-tv"></i> 电视剧 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=国产剧">国产剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=欧美剧">欧美剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=韩国剧">韩国剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=日本剧">日本剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=香港剧">香港剧</a></li>
+            </ul>
+        </li>
+        <li><a href="javascript:;"><i class="fas fa-laptop"></i> 网络节目 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">剧情</a></li><li><a href="javascript:;">惊悚</a></li><li><a href="javascript:;">真人秀</a></li><li><a href="javascript:;">犯罪</a></li><li><a href="javascript:;">喜剧</a></li>
+            </ul>
+        </li>
+        <li><a href="javascript:;"><i class="fas fa-th-large"></i> 频道</a></li>
+        <li><a href="javascript:;"><i class="fas fa-music"></i> 音乐 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">中文</a></li><li><a href="javascript:;">英语</a></li><li><a href="javascript:;">阿拉伯语</a></li><li><a href="javascript:;">旁遮普语</a></li><li><a href="javascript:;">俄语</a></li>
+            </ul>
+        </li>
+        <li><a href="live-tv.html"><i class="fas fa-broadcast-tower"></i> 电视直播 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">央视综合 CCTV-1</a></li><li><a href="javascript:;">央视新闻 CCTV-13</a></li><li><a href="javascript:;">湖南卫视</a></li><li><a href="javascript:;">浙江卫视</a></li><li><a href="javascript:;">东方卫视</a></li><li><a href="javascript:;">江苏卫视</a></li><li><a href="javascript:;">北京卫视</a></li><li><a href="javascript:;">体育频道 CCTV-5</a></li>
+            </ul>
+        </li>
+        <li><a href="news.html"><i class="fas fa-newspaper"></i> 资讯</a></li>
+    </ul>
+    <div class="nav-right">
+        <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="searchInput" placeholder="搜索电影、电视剧...">
+            <button class="search-clear" id="searchClear" style="display:none;"><i class="fas fa-times"></i></button>
+        </div>
+        <a href="javascript:;" class="nav-icon" title="我的列表"><i class="fas fa-bookmark"></i></a>
+        <button class="nav-icon theme-toggle" id="themeToggle" title="切换主题"><i class="fas fa-moon"></i></button>
+        <a href="javascript:;" class="nav-icon" title="登录"><i class="fas fa-user-circle"></i></a>
+    </div>
+</nav>
+
+<!-- ===== Browse Content ===== -->
+<div class="browse-container">
+    <div class="browse-header">
+        <a href="index.html" class="browse-back"><i class="fas fa-arrow-left"></i> 返回首页</a>
+        <h1 id="browseTitle">浏览内容</h1>
+        <p id="browseSubtitle">探索更多精彩视频</p>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="browse-filters">
+        <div class="filter-row" id="genreFilters">
+            <span class="filter-label"><i class="fas fa-tags"></i> 类型</span>
+            <div class="filter-pills" id="genrePills"></div>
+        </div>
+        <div class="filter-row" id="yearFilters">
+            <span class="filter-label"><i class="fas fa-calendar-alt"></i> 年代</span>
+            <div class="filter-pills" id="yearPills"></div>
+        </div>
+        <div class="filter-row filter-row-actions">
+            <div class="filter-sort" id="sortOptions">
+                <span class="filter-label"><i class="fas fa-sort-amount-down"></i> 排序</span>
+                <div class="filter-pills">
+                    <button class="filter-pill active" data-sort="default">综合</button>
+                    <button class="filter-pill" data-sort="newest">最新更新</button>
+                    <button class="filter-pill" data-sort="popular">最受欢迎</button>
+                    <button class="filter-pill" data-sort="rating">评分最高</button>
+                </div>
+            </div>
+            <span class="filter-count" id="resultCount"></span>
+        </div>
+    </div>
+
+    <!-- Video Grid -->
+    <div class="browse-grid" id="browseGrid">
+        <div class="news-loading">
+            <div class="loading-spinner"></div>
+            <p>正在加载内容...</p>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="browse-pagination" id="browsePagination"></div>
+</div>
+
+<button class="back-to-top" id="backToTop" title="返回顶部"><i class="fas fa-arrow-up"></i></button>
+
+<script src="script.js"></script>
+<script>
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    var sectionId = params.get('section') || '';
+    var sectionTitle = params.get('title') || '浏览内容';
+    var initialGenre = params.get('genre') || '';
+
+    document.title = sectionTitle + ' - Syn Player';
+    document.getElementById('browseTitle').textContent = sectionTitle;
+    document.getElementById('browseSubtitle').textContent = '探索更多精彩内容';
+
+    // State
+    var allVideos = [];
+    var filteredVideos = [];
+    var currentGenre = initialGenre || '全部';
+    var currentYear = '全部';
+    var currentSort = 'default';
+    var currentPage = 1;
+    var pageSize = 30;
+
+    var grid = document.getElementById('browseGrid');
+    var genrePillsEl = document.getElementById('genrePills');
+    var yearPillsEl = document.getElementById('yearPills');
+    var paginationEl = document.getElementById('browsePagination');
+    var resultCountEl = document.getElementById('resultCount');
+
+    // Genre list per section
+    var genreMap = {
+        trendingMovies: ['全部', '动作片', '喜剧片', '科幻片', '爱情片', '剧情片', '恐怖片', '伦理片', '悬疑片', '犯罪片'],
+        trendingTV: ['全部', '国产剧', '香港剧', '台湾剧', '欧美剧', '泰国剧', '海外剧', '日本剧', '韩国剧'],
+        trendingAnime: ['全部', '日韩动漫', '国产动漫'],
+        liveTV: ['全部', '记录片', '电影解说', '短剧'],
+        moreRecommend: ['全部']
+    };
+
+    var genres = genreMap[sectionId] || ['全部'];
+
+    // Build genre pills
+    function buildGenrePills() {
+        var html = '';
+        for (var i = 0; i < genres.length; i++) {
+            var g = genres[i];
+            var active = g === currentGenre ? ' active' : '';
+            html += '<button class="filter-pill' + active + '" data-genre="' + g + '">' + g + '</button>';
+        }
+        genrePillsEl.innerHTML = html;
+
+        // Click handlers
+        var pills = genrePillsEl.querySelectorAll('.filter-pill');
+        for (var j = 0; j < pills.length; j++) {
+            pills[j].addEventListener('click', function() {
+                currentGenre = this.getAttribute('data-genre');
+                currentPage = 1;
+                applyFilters();
+                updateActivePill(genrePillsEl, this);
+                updateURL();
+            });
+        }
+    }
+
+    // Build year pills
+    function buildYearPills(years) {
+        var html = '<button class="filter-pill active" data-year="全部">全部</button>';
+        for (var i = 0; i < years.length; i++) {
+            html += '<button class="filter-pill" data-year="' + years[i] + '">' + years[i] + '</button>';
+        }
+        yearPillsEl.innerHTML = html;
+
+        var pills = yearPillsEl.querySelectorAll('.filter-pill');
+        for (var j = 0; j < pills.length; j++) {
+            pills[j].addEventListener('click', function() {
+                currentYear = this.getAttribute('data-year');
+                currentPage = 1;
+                applyFilters();
+                updateActivePill(yearPillsEl, this);
+                updateURL();
+            });
+        }
+    }
+
+    function updateActivePill(container, activeEl) {
+        var pills = container.querySelectorAll('.filter-pill');
+        for (var i = 0; i < pills.length; i++) {
+            pills[i].classList.remove('active');
+        }
+        activeEl.classList.add('active');
+    }
+
+    // Sort handlers
+    var sortPills = document.querySelectorAll('#sortOptions .filter-pill');
+    for (var s = 0; s < sortPills.length; s++) {
+        sortPills[s].addEventListener('click', function() {
+            currentSort = this.getAttribute('data-sort');
+            currentPage = 1;
+            applyFilters();
+            var sp = document.querySelectorAll('#sortOptions .filter-pill');
+            for (var k = 0; k < sp.length; k++) sp[k].classList.remove('active');
+            this.classList.add('active');
+        });
+    }
+
+    function applyFilters() {
+        // Filter by genre
+        var result = allVideos;
+        if (currentGenre !== '全部') {
+            result = result.filter(function(v) {
+                return v.genre === currentGenre || v.category === currentGenre;
+            });
+        }
+
+        // Filter by year
+        if (currentYear !== '全部') {
+            result = result.filter(function(v) {
+                return String(v.year) === String(currentYear);
+            });
+        }
+
+        // Sort
+        if (currentSort === 'newest') {
+            result.sort(function(a, b) { return (b.year || 0) - (a.year || 0); });
+        } else if (currentSort === 'popular') {
+            result.sort(function(a, b) { return (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0); });
+        } else if (currentSort === 'rating') {
+            result.sort(function(a, b) { return (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0); });
+        }
+
+        filteredVideos = result;
+        resultCountEl.textContent = '共 ' + result.length + ' 部作品';
+        renderPage();
+    }
+
+    function renderPage() {
+        var totalPages = Math.ceil(filteredVideos.length / pageSize) || 1;
+        var start = (currentPage - 1) * pageSize;
+        var pageVideos = filteredVideos.slice(start, start + pageSize);
+
+        if (pageVideos.length === 0) {
+            grid.innerHTML = '<div class="browse-empty"><i class="fas fa-inbox"></i><p>暂无符合条件的影片</p></div>';
+        } else {
+            grid.innerHTML = pageVideos.map(function(v, i) {
+                return buildCard(v, start + i);
+            }).join('');
+        }
+
+        renderPagination(totalPages);
+        window.scrollTo({ top: 380, behavior: 'instant' });
+    }
+
+    function buildCard(video, index) {
+        var poster = video.poster_url || 'https://picsum.photos/seed/browse' + index + '/400/600';
+        var title = video.title || '精彩内容';
+        var year = video.year || '';
+        var rating = video.rating || '';
+        var genre = video.genre || video.category || '';
+        var desc = video.description || '';
+        var href = video.vod_id
+            ? 'video-player.html?id=' + video.vod_id
+            : (video.id ? 'video-player.html?id=' + video.id : 'javascript:;');
+
+        var ratingHtml = '';
+        if (rating && parseFloat(rating) > 0) {
+            ratingHtml = '<span class="browse-card-rating">' + parseFloat(rating).toFixed(1) + '</span>';
+        }
+
+        return '<div class="browse-card" onclick="location.href=\'' + href + '\'">' +
+            '<div class="browse-card-poster">' +
+                '<img src="' + poster + '" alt="' + title + '" loading="lazy">' +
+                '<div class="browse-card-play"><i class="fas fa-play"></i></div>' +
+                (ratingHtml) +
+            '</div>' +
+            '<div class="browse-card-info">' +
+                '<div class="browse-card-title">' + title + '</div>' +
+                '<div class="browse-card-meta">' +
+                    (year ? '<span>' + year + '</span>' : '') +
+                    (genre && year ? '<span class="meta-dot">·</span>' : '') +
+                    (genre ? '<span>' + genre + '</span>' : '') +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    function renderPagination(totalPages) {
+        if (totalPages <= 1) {
+            paginationEl.innerHTML = '';
+            return;
+        }
+
+        var html = '';
+        html += '<button class="page-btn' + (currentPage === 1 ? ' disabled' : '') + '" data-page="' + (currentPage - 1) + '"><i class="fas fa-chevron-left"></i></button>';
+
+        var maxShow = 7;
+        var startPage = Math.max(1, currentPage - 3);
+        var endPage = Math.min(totalPages, startPage + maxShow - 1);
+        if (endPage - startPage < maxShow - 1) {
+            startPage = Math.max(1, endPage - maxShow + 1);
+        }
+
+        if (startPage > 1) {
+            html += '<button class="page-btn" data-page="1">1</button>';
+            if (startPage > 2) html += '<span class="page-ellipsis">...</span>';
+        }
+
+        for (var i = startPage; i <= endPage; i++) {
+            html += '<button class="page-btn' + (i === currentPage ? ' active' : '') + '" data-page="' + i + '">' + i + '</button>';
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) html += '<span class="page-ellipsis">...</span>';
+            html += '<button class="page-btn" data-page="' + totalPages + '">' + totalPages + '</button>';
+        }
+
+        html += '<button class="page-btn' + (currentPage === totalPages ? ' disabled' : '') + '" data-page="' + (currentPage + 1) + '"><i class="fas fa-chevron-right"></i></button>';
+
+        paginationEl.innerHTML = html;
+
+        var btns = paginationEl.querySelectorAll('.page-btn');
+        for (var b = 0; b < btns.length; b++) {
+            btns[b].addEventListener('click', function() {
+                var p = parseInt(this.getAttribute('data-page'));
+                if (p >= 1 && p <= totalPages) {
+                    currentPage = p;
+                    renderPage();
+                    window.scrollTo({ top: 380, behavior: 'instant' });
+                }
+            });
+        }
+    }
+
+    function updateURL() {
+        var newParams = new URLSearchParams();
+        newParams.set('section', sectionId);
+        newParams.set('title', sectionTitle);
+        if (currentGenre !== '全部') newParams.set('genre', currentGenre);
+        if (currentYear !== '全部') newParams.set('year', currentYear);
+        var newUrl = window.location.pathname + '?' + newParams.toString();
+        window.history.replaceState({}, '', newUrl);
+    }
+
+    // Fetch videos
+    function loadVideos() {
+        if (!sectionId) {
+            // No section — show placeholder content
+            allVideos = [];
+            for (var i = 0; i < 24; i++) {
+                allVideos.push({
+                    id: 'placeholder-' + i,
+                    title: ['速度与激情 10', '复仇者联盟：终局', '流浪地球 3', '阿凡达：水之道', '蜘蛛侠：英雄归来', '黑豹 2', '惊奇队长', '银河护卫队 3', '壮志凌云：独行侠', '侏罗纪世界 3', '奇异博士 2', '雷神 4', '碟中谍 7', '海王 2', '蚁人与黄蜂女', '闪电侠', '变形金刚：超能勇士', '沙丘 2', '奥本海默', '芭比', '超级马力欧兄弟', '疾速追杀 4', 'GT 赛车', '巨齿鲨 2'][i],
+                    year: 2023 + (i % 3),
+                    poster_url: 'https://picsum.photos/seed/browse' + i + '/400/600',
+                    genre: genres[Math.min(i % genres.length + 1, genres.length - 1)] || ''
+                });
+            }
+            filteredVideos = allVideos.slice();
+            buildGenrePills();
+            buildYearPills([]);
+            renderPage();
+            resultCountEl.textContent = '共 ' + allVideos.length + ' 部作品';
+            return;
+        }
+
+        fetch('/api/videos?category=' + encodeURIComponent(sectionId) + '&limit=200')
+            .then(function(r) { return r.json(); })
+            .then(function(videos) {
+                allVideos = videos;
+
+                // Extract years for filter pills
+                var yearsSet = {};
+                var genresSet = {};
+                for (var i = 0; i < videos.length; i++) {
+                    if (videos[i].year) yearsSet[videos[i].year] = true;
+                    var g = videos[i].genre || videos[i].category || '';
+                    if (g && genres.indexOf(g) === -1) genresSet[g] = true;
+                }
+                var years = Object.keys(yearsSet).sort(function(a, b) { return b - a; });
+
+                // Merge dynamic genres if needed
+                var dynamicGenres = Object.keys(genresSet);
+                if (dynamicGenres.length > 0 && genres.length <= 1) {
+                    genres = ['全部'].concat(dynamicGenres.sort());
+                }
+
+                buildGenrePills();
+                buildYearPills(years);
+
+                // Apply initial genre filter from URL
+                if (initialGenre && initialGenre !== '全部') {
+                    currentGenre = initialGenre;
+                    // Update genre pill UI
+                    var gp = genrePillsEl.querySelectorAll('.filter-pill');
+                    for (var k = 0; k < gp.length; k++) {
+                        gp[k].classList.remove('active');
+                        if (gp[k].getAttribute('data-genre') === initialGenre) {
+                            gp[k].classList.add('active');
+                        }
+                    }
+                }
+
+                applyFilters();
+            })
+            .catch(function() {
+                grid.innerHTML = '<div class="browse-empty"><i class="fas fa-exclamation-triangle"></i><p>加载失败，请刷新重试</p></div>';
+            });
+    }
+
+    // Back to top
+    var backToTop = document.getElementById('backToTop');
+    var btVisible = false;
+    window.addEventListener('scroll', function() {
+        var scrolled = window.scrollY > 600;
+        if (scrolled !== btVisible) {
+            btVisible = scrolled;
+            backToTop.classList.toggle('visible', scrolled);
+        }
+    }, { passive: true });
+    backToTop.addEventListener('click', function() {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    });
+
+    // Init
+    buildGenrePills();
+    buildYearPills([]);
+    loadVideos();
+})();
+</script>
+</body>
+</html>

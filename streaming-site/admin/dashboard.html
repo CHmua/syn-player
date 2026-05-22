@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理面板 - Syn Player</title>
+    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="admin-dashboard">
+<header class="admin-header">
+    <h1><span style="color:#e50914;">SYN</span>PLAYER <span class="tagline">管理后台</span></h1>
+    <div class="header-actions">
+        <a href="/" class="btn-sm" target="_blank">查看网站</a>
+        <button class="btn-sm btn-logout" id="logoutBtn">退出</button>
+    </div>
+</header>
+
+<div class="admin-body">
+    <div class="toolbar">
+        <input type="text" id="searchInput" placeholder="搜索视频...">
+        <select id="categoryFilter">
+            <option value="">所有分类</option>
+        </select>
+        <button class="btn-add" id="addBtn">+ 新增视频</button>
+        <button class="btn-batch" id="batchFillBtn" title="自动为所有缺少信息的视频补充封面、简介、评分等"><i class="fas fa-magic"></i> 批量自动填充</button>
+    </div>
+
+    <!-- Section Tabs — matches homepage layout -->
+    <div class="section-tabs" id="sectionTabs">
+        <button class="section-tab active" data-category="">全部</button>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>封面</th>
+                    <th>轮播</th>
+                    <th>标题</th>
+                    <th>分类</th>
+                    <th>来源</th>
+                    <th>角标</th>
+                    <th>评分</th>
+                    <th>年份</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="videoTable"></tbody>
+        </table>
+    </div>
+
+    <p class="count-info" id="countInfo"></p>
+</div>
+
+<!-- Edit / Add Modal -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h2 id="modalTitle">新增视频</h2>
+        <form id="videoForm">
+            <input type="hidden" id="vid">
+            <div class="form-row">
+                <div class="form-group" style="flex:2">
+                    <label>标题 *</label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" id="vtitle" required style="flex:1">
+                        <button type="button" class="btn-auto-fill" id="autoFillBtn" title="从豆瓣自动获取影片信息">
+                            <i class="fas fa-magic"></i> 自动填充
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>分类 *</label>
+                    <select id="vcategory" required>
+                        <option value="trendingMovies">🎬 热门电影</option>
+                        <option value="trendingTV">📺 热门电视剧</option>
+                        <option value="trendingAnime">🎨 热门动漫</option>
+                        <option value="liveTV">📡 电视直播</option>
+                        <option value="moreRecommend">⭐ 更多推荐</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>封面图 URL</label>
+                    <input type="text" id="vposter" style="width:100%">
+                    <div style="display:flex;gap:8px;margin-top:6px;">
+                        <button type="button" class="btn-tmdb" id="tmdbPosterBtn" title="从TMDB搜索电影海报图">
+                            <i class="fas fa-image"></i> TMDB搜图
+                        </button>
+                        <button type="button" class="btn-douban" id="doubanPosterBtn" title="从豆瓣搜索电影海报图">
+                            <i class="fas fa-image"></i> 豆瓣搜图
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>背景图 URL (横版16:9，用于首页大屏和轮播)</label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" id="vbackdrop" placeholder="TMDB自动填充，留空则使用封面图" style="flex:1">
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" style="flex:1">
+                    <label>视频源 URL</label>
+                    <div id="episodeList">
+                        <div class="episode-row">
+                            <input type="text" class="ep-name" placeholder="剧集名 (如: 第01集)" style="width:120px">
+                            <input type="text" class="ep-url" placeholder="m3u8 / mp4 链接" style="flex:1">
+                            <button type="button" class="btn-ep-remove" title="删除" style="display:none"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-add-ep" id="addEpisodeBtn"><i class="fas fa-plus"></i> 添加剧集</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <textarea id="vdesc" rows="2"></textarea>
+            </div>
+            <div class="form-row cols-4">
+                <div class="form-group">
+                    <label>年份</label>
+                    <input type="text" id="vyear">
+                </div>
+                <div class="form-group">
+                    <label>时长</label>
+                    <input type="text" id="vduration" placeholder="如: 2h 23m">
+                </div>
+                <div class="form-group">
+                    <label>类型标签</label>
+                    <input type="text" id="vgenre" placeholder="如: 动作 / 冒险">
+                </div>
+                <div class="form-group">
+                    <label>评分</label>
+                    <input type="number" id="vrating" step="any" min="0" max="10" value="0">
+                </div>
+            </div>
+            <div class="form-row cols-4">
+                <div class="form-group">
+                    <label>角标</label>
+                    <input type="text" id="vbadge" placeholder="热门推荐/新片上线等">
+                </div>
+                <div class="form-group">
+                    <label>排序</label>
+                    <input type="number" id="vsort" value="0">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="vislive"> 直播频道
+                    </label>
+                </div>
+                <div class="form-group" id="featuredGroup">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="vfeatured"> 首页轮播推荐
+                    </label>
+                    <span style="color:#888;font-size:12px;display:block;margin-top:2px;" id="featuredNote"></span>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn-cancel" id="cancelBtn">取消</button>
+                <button type="submit" class="btn-save">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const TOKEN = localStorage.getItem('syn_token');
+if (!TOKEN) { window.location.href = '/admin'; }
+
+let editingId = null;
+
+// Category label lookup
+const CAT_LABELS = {
+  trendingMovies: '热门电影', trendingTV: '热门电视剧', trendingAnime: '热门动漫',
+  liveTV: '电视直播', moreRecommend: '更多推荐'
+};
+function catLabel(key) { return CAT_LABELS[key] || key; }
+
+// Episode management
+let episodeCounter = 1;
+
+function createEpisodeRow(name, url) {
+  const row = document.createElement('div');
+  row.className = 'episode-row';
+  const idx = episodeCounter++;
+  row.innerHTML = `
+    <input type="text" class="ep-name" placeholder="剧集名 (如: 第${String(idx).padStart(2, '0')}集)" value="${name || ''}" style="width:120px">
+    <input type="text" class="ep-url" placeholder="m3u8 / mp4 链接" value="${url || ''}" style="flex:1">
+    <button type="button" class="btn-ep-remove" title="删除"><i class="fas fa-times"></i></button>
+  `;
+  row.querySelector('.btn-ep-remove').addEventListener('click', () => {
+    const rows = document.querySelectorAll('#episodeList .episode-row');
+    if (rows.length <= 1) {
+      // Clear the only row instead of removing
+      row.querySelector('.ep-name').value = '';
+      row.querySelector('.ep-url').value = '';
+      row.querySelector('.btn-ep-remove').style.display = 'none';
+      return;
+    }
+    row.remove();
+    updateRemoveButtons();
+  });
+  updateRemoveButtons();
+  return row;
+}
+
+function updateRemoveButtons() {
+  const rows = document.querySelectorAll('#episodeList .episode-row');
+  rows.forEach(r => {
+    r.querySelector('.btn-ep-remove').style.display = rows.length > 1 ? '' : 'none';
+  });
+}
+
+// Parse video_url into episodes array
+function parseEpisodes(videoUrl) {
+  if (!videoUrl) return [{ name: '', url: '' }];
+  var str = String(videoUrl).trim();
+
+  // Handle $$$ multi-source separator — use first source only
+  if (str.indexOf('$$$') > -1) {
+    str = str.split('$$$')[0].trim();
+  }
+
+  // Check if it's multi-episode format: name1$url1#name2$url2#...
+  if (str.indexOf('$') > -1 || str.indexOf('#') > -1) {
+    var parts = str.split('#').filter(Boolean);
+    var eps = parts.map(function(part) {
+      var dollarIdx = part.indexOf('$');
+      if (dollarIdx >= 0) {
+        return { name: part.substring(0, dollarIdx).trim(), url: part.substring(dollarIdx + 1).trim() };
+      }
+      return { name: '', url: part.trim() };
+    }).filter(function(ep) { return ep.url && (ep.url.indexOf('http') === 0); });
+    if (eps.length > 0) return eps;
+  }
+  // Plain URL
+  if (str.indexOf('http') === 0) return [{ name: '', url: str }];
+  return [{ name: '', url: '' }];
+}
+
+// Serialize episodes to video_url format
+function serializeEpisodes() {
+  const rows = document.querySelectorAll('#episodeList .episode-row');
+  const eps = [];
+  rows.forEach(r => {
+    const name = r.querySelector('.ep-name').value.trim();
+    const url = r.querySelector('.ep-url').value.trim();
+    if (url) eps.push({ name, url });
+  });
+  if (eps.length === 0) return '';
+  // Single unnamed episode → plain URL
+  if (eps.length === 1 && !eps[0].name) return eps[0].url;
+  // Multi-episode or named → name$url#name$url
+  return eps.map(ep => {
+    const epName = ep.name || '全集';
+    return epName + '$' + ep.url;
+  }).join('#');
+}
+
+function rebuildEpisodeRows(episodes) {
+  const list = document.getElementById('episodeList');
+  list.innerHTML = '';
+  episodeCounter = 0;
+  if (!episodes || episodes.length === 0) episodes = [{ name: '', url: '' }];
+  episodes.forEach(ep => {
+    list.appendChild(createEpisodeRow(ep.name || '', ep.url || ''));
+  });
+  updateRemoveButtons();
+}
+
+document.getElementById('addEpisodeBtn').addEventListener('click', () => {
+  document.getElementById('episodeList').appendChild(createEpisodeRow('', ''));
+});
+
+// Check auth on 401
+async function api(url, opts = {}) {
+  const { headers: customHeaders, ...rest } = opts;
+  const merged = { ...(customHeaders || {}) };
+  merged['Content-Type'] = 'application/json';
+  merged['Authorization'] = 'Bearer ' + TOKEN;
+  const res = await fetch(url, { ...rest, headers: merged });
+  if (res.status === 401) { localStorage.removeItem('syn_token'); window.location.href = '/admin'; return; }
+  return res;
+}
+
+async function loadVideos() {
+  const search = document.getElementById('searchInput').value;
+  const category = document.getElementById('categoryFilter').value;
+  const activeTab = document.querySelector('#sectionTabs .section-tab.active');
+  const params = new URLSearchParams();
+  if (activeTab && activeTab.dataset.featured === '1') {
+    params.set('featured', '1');
+  } else if (search) params.set('search', search);
+  else if (category) params.set('category', category);
+
+  const res = await fetch('/api/videos?' + params);
+  const videos = await res.json();
+  const tbody = document.getElementById('videoTable');
+  tbody.innerHTML = videos.map(v => `
+    <tr>
+      <td>${v.id}</td>
+      <td><img src="${v.poster_url || ''}" class="thumb-preview" onerror="this.style.display='none'"></td>
+      <td><label class="featured-toggle-wrap" title="设为首页轮播"><input type="checkbox" class="featured-cb" data-id="${v.id}" ${v.featured ? 'checked' : ''}><span class="featured-slider"></span></label></td>
+      <td>${v.title}</td>
+      <td>${catLabel(v.category)}</td>
+      <td><span class="source-tag ${v.source === 'vod' ? 'source-vod' : 'source-local'}">${v.source === 'vod' ? '采集' : '本地'}</span></td>
+      <td>${v.badge || '-'}</td>
+      <td>${v.rating || '-'}</td>
+      <td>${v.year || '-'}</td>
+      <td>
+        <button class="btn-sm btn-edit" data-id="${v.id}" data-source="${v.source || ''}">编辑</button>
+        <button class="btn-sm btn-del" data-id="${v.id}" data-source="${v.source || ''}">删除</button>
+      </td>
+    </tr>
+  `).join('');
+  document.getElementById('countInfo').textContent = `共 ${videos.length} 条记录`;
+
+  // Bind edit buttons
+  tbody.querySelectorAll('.btn-edit').forEach(btn => btn.addEventListener('click', () => editVideo(videos.find(v => v.id == btn.dataset.id))));
+  tbody.querySelectorAll('.btn-del').forEach(btn => btn.addEventListener('click', () => deleteVideo(btn.dataset.id, btn.dataset.source)));
+
+  // Bind featured toggle checkboxes
+  tbody.querySelectorAll('.featured-cb').forEach(cb => cb.addEventListener('change', async function() {
+    const id = this.dataset.id;
+    const featured = this.checked ? 1 : 0;
+    try {
+      const res = await api('/api/videos/' + id + '/featured', { method: 'PUT', body: JSON.stringify({ featured }) });
+      if (res && !res.ok) { this.checked = !this.checked; alert('更新失败'); return; }
+      // If viewing the "轮播" tab, refresh to immediately show/hide the row
+      const activeTab = document.querySelector('#sectionTabs .section-tab.active');
+      if (activeTab && activeTab.dataset.featured === '1') {
+        loadVideos();
+      }
+    } catch (err) { this.checked = !this.checked; }
+  }));
+
+  updateFeaturedCount();
+}
+
+async function updateFeaturedCount() {
+  try {
+    const res = await fetch('/api/videos?featured=1');
+    const videos = await res.json();
+    const badge = document.getElementById('featuredCountBadge');
+    if (badge) badge.textContent = videos.length;
+  } catch (e) {}
+}
+
+async function loadCategories() {
+  const res = await fetch('/api/categories');
+  const data = await res.json();
+  const homepage = data.homepage || [];
+  const all = data.all || [];
+
+  // Populate filter dropdown
+  const sel = document.getElementById('categoryFilter');
+  homepage.forEach(s => { const o = document.createElement('option'); o.value = s.value; o.textContent = s.label; sel.appendChild(o); });
+  // Add any extra categories not in homepage
+  all.forEach(c => {
+    if (!homepage.some(s => s.value === c)) {
+      const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o);
+    }
+  });
+
+  // Build section tabs
+  const tabsWrap = document.getElementById('sectionTabs');
+  homepage.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'section-tab';
+    btn.dataset.category = s.value;
+    btn.textContent = s.label;
+    btn.addEventListener('click', function() {
+      tabsWrap.querySelectorAll('.section-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      document.getElementById('categoryFilter').value = this.dataset.category;
+      document.getElementById('searchInput').value = '';
+      loadVideos();
+    });
+    tabsWrap.appendChild(btn);
+  });
+
+  // "轮播" tab — filter featured videos only
+  const featuredTab = document.createElement('button');
+  featuredTab.className = 'section-tab';
+  featuredTab.dataset.featured = '1';
+  featuredTab.innerHTML = '🔥 轮播 <span class="featured-count-badge" id="featuredCountBadge"></span>';
+  featuredTab.addEventListener('click', function() {
+    tabsWrap.querySelectorAll('.section-tab').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById('categoryFilter').value = '';
+    document.getElementById('searchInput').value = '';
+    loadVideos();
+  });
+  tabsWrap.appendChild(featuredTab);
+
+  // "全部" tab click handler
+  tabsWrap.querySelector('.section-tab[data-category=""]').addEventListener('click', function() {
+    tabsWrap.querySelectorAll('.section-tab').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById('categoryFilter').value = '';
+    document.getElementById('searchInput').value = '';
+    loadVideos();
+  });
+}
+
+function editVideo(v) {
+  editingId = v.id;
+  document.getElementById('modalTitle').textContent = '编辑视频';
+  document.getElementById('vid').value = v.id;
+  document.getElementById('vtitle').value = v.title;
+  // Ensure category option exists — VODs use Chinese type names not in the select
+  const catSel = document.getElementById('vcategory');
+  if (v.category && !Array.from(catSel.options).some(o => o.value === v.category)) {
+    const opt = document.createElement('option');
+    opt.value = v.category;
+    opt.textContent = v.category;
+    catSel.insertBefore(opt, catSel.firstChild);
+  }
+  catSel.value = v.category;
+  document.getElementById('vdesc').value = v.description || '';
+  document.getElementById('vposter').value = v.poster_url || '';
+  document.getElementById('vbackdrop').value = v.backdrop_url || '';
+  rebuildEpisodeRows(parseEpisodes(v.video_url || ''));
+  document.getElementById('vyear').value = v.year || '';
+  document.getElementById('vduration').value = v.duration || '';
+  document.getElementById('vgenre').value = v.genre || '';
+  document.getElementById('vrating').value = v.rating || 0;
+  document.getElementById('vbadge').value = v.badge || '';
+  document.getElementById('vsort').value = v.sort_order || 0;
+  document.getElementById('vislive').checked = v.is_live === 1;
+  document.getElementById('vfeatured').checked = v.featured === 1;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function resetForm() {
+  editingId = null;
+  autoFillDone = false;
+  document.getElementById('modalTitle').textContent = '新增视频';
+  document.getElementById('videoForm').reset();
+  document.getElementById('featuredGroup').style.display = '';
+  document.getElementById('featuredNote').textContent = '';
+  rebuildEpisodeRows([{ name: '', url: '' }]);
+}
+
+document.getElementById('addBtn').addEventListener('click', () => {
+  resetForm();
+  document.getElementById('modalOverlay').classList.add('active');
+});
+
+document.getElementById('cancelBtn').addEventListener('click', () => {
+  document.getElementById('modalOverlay').classList.remove('active');
+});
+
+let autoFillTimer = null;
+let autoFillDone = false;        // track if auto-fill has completed for this modal session
+
+// Shared auto-fill function — called by button click or automatic trigger
+async function doAutoFill(triggeredBy) {
+  const title = document.getElementById('vtitle').value.trim();
+  if (!title || title.length < 2) return;
+
+  const btn = document.getElementById('autoFillBtn');
+  const origText = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (triggeredBy === 'auto' ? '自动搜索中...' : '搜索中...');
+  btn.disabled = true;
+
+  try {
+    const res = await api('/api/auto-fill?title=' + encodeURIComponent(title));
+    if (!res) { btn.innerHTML = origText; btn.disabled = false; return; }
+    const json = await res.json();
+    if (!json.success) {
+      if (triggeredBy === 'manual') alert('未找到匹配的影片信息: ' + (json.msg || '请尝试更精确的标题'));
+      btn.innerHTML = origText; btn.disabled = false; return;
+    }
+
+    const d = json.data;
+
+    // Only fill empty/default fields, don't overwrite existing data
+    function isEmpty(el) { return !el.value.trim() || el.value === '0' || el.value === '0.0'; }
+    function hasEpisodes() {
+      var rows = document.querySelectorAll('#episodeList .episode-row');
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i].querySelector('.ep-url').value.trim()) return true;
+      }
+      return false;
+    }
+
+    const filled = [];
+    if (d.title) {
+      // Only overwrite title if it looks like a raw search query (short, no special chars)
+      var curTitle = document.getElementById('vtitle').value.trim();
+      if (!curTitle || curTitle.length < 4 || curTitle === title) {
+        document.getElementById('vtitle').value = d.title;
+        if (d.title !== curTitle) filled.push('标题');
+      }
+    }
+    if (d.poster && isEmpty(document.getElementById('vposter'))) {
+      document.getElementById('vposter').value = d.poster;
+      filled.push('封面');
+    }
+    if (d.backdrop_url && isEmpty(document.getElementById('vbackdrop'))) {
+      document.getElementById('vbackdrop').value = d.backdrop_url;
+      filled.push('背景图');
+    }
+    if (d.year && isEmpty(document.getElementById('vyear'))) {
+      document.getElementById('vyear').value = d.year;
+      filled.push('年份');
+    }
+    if (d.rating && isEmpty(document.getElementById('vrating'))) {
+      document.getElementById('vrating').value = Math.round((parseFloat(d.rating) || 0) * 10) / 10;
+      filled.push('评分');
+    }
+    if (d.genre && isEmpty(document.getElementById('vgenre'))) {
+      document.getElementById('vgenre').value = d.genre;
+      filled.push('类型');
+    }
+    if (d.description && isEmpty(document.getElementById('vdesc'))) {
+      document.getElementById('vdesc').value = d.description;
+      filled.push('简介');
+    }
+    if (d.duration && isEmpty(document.getElementById('vduration'))) {
+      document.getElementById('vduration').value = d.duration;
+      filled.push('时长');
+    }
+    if (d.video_url && !hasEpisodes()) {
+      rebuildEpisodeRows(parseEpisodes(d.video_url));
+      filled.push('视频源');
+    }
+
+    // Fallback description from director + actors if no synopsis
+    if (isEmpty(document.getElementById('vdesc')) && (d.director || d.actors)) {
+      let desc = '';
+      if (d.director) desc += '导演: ' + d.director;
+      if (d.actors) desc += (desc ? '\n' : '') + '主演: ' + d.actors;
+      document.getElementById('vdesc').value = desc;
+      if (desc) filled.push('简介');
+    }
+
+    autoFillDone = true;
+    btn.innerHTML = '<i class="fas fa-check"></i> 已填充: ' + (filled.length ? filled.join(', ') : '标题');
+    setTimeout(() => { btn.innerHTML = origText; btn.disabled = false; }, 3000);
+  } catch (err) {
+    btn.innerHTML = origText;
+    btn.disabled = false;
+    if (triggeredBy === 'manual') alert('搜索失败: ' + err.message);
+  }
+}
+
+// Manual button trigger
+document.getElementById('autoFillBtn').addEventListener('click', () => doAutoFill('manual'));
+
+// TMDB poster search button
+document.getElementById('tmdbPosterBtn').addEventListener('click', async () => {
+  const title = document.getElementById('vtitle').value.trim();
+  if (!title) { alert('请先输入影片标题'); return; }
+  const year = document.getElementById('vyear').value.trim();
+
+  const btn = document.getElementById('tmdbPosterBtn');
+  const origHTML = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 搜索中...';
+  btn.disabled = true;
+
+  try {
+    const params = 'title=' + encodeURIComponent(title) + (year ? '&year=' + encodeURIComponent(year) : '');
+    const res = await api('/api/tmdb-poster?' + params);
+    if (!res) { btn.innerHTML = origHTML; btn.disabled = false; return; }
+    const json = await res.json();
+    if (json.success && json.data && json.data.poster) {
+      document.getElementById('vposter').value = json.data.poster;
+      if (json.data.backdrop && !document.getElementById('vbackdrop').value) {
+        document.getElementById('vbackdrop').value = json.data.backdrop;
+      }
+      if (json.data.rating && !document.getElementById('vrating').value) {
+        document.getElementById('vrating').value = Math.round((parseFloat(json.data.rating) || 0) * 10) / 10;
+      }
+      if (json.data.year && !document.getElementById('vyear').value) {
+        document.getElementById('vyear').value = json.data.year;
+      }
+      if (json.data.genre && !document.getElementById('vgenre').value) {
+        document.getElementById('vgenre').value = json.data.genre;
+      }
+      if (json.data.description && !document.getElementById('vdesc').value) {
+        document.getElementById('vdesc').value = json.data.description;
+      }
+      if (json.data.duration && !document.getElementById('vduration').value) {
+        document.getElementById('vduration').value = json.data.duration;
+      }
+      btn.innerHTML = '<i class="fas fa-check"></i> 已填入';
+      setTimeout(() => { btn.innerHTML = origHTML; btn.disabled = false; }, 2500);
+    } else {
+      btn.innerHTML = origHTML;
+      btn.disabled = false;
+      alert('TMDB 未找到匹配的海报: ' + (json.msg || '请尝试调整标题'));
+    }
+  } catch (err) {
+    btn.innerHTML = origHTML;
+    btn.disabled = false;
+    alert('TMDB 搜索失败: ' + err.message);
+  }
+});
+
+// Douban poster search button
+document.getElementById('doubanPosterBtn').addEventListener('click', async () => {
+  const title = document.getElementById('vtitle').value.trim();
+  if (!title) { alert('请先输入影片标题'); return; }
+  const year = document.getElementById('vyear').value.trim();
+
+  const btn = document.getElementById('doubanPosterBtn');
+  const origHTML = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 搜索中...';
+  btn.disabled = true;
+
+  try {
+    const params = 'title=' + encodeURIComponent(title) + (year ? '&year=' + encodeURIComponent(year) : '');
+    const res = await api('/api/douban-poster?' + params);
+    if (!res) { btn.innerHTML = origHTML; btn.disabled = false; return; }
+    const json = await res.json();
+    if (json.success && json.data && json.data.poster) {
+      document.getElementById('vposter').value = json.data.poster;
+      if (json.data.title && !document.getElementById('vtitle').value) {
+        document.getElementById('vtitle').value = json.data.title;
+      }
+      if (json.data.rating && !document.getElementById('vrating').value) {
+        document.getElementById('vrating').value = Math.round((parseFloat(json.data.rating) || 0) * 10) / 10;
+      }
+      if (json.data.year && !document.getElementById('vyear').value) {
+        document.getElementById('vyear').value = json.data.year;
+      }
+      if (json.data.genre && !document.getElementById('vgenre').value) {
+        document.getElementById('vgenre').value = json.data.genre;
+      }
+      if (json.data.description && !document.getElementById('vdesc').value) {
+        document.getElementById('vdesc').value = json.data.description;
+      }
+      btn.innerHTML = '<i class="fas fa-check"></i> 已填入';
+      setTimeout(() => { btn.innerHTML = origHTML; btn.disabled = false; }, 2500);
+    } else {
+      btn.innerHTML = origHTML;
+      btn.disabled = false;
+      alert('豆瓣未找到匹配的海报: ' + (json.msg || '请尝试调整标题'));
+    }
+  } catch (err) {
+    btn.innerHTML = origHTML;
+    btn.disabled = false;
+    alert('豆瓣搜索失败: ' + err.message);
+  }
+});
+
+// Auto-trigger on title input (debounced 1.2s, only for new videos)
+document.getElementById('vtitle').addEventListener('input', () => {
+  if (editingId) return;  // don't auto-fill when editing existing videos
+
+  clearTimeout(autoFillTimer);
+  const title = document.getElementById('vtitle').value.trim();
+  if (title.length < 2) { autoFillDone = false; return; }
+
+  // Only auto-trigger once per modal session
+  if (autoFillDone) return;
+
+  autoFillTimer = setTimeout(() => doAutoFill('auto'), 1200);
+});
+
+document.getElementById('videoForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const data = {
+    title: document.getElementById('vtitle').value,
+    category: document.getElementById('vcategory').value,
+    description: document.getElementById('vdesc').value,
+    poster_url: document.getElementById('vposter').value,
+    backdrop_url: document.getElementById('vbackdrop').value,
+    video_url: serializeEpisodes(),
+    year: document.getElementById('vyear').value,
+    duration: document.getElementById('vduration').value,
+    genre: document.getElementById('vgenre').value,
+    rating: parseFloat(document.getElementById('vrating').value) || 0,
+    badge: document.getElementById('vbadge').value,
+    is_live: document.getElementById('vislive').checked ? 1 : 0,
+    featured: document.getElementById('vfeatured').checked ? 1 : 0,
+    sort_order: parseInt(document.getElementById('vsort').value) || 0
+  };
+
+  const url = editingId ? `/api/videos/${editingId}` : '/api/videos';
+  const method = editingId ? 'PUT' : 'POST';
+  try {
+    const res = await api(url, { method, body: JSON.stringify(data) });
+    if (!res) return;
+    if (res.ok) {
+      document.getElementById('modalOverlay').classList.remove('active');
+      loadVideos();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert('保存失败: ' + (err.error || res.statusText || '未知错误'));
+    }
+  } catch (err) {
+    alert('网络错误: ' + err.message);
+  }
+});
+
+async function deleteVideo(id, source) {
+  if (!confirm('确定要删除这个视频吗？')) return;
+  try {
+    const res = await api(`/api/videos/${id}`, { method: 'DELETE' });
+    if (!res) return;
+    if (res.ok) {
+      loadVideos();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert('删除失败: ' + (err.error || res.statusText || '未知错误'));
+    }
+  } catch (err) {
+    alert('网络错误: ' + err.message);
+  }
+}
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  localStorage.removeItem('syn_token');
+  window.location.href = '/admin';
+});
+
+document.getElementById('searchInput').addEventListener('input', function() {
+  // When searching, clear category filter and section tabs
+  if (this.value) {
+    document.getElementById('categoryFilter').value = '';
+    document.querySelectorAll('#sectionTabs .section-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('#sectionTabs .section-tab[data-category=""]').classList.add('active');
+  }
+  loadVideos();
+});
+document.getElementById('categoryFilter').addEventListener('change', function() {
+  // Sync section tabs with dropdown
+  var val = this.value;
+  document.querySelectorAll('#sectionTabs .section-tab').forEach(function(t) {
+    t.classList.remove('active');
+    if (t.dataset.category === val) t.classList.add('active');
+  });
+  if (!val) document.querySelector('#sectionTabs .section-tab[data-category=""]').classList.add('active');
+  loadVideos();
+});
+
+// Batch auto-fill
+document.getElementById('batchFillBtn').addEventListener('click', async () => {
+  if (!confirm('批量自动填充将扫描所有视频，为缺少封面、简介、评分、视频源的记录自动补充信息。\n\n此过程可能需要几分钟，确定继续吗？')) return;
+
+  const btn = document.getElementById('batchFillBtn');
+  const origText = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+  btn.disabled = true;
+
+  try {
+    const res = await api('/api/batch-auto-fill', { method: 'POST' });
+    if (!res) { btn.innerHTML = origText; btn.disabled = false; return; }
+    const json = await res.json();
+    if (json.success) {
+      alert(`批量填充完成！\n\n共扫描 ${json.total} 条记录\n成功更新 ${json.updated} 条\n失败 ${json.failed} 条`);
+      loadVideos();
+    } else {
+      alert('批量填充失败: ' + (json.msg || '未知错误'));
+    }
+  } catch (err) {
+    alert('网络错误: ' + err.message);
+  }
+  btn.innerHTML = origText;
+  btn.disabled = false;
+});
+
+loadCategories();
+loadVideos();
+</script>
+</body>
+</html>

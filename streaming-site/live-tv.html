@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电视直播 - Syn Player</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="player-page">
+
+<!-- ===== Navigation ===== -->
+<nav class="navbar" id="navbar">
+    <button class="hamburger" id="hamburgerBtn">
+        <i class="fas fa-bars"></i>
+    </button>
+    <a href="index.html" class="logo">
+        <span style="font-size:28px;font-weight:800;color:#e50914;">SYN</span><span style="font-size:28px;font-weight:700;color:#fff;">PLAYER</span>
+    </a>
+    <ul class="nav-menu" id="navMenu">
+        <li><a href="index.html"><i class="fas fa-home"></i> 首页</a></li>
+        <li>
+            <a href="javascript:;"><i class="fas fa-film"></i> 电影 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">英语</a></li>
+                <li><a href="javascript:;">中文</a></li>
+                <li><a href="javascript:;">印地语</a></li>
+                <li><a href="javascript:;">阿拉伯语</a></li>
+                <li><a href="javascript:;">俄语</a></li>
+            </ul>
+        </li>
+        <li>
+            <a href="javascript:;"><i class="fas fa-tv"></i> 电视剧 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">真人秀</a></li>
+                <li><a href="javascript:;">喜剧</a></li>
+                <li><a href="javascript:;">剧情</a></li>
+                <li><a href="javascript:;">犯罪</a></li>
+                <li><a href="javascript:;">惊悚</a></li>
+            </ul>
+        </li>
+        <li>
+            <a href="javascript:;"><i class="fas fa-laptop"></i> 网络节目 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">剧情</a></li>
+                <li><a href="javascript:;">惊悚</a></li>
+                <li><a href="javascript:;">真人秀</a></li>
+                <li><a href="javascript:;">犯罪</a></li>
+                <li><a href="javascript:;">喜剧</a></li>
+            </ul>
+        </li>
+        <li><a href="javascript:;"><i class="fas fa-th-large"></i> 频道</a></li>
+        <li>
+            <a href="javascript:;"><i class="fas fa-music"></i> 音乐 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">中文</a></li>
+                <li><a href="javascript:;">英语</a></li>
+                <li><a href="javascript:;">阿拉伯语</a></li>
+                <li><a href="javascript:;">旁遮普语</a></li>
+                <li><a href="javascript:;">俄语</a></li>
+            </ul>
+        </li>
+        <li>
+            <a href="live-tv.html" class="active"><i class="fas fa-broadcast-tower"></i> 电视直播 <i class="fas fa-chevron-down"></i></a>
+            <ul class="dropdown">
+                <li><a href="javascript:;">央视综合 CCTV-1</a></li>
+                <li><a href="javascript:;">央视新闻 CCTV-13</a></li>
+                <li><a href="javascript:;">湖南卫视</a></li>
+                <li><a href="javascript:;">浙江卫视</a></li>
+                <li><a href="javascript:;">东方卫视</a></li>
+                <li><a href="javascript:;">江苏卫视</a></li>
+                <li><a href="javascript:;">北京卫视</a></li>
+                <li><a href="javascript:;">体育频道 CCTV-5</a></li>
+            </ul>
+        </li>
+        <li><a href="news.html"><i class="fas fa-newspaper"></i> 资讯</a></li>
+    </ul>
+    <div class="nav-right">
+        <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="searchInput" placeholder="搜索电影、电视剧...">
+            <button class="search-clear" id="searchClear" style="display:none;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <a href="javascript:;" class="nav-icon" title="我的列表">
+            <i class="fas fa-bookmark"></i>
+        </a>
+        <button class="nav-icon theme-toggle" id="themeToggle" title="切换主题">
+            <i class="fas fa-moon"></i>
+        </button>
+        <a href="javascript:;" class="nav-icon" title="登录">
+            <i class="fas fa-user-circle"></i>
+        </a>
+    </div>
+</nav>
+
+<!-- ===== Live TV Placeholder ===== -->
+<div class="live-tv-container">
+    <div class="live-placeholder">
+        <div class="live-placeholder-icon">
+            <i class="fas fa-broadcast-tower"></i>
+        </div>
+        <h2>电视直播</h2>
+        <p>频道列表即将上线，敬请期待</p>
+        <div class="live-channel-list-static">
+            <div class="live-channel-row">
+                <span class="channel-tag">CCTV-1 综合</span>
+                <span class="channel-tag">CCTV-13 新闻</span>
+                <span class="channel-tag">湖南卫视</span>
+                <span class="channel-tag">浙江卫视</span>
+                <span class="channel-tag">东方卫视</span>
+                <span class="channel-tag">江苏卫视</span>
+                <span class="channel-tag">北京卫视</span>
+                <span class="channel-tag">CCTV-5 体育</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
