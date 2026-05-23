@@ -3,6 +3,7 @@ node_modules/
 *.jpg
 *.md
 *.yml
+!.github/workflows/*.yml
 *.yaml
 *.txt
 *.gz
