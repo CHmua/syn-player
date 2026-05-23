@@ -17,18 +17,11 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          MACHINES=$(flyctl m list --app syn-player-jm --json 2>/dev/null | jq 'length')
+          MACHINES=$(flyctl m list --app syn-player-jm 2>/dev/null | grep -c '^[a-f0-9]' || echo 0)
           if [ "$MACHINES" = "0" ]; then
-            echo "No machines, creating first machine..."
-            flyctl m run . \
-              --app syn-player-jm \
-              --vm-size shared-cpu-1x \
-              --vm-memory 256 \
-              --port 443:3000/tcp:http:tls \
-              --port 80:3000/tcp:http \
-              --restart always \
-              --yes
+            echo "No machines, creating first one..."
+            flyctl m run . --app syn-player-jm --yes
           else
-            echo "Machines exist, deploying update..."
+            echo "Updating $MACHINES existing machine(s)..."
             flyctl deploy --app syn-player-jm --ha=false
           fi
