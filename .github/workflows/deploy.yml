@@ -12,7 +12,12 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - run: flyctl deploy --app syn-player-jm --local-only --strategy immediate
+      - run: flyctl launch --app syn-player-jm --no-deploy --copy-config --yes
+        working-directory: streaming-site
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - run: flyctl deploy --app syn-player-jm --ha=false
         working-directory: streaming-site
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
