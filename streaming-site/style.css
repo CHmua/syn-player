@@ -4058,3 +4058,38 @@ img {
     .hero-carousel .swiper-button-prev::after,
     .hero-carousel .swiper-button-next::after { font-size: 12px; }
 }
+
+/* ===== Password Change Modal ===== */
+.password-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10000;
+  display: flex; align-items: center; justify-content: center;
+}
+.password-modal {
+  background: var(--bg-card, #1e1e1e); border-radius: 12px; width: 400px; max-width: 90vw;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.password-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px 0;
+}
+.password-modal-header h3 { color: var(--text-primary, #fff); font-size: 18px; margin: 0; }
+.password-modal-close {
+  background: none; border: none; color: #888; font-size: 24px; cursor: pointer; padding: 0;
+}
+.password-modal-close:hover { color: #fff; }
+.password-modal-body { padding: 20px 24px 24px; }
+.password-modal-body .field { margin-bottom: 14px; }
+.password-modal-body .field input {
+  width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid #333;
+  background: var(--bg-input, #2a2a2a); color: var(--text-primary, #fff); font-size: 14px;
+  box-sizing: border-box;
+}
+.password-modal-body .field input:focus { border-color: var(--red, #e50914); outline: none; }
+.password-msg { font-size: 13px; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; display: none; }
+.password-msg.error { display: block; background: rgba(229,9,20,0.15); color: #e50914; }
+.password-msg.success { display: block; background: rgba(0,200,83,0.15); color: #00c853; }
+.password-modal-body .btn-submit {
+  width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--red, #e50914);
+  color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 4px;
+}
+.password-modal-body .btn-submit:hover { background: var(--red-hover, #f40612); }

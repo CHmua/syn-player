@@ -63,6 +63,104 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Inject password change modal & button (shared across all pages)
+    (function initPasswordChange() {
+        if (!userToken) return;
+        // Inject button into nav
+        var navRight = document.querySelector('.nav-right');
+        if (navRight && !document.getElementById('passwordBtn')) {
+            var pwBtn = document.createElement('button');
+            pwBtn.id = 'passwordBtn';
+            pwBtn.className = 'nav-icon';
+            pwBtn.title = '修改密码';
+            pwBtn.style.cssText = 'background:none;border:none;cursor:pointer;';
+            pwBtn.innerHTML = '<i class="fas fa-key" style="color:#ffa500;"></i>';
+            navRight.appendChild(pwBtn);
+        }
+        // Inject modal if not present
+        if (!document.getElementById('passwordModal')) {
+            var modalHTML = '' +
+            '<div class="password-modal-overlay" id="passwordModal" style="display:none;">' +
+            '  <div class="password-modal">' +
+            '    <div class="password-modal-header">' +
+            '      <h3>修改密码</h3>' +
+            '      <button class="password-modal-close" id="passwordModalClose">&times;</button>' +
+            '    </div>' +
+            '    <div class="password-modal-body">' +
+            '      <p class="password-msg" id="passwordMsg"></p>' +
+            '      <div class="field"><input type="password" id="currentPassword" placeholder="当前密码" autocomplete="current-password"></div>' +
+            '      <div class="field"><input type="password" id="newPassword" placeholder="新密码（至少6位）" autocomplete="new-password"></div>' +
+            '      <div class="field"><input type="password" id="confirmPassword" placeholder="确认新密码"></div>' +
+            '      <button class="btn-submit" id="passwordSubmit">确认修改</button>' +
+            '    </div>' +
+            '  </div>' +
+            '</div>';
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+        // Wire up events
+        setTimeout(function() {
+            var btn = document.getElementById('passwordBtn');
+            var modal = document.getElementById('passwordModal');
+            if (!btn || !modal) return;
+            if (btn._wired) return;
+            btn._wired = true;
+            btn.addEventListener('click', function() {
+                modal.style.display = 'flex';
+                var msg = document.getElementById('passwordMsg');
+                msg.className = 'password-msg'; msg.textContent = '';
+                document.getElementById('currentPassword').value = '';
+                document.getElementById('newPassword').value = '';
+                document.getElementById('confirmPassword').value = '';
+            });
+            document.getElementById('passwordModalClose').addEventListener('click', function() {
+                modal.style.display = 'none';
+            });
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) modal.style.display = 'none';
+            });
+            document.getElementById('passwordSubmit').addEventListener('click', async function() {
+                var msg = document.getElementById('passwordMsg');
+                var cur = document.getElementById('currentPassword').value;
+                var newPw = document.getElementById('newPassword').value;
+                var confirm = document.getElementById('confirmPassword').value;
+                if (!cur || !newPw) {
+                    msg.className = 'password-msg error';
+                    msg.textContent = '请填写当前密码和新密码';
+                    return;
+                }
+                if (newPw.length < 6) {
+                    msg.className = 'password-msg error';
+                    msg.textContent = '新密码至少需要6个字符';
+                    return;
+                }
+                if (newPw !== confirm) {
+                    msg.className = 'password-msg error';
+                    msg.textContent = '两次输入的新密码不一致';
+                    return;
+                }
+                try {
+                    var resp = await fetch('/api/auth/password', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + userToken },
+                        body: JSON.stringify({ currentPassword: cur, newPassword: newPw })
+                    });
+                    var data = await resp.json();
+                    if (resp.ok && data.success) {
+                        msg.className = 'password-msg success';
+                        msg.textContent = '密码修改成功';
+                        setTimeout(function() { modal.style.display = 'none'; }, 1500);
+                    } else {
+                        msg.className = 'password-msg error';
+                        msg.textContent = data.error || '修改失败';
+                    }
+                } catch (e) {
+                    msg.className = 'password-msg error';
+                    msg.textContent = '网络错误，请重试';
+                }
+            });
+        }, 500);
+    })();
+
     // ============ Theme Toggle (Manual override) ============
     var themeToggle = document.getElementById('themeToggle');
     var htmlEl = document.documentElement;
