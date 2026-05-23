@@ -12,6 +12,7 @@
     <h1><span style="color:#e50914;">SYN</span>PLAYER <span class="tagline">管理后台</span></h1>
     <div class="header-actions">
         <a href="/" class="btn-sm" target="_blank">查看网站</a>
+        <button class="btn-sm" id="chPwdBtn">修改密码</button>
         <button class="btn-sm btn-logout" id="logoutBtn">退出</button>
     </div>
 </header>
@@ -161,6 +162,32 @@
             <div class="form-actions">
                 <button type="button" class="btn-cancel" id="cancelBtn">取消</button>
                 <button type="submit" class="btn-save">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-overlay" id="pwdModalOverlay" style="display:none">
+    <div class="modal" style="max-width:400px">
+        <h2>修改管理员密码</h2>
+        <form id="pwdForm">
+            <div class="form-group">
+                <label>当前密码</label>
+                <input type="password" id="pwdCurrent" required>
+            </div>
+            <div class="form-group">
+                <label>新密码</label>
+                <input type="password" id="pwdNew" required minlength="6">
+            </div>
+            <div class="form-group">
+                <label>确认新密码</label>
+                <input type="password" id="pwdConfirm" required minlength="6">
+            </div>
+            <p id="pwdMsg" style="font-size:13px;min-height:20px;margin-bottom:8px;"></p>
+            <div class="form-actions">
+                <button type="button" class="btn-cancel" id="pwdCancelBtn">取消</button>
+                <button type="submit" class="btn-save">确认修改</button>
             </div>
         </form>
     </div>
@@ -718,6 +745,42 @@ async function deleteVideo(id, source) {
 document.getElementById('logoutBtn').addEventListener('click', () => {
   localStorage.removeItem('syn_token');
   window.location.href = '/admin';
+});
+
+// Change password modal
+document.getElementById('chPwdBtn').addEventListener('click', () => {
+  document.getElementById('pwdModalOverlay').style.display = 'flex';
+  document.getElementById('pwdCurrent').value = '';
+  document.getElementById('pwdNew').value = '';
+  document.getElementById('pwdConfirm').value = '';
+  document.getElementById('pwdMsg').textContent = '';
+});
+document.getElementById('pwdCancelBtn').addEventListener('click', () => {
+  document.getElementById('pwdModalOverlay').style.display = 'none';
+});
+document.getElementById('pwdForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  var msg = document.getElementById('pwdMsg');
+  var cur = document.getElementById('pwdCurrent').value;
+  var newPwd = document.getElementById('pwdNew').value;
+  var confirm = document.getElementById('pwdConfirm').value;
+  if (newPwd.length < 6) { msg.style.color = '#e50914'; msg.textContent = '新密码至少需要6个字符'; return; }
+  if (newPwd !== confirm) { msg.style.color = '#e50914'; msg.textContent = '两次输入的新密码不一致'; return; }
+  var btn = this.querySelector('button[type=submit]');
+  btn.disabled = true; btn.textContent = '修改中...';
+  var resp = await fetch('/api/admin/password', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
+    body: JSON.stringify({ currentPassword: cur, newPassword: newPwd })
+  });
+  var data = await resp.json();
+  btn.disabled = false; btn.textContent = '确认修改';
+  if (resp.ok) {
+    msg.style.color = '#4caf50'; msg.textContent = data.message;
+    setTimeout(() => { document.getElementById('pwdModalOverlay').style.display = 'none'; }, 1500);
+  } else {
+    msg.style.color = '#e50914'; msg.textContent = data.error;
+  }
 });
 
 document.getElementById('searchInput').addEventListener('input', function() {

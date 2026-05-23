@@ -6,22 +6,9 @@ const { JWT_SECRET } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Register new user
+// Register new user — disabled for private deployment
 router.post('/register', (req, res) => {
-  const { username, email, password } = req.body;
-  if (!username || !email || !password) {
-    return res.status(400).json({ error: '请填写所有必填字段' });
-  }
-  if (password.length < 6) {
-    return res.status(400).json({ error: '密码至少需要6个字符' });
-  }
-  const existing = db.prepare('SELECT id FROM users WHERE username = ? OR email = ?').get(username, email);
-  if (existing) {
-    return res.status(409).json({ error: '用户名或邮箱已被注册' });
-  }
-  const hash = bcrypt.hashSync(password, 10);
-  db.prepare('INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)').run(username, email, hash);
-  res.json({ success: true, message: '注册成功，请登录' });
+  return res.status(403).json({ error: '暂不开放新用户注册' });
 });
 
 // User login

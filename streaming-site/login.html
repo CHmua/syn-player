@@ -388,7 +388,7 @@
             <button type="submit" class="btn-submit" id="submitBtn">登 录</button>
         </form>
 
-        <div class="switch-row">
+        <div class="switch-row" style="display:none">
             <span id="switchPrefix">还没有账号？</span><a id="switchLink"> 立即注册</a>
             <small>注册即表示您同意我们的服务条款和隐私政策。<br>我们绝不会在未经您允许的情况下分享您的个人信息。</small>
         </div>
@@ -598,23 +598,13 @@
         input.addEventListener('blur', sync);
     });
 
+    // Registration is closed — toggleMode is a no-op
     function toggleMode() {
-        isRegister = !isRegister;
-        if (isRegister) {
-            title.textContent = '创建账号';
-            submitBtn.textContent = '创建账号';
-            switchPrefix.textContent = '已有账号？';
-            switchLink.textContent = ' 立即登录';
-            emailField.style.display = 'block';
-            emailInput.required = true;
-        } else {
-            title.textContent = '登录';
-            submitBtn.textContent = '登 录';
-            switchPrefix.textContent = '还没有账号？';
-            switchLink.textContent = ' 立即注册';
-            emailField.style.display = 'none';
-            emailInput.required = false;
-        }
+        isRegister = false;
+        title.textContent = '登录';
+        submitBtn.textContent = '登 录';
+        emailField.style.display = 'none';
+        emailInput.required = false;
         errorMsg.textContent = '';
         successMsg.textContent = '';
     }

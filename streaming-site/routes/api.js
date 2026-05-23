@@ -577,6 +577,24 @@ router.post('/login', (req, res) => {
   res.json({ token });
 });
 
+// Admin change password
+router.put('/admin/password', authMiddleware, (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: '请填写当前密码和新密码' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: '新密码至少需要6个字符' });
+  }
+  const admin = db.prepare('SELECT * FROM admins WHERE id = ?').get(req.admin.id);
+  if (!admin || !bcrypt.compareSync(currentPassword, admin.password_hash)) {
+    return res.status(400).json({ error: '当前密码错误' });
+  }
+  const hash = bcrypt.hashSync(newPassword, 10);
+  db.prepare('UPDATE admins SET password_hash = ? WHERE id = ?').run(hash, req.admin.id);
+  res.json({ success: true, message: '密码修改成功' });
+});
+
 // Online user count (public)
 router.get('/online', (req, res) => {
   res.json({ count: getOnlineCount() });
@@ -822,6 +840,11 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
           }
         } catch {}
       }
+    }
+
+    // Fallback backdrop: use poster when no TMDB backdrop available
+    if (best && !best.backdrop_url) {
+      best.backdrop_url = best.poster || '';
     }
 
     // Step 3: Search VOD database for matching video source URL (try MySQL first, then SQLite)
