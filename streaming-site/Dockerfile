@@ -7,6 +7,8 @@ RUN npm install --production
 
 COPY . .
 
+RUN mkdir -p /data
+
 ENV DATA_DIR=/data
 ENV PORT=3000
 
