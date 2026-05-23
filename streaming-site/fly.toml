@@ -6,7 +6,3 @@ primary_region = "nrt"
   force_https = true
   auto_start_machines = true
   auto_stop_machines = true
-
-[mounts]
-  source = "data"
-  destination = "/data"
