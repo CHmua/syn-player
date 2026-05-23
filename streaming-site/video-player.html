@@ -451,13 +451,8 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 
     // ============ Multi-Source Line Switching ============
     function getPlayUrl(ep) {
-        var url = ep.play_url;
-        if (!url) return url;
-        // Proxy all external video URLs through server for Referer spoofing and CORS
-        if (url.indexOf('http') === 0 && url.indexOf(window.location.origin) !== 0) {
-            return '/api/vod/m3u8-proxy?url=' + encodeURIComponent(url);
-        }
-        return url;
+        // Direct connection — client fetches m3u8/mp4 from source CDN
+        return ep.play_url;
     }
 
     var loadWatchdog = null;
@@ -752,7 +747,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         var director = v.vod_director || v.director || '';
         var actor = v.vod_actor || v.actor || '';
         var remarks = v.vod_remarks || '';
-        var pic = v.vod_pic || v.pic || v.image || '';
+        var pic = v.poster_url || v.vod_pic || v.pic || v.image || '';
 
         var posterImg = document.getElementById('infoPoster');
         if (posterImg && pic) {

@@ -54,6 +54,13 @@ async function initDB() {
     // Add vod_hits column for existing tables (safe if already exists)
     try { await conn.query('ALTER TABLE vods ADD COLUMN vod_hits INT DEFAULT 0'); } catch(e) {}
     try { await conn.query('CREATE INDEX idx_vod_hits ON vods(vod_hits)'); } catch(e) {}
+    // Add featured column for hero carousel support
+    try { await conn.query('ALTER TABLE vods ADD COLUMN featured INT DEFAULT 0'); } catch(e) {}
+    // Add enrichment columns from TMDB/Douban
+    try { await conn.query('ALTER TABLE vods ADD COLUMN poster TEXT'); } catch(e) {}
+    try { await conn.query('ALTER TABLE vods ADD COLUMN backdrop TEXT'); } catch(e) {}
+    try { await conn.query('ALTER TABLE vods ADD COLUMN douban_id VARCHAR(50)'); } catch(e) {}
+    try { await conn.query('ALTER TABLE vods ADD COLUMN douban_rating VARCHAR(10)'); } catch(e) {}
 
     await conn.query(`
       CREATE TABLE IF NOT EXISTS vod_play_sources (

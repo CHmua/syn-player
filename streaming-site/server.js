@@ -31,7 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/admin', adminRoutes);
 
-// VOD aggregation routes (search, detail, m3u8 proxy, play parse)
+// VOD aggregation routes (search, detail, play parse – client direct connect)
 app.use('/api/vod', vodRoutes);
 
 // TMDB metadata & poster routes
@@ -74,21 +74,26 @@ async function start() {
   // Initialize Redis/Memory cache
   await initRedis();
 
-  // Start auto-collection scheduler
-  try {
-    const { startCollectScheduler } = require('./services/collect-scheduler');
-    startCollectScheduler();
-  } catch (err) {
-    console.error('[Scheduler] Start error:', err.message);
-  }
-
   app.listen(PORT, () => {
     console.log(`Syn Player 服务器已启动: http://localhost:${PORT}`);
     console.log(`管理后台: http://localhost:${PORT}/admin`);
     console.log(`VOD搜索API: http://localhost:${PORT}/api/vod/search?wd=流浪地球`);
-    console.log(`m3u8代理: http://localhost:${PORT}/api/vod/m3u8-proxy?url=`);
+    console.log(`流媒体播放: 客户端直连 (无代理)`);
     console.log(`会员登录: http://localhost:${PORT}`);
   });
 }
+
+// ============================================================
+//  Global error handlers — prevent process crash on unhandled errors
+// ============================================================
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err.message, err.stack?.split('\n')[1] || '');
+  // Keep the process alive — do NOT exit
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] Unhandled rejection:', reason?.message || reason);
+  // Keep the process alive — do NOT exit
+});
 
 start();

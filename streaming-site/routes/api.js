@@ -10,47 +10,13 @@ const { dedupVods, normalizeTitle } = require('../utils/dedup');
 
 const router = express.Router();
 
-// Proxy external images to bypass SSL errors and anti-hotlinking
-router.get('/img-proxy', async (req, res) => {
-  const url = req.query.url;
-  if (!url) return res.status(400).json({ error: 'url required' });
-
-  // Only allow image URLs from known hosts
-  const allowedHosts = ['doubanio.com', 'dbzy5.com', 'picsum.photos', 'upload.vod', 'mtzy1.com', 'bfvvs.com', 'lz-cdn.com'];
-  const isAllowed = allowedHosts.some(h => url.includes(h)) || /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(url);
-  if (!isAllowed) return res.status(403).json({ error: 'unsupported domain' });
-
-  try {
-    const response = await axios.get(url, {
-      responseType: 'arraybuffer',
-      timeout: 10000,
-      headers: {
-        'Referer': url.includes('douban') ? 'https://movie.douban.com/' : url.includes('mtzy') ? 'https://mtzy1.com/' : new URL(url).origin,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
-    });
-    const ct = response.headers['content-type'] || 'image/jpeg';
-    res.set({
-      'Content-Type': ct,
-      'Cache-Control': 'public, max-age=86400',
-      'Access-Control-Allow-Origin': '*'
-    });
-    res.send(Buffer.from(response.data));
-  } catch (err) {
-    res.status(502).json({ error: 'proxy fetch failed' });
-  }
-});
-
-// Rewrite douban poster URLs to go through our proxy (bypass anti-hotlinking)
-function proxyPosterUrl(url) {
-  if (!url) return url;
-  // Already proxied — don't double-wrap
-  if (url.startsWith('/api/img-proxy')) return url;
-  if (url.includes('doubanio.com')) {
-    return '/api/img-proxy?url=' + encodeURIComponent(url);
-  }
-  return url;
+// Wrap external poster URLs through image proxy to bypass hotlink/CORS/SSL issues
+function posterProxyUrl(url) {
+  if (!url) return '';
+  // Don't double-wrap already-proxied URLs or local resources
+  if (url.startsWith('/api/') || url.includes('picsum.photos') || url.startsWith('data:')) return url;
+  if (!url.startsWith('http')) return url;
+  return '/api/vod/image-proxy?url=' + encodeURIComponent(url);
 }
 
 // Strip unwanted suffixes from titles (category labels, season info, etc.)
@@ -73,7 +39,8 @@ router.get('/categories', (req, res) => {
     { value: 'trendingMovies', label: '热门电影' },
     { value: 'trendingTV', label: '热门电视剧' },
     { value: 'trendingAnime', label: '热门动漫' },
-    { value: 'liveTV', label: '电视直播' },
+    { value: 'trendingVariety', label: '热门综艺' },
+    { value: 'liveTV', label: '纪录解说' },
     { value: 'moreRecommend', label: '更多推荐' },
   ];
 
@@ -83,7 +50,7 @@ router.get('/categories', (req, res) => {
   // Get distinct type_name from SQLite vods table
   let vodRows = [];
   try {
-    vodRows = db.prepare('SELECT DISTINCT type_name as category FROM vods WHERE type_name IS NOT NULL AND type_name != \'\' ORDER BY type_name').all();
+    vodRows = db.prepare('SELECT DISTINCT type_name as category FROM vods WHERE type_name IS NOT NULL AND type_name != \'\' AND is_active = 1 ORDER BY type_name').all();
   } catch {}
 
   // Merge: homepage sections first, then any additional unique categories from DB
@@ -106,10 +73,11 @@ router.get('/categories', (req, res) => {
 // Get videos (SQLite + MySQL merged)
 // Map frontend section IDs to VOD type_name categories (Chinese)
 const SECTION_TYPE_MAP = {
-  trendingMovies: ['动作片', '喜剧片', '科幻片', '爱情片', '剧情片', '恐怖片', '伦理片', '悬疑片', '犯罪片'],
-  trendingTV: ['国产剧', '香港剧', '台湾剧', '欧美剧', '泰国剧', '海外剧', '日本剧', '韩国剧'],
-  trendingAnime: ['日韩动漫', '国产动漫'],
-  liveTV: ['记录片', '电影解说', '短剧'],
+  trendingMovies: ['剧情片', '喜剧片', '动作片', '恐怖片', '爱情片', '战争片', '科幻片', '伦理片', '惊悚片'],
+  trendingTV: ['国产剧', '欧美剧', '日本剧', '韩国剧', '泰国剧', '台湾剧', '香港剧', '韩剧', '日剧', '泰剧', '美国剧', '港澳剧', '海外剧', 'Netflix自制剧'],
+  trendingAnime: ['国产动漫', '日韩动漫', '中国动漫', '日本动漫', '漫剧', '动漫电影', '欧美动漫', '动画片'],
+  trendingVariety: ['大陆综艺', '日韩综艺', '港台综艺', '欧美综艺', '综艺'],
+  liveTV: ['纪录片', '记录片', '电影解说', '影视解说'],
   moreRecommend: ['*']  // '*' = all types, no filter
 };
 
@@ -138,19 +106,18 @@ router.get('/videos', async (req, res) => {
   } else if (category) {
     adminRows = db.prepare('SELECT * FROM videos WHERE category = ? ORDER BY sort_order').all(category);
   } else {
-    adminRows = db.prepare('SELECT * FROM videos ORDER BY sort_order').all();
+    adminRows = db.prepare('SELECT * FROM videos ORDER BY featured DESC, sort_order').all();
   }
 
   const adminVideos = adminRows.map(r => ({
     ...r,
     vod_id: r.vod_id || String(r.id),
     poster: r.poster_url || r.poster || '',
-    poster_url: proxyPosterUrl(r.poster_url || r.poster || ''),
+    poster_url: posterProxyUrl(r.poster_url || r.poster || ''),
     rating_source: r.rating && parseFloat(r.rating) > 0 ? 'TMDB' : '',
     featured: r.featured || 0,
     source: 'video'
   }));
-
   // If only featured videos requested, include VODs as well
   if (featuredOnly) {
     // Load featured VODs from both DBs
@@ -169,9 +136,12 @@ router.get('/videos', async (req, res) => {
         id: r.vod_id,
         title: r.vod_name,
         category: r.type_name,
-        poster_url: proxyPosterUrl(r.poster || r.vod_pic || ''),
+        poster_url: posterProxyUrl(r.poster || r.vod_pic || ''),
         poster: r.poster || r.vod_pic || '',
+        backdrop_url: '',
+        video_url: r.vod_play_url || '',
         year: r.vod_year,
+        duration: '',
         rating: r.douban_rating || r.vod_score || '',
         rating_source: (r.douban_rating || r.vod_score) ? (r.douban_id ? '豆瓣' : 'TMDB') : '',
         featured: 1,
@@ -180,6 +150,12 @@ router.get('/videos', async (req, res) => {
         vod_id: r.vod_id,
         source: 'vod'
       }));
+      // Enrich with TMDB posters
+      try {
+        const { enrichVods } = require('../services/tmdb');
+        vodFeatured = await enrichVods(vodFeatured);
+        vodFeatured = vodFeatured.map(v => ({ ...v, poster_url: posterProxyUrl(v.poster || v.poster_url || '') }));
+      } catch (e) {}
     } catch (e) {}
     return res.json([...adminVideos, ...vodFeatured]);
   }
@@ -208,16 +184,17 @@ router.get('/videos', async (req, res) => {
           params.push(...cond.params);
         }
       }
-      sql += ' ORDER BY updated_at DESC LIMIT ' + limitNum;
+      sql += ' ORDER BY featured DESC, updated_at DESC LIMIT ' + limitNum;
       [mysqlRows] = await vodDb.query(sql, params);
 
       if (mysqlRows.length === 0 && category && !search) {
         const [allRows] = await vodDb.query(
-          'SELECT * FROM vods WHERE is_active = 1 ORDER BY updated_at DESC LIMIT ' + limitNum
+          'SELECT * FROM vods WHERE is_active = 1 ORDER BY featured DESC, updated_at DESC LIMIT ' + limitNum
         );
         mysqlRows = allRows;
       }
-    } catch {
+    } catch (mysqlErr) {
+      console.log('[API] MySQL error, falling back to SQLite:', mysqlErr.message);
       const db2 = require('../database');
       let s = 'SELECT * FROM vods WHERE is_active = 1';
       const sParams = [];
@@ -232,9 +209,9 @@ router.get('/videos', async (req, res) => {
         }
       }
       if (category === 'moreRecommend') {
-        s += ' ORDER BY vod_hits DESC, updated_at DESC LIMIT ' + limitNum;
+        s += ' ORDER BY featured DESC, vod_hits DESC, updated_at DESC LIMIT ' + limitNum;
       } else {
-        s += ' ORDER BY updated_at DESC LIMIT ' + limitNum;
+        s += ' ORDER BY featured DESC, updated_at DESC LIMIT ' + limitNum;
       }
       mysqlRows = sParams.length > 0
         ? db2.prepare(s).all(...sParams)
@@ -242,7 +219,7 @@ router.get('/videos', async (req, res) => {
 
       if (mysqlRows.length === 0 && category && !search) {
         mysqlRows = db2.prepare(
-          'SELECT * FROM vods WHERE is_active = 1 ORDER BY updated_at DESC LIMIT ' + limitNum
+          'SELECT * FROM vods WHERE is_active = 1 ORDER BY featured DESC, updated_at DESC LIMIT ' + limitNum
         ).all();
       }
     }
@@ -258,12 +235,15 @@ router.get('/videos', async (req, res) => {
         id: r.vod_id,
         title: r.vod_name,
         category: r.type_name,
-        poster_url: proxyPosterUrl(r.poster || r.vod_pic || ''),
+        poster_url: posterProxyUrl(r.poster || r.vod_pic || ''),
         poster: r.poster || r.vod_pic || '',
+        backdrop_url: '',
+        video_url: r.vod_play_url || '',
         year: r.vod_year,
+        duration: '',
         rating: rating,
         rating_source: ratingSource,
-        featured: 0,
+        featured: r.featured || 0,
         description: r.vod_content || '',
         genre: r.vod_type || '',
         vod_id: r.vod_id,
@@ -273,6 +253,16 @@ router.get('/videos', async (req, res) => {
     });
   } catch (err) {
     // Both DBs unavailable
+  }
+
+  // Enrich VODs with TMDB posters (cached, skips already-enriched)
+  try {
+    const { enrichVods } = require('../services/tmdb');
+    vodRows = await enrichVods(vodRows);
+    // Sync poster_url from enriched poster
+    vodRows = vodRows.map(v => ({ ...v, poster_url: posterProxyUrl(v.poster || v.poster_url || '') }));
+  } catch (err) {
+    console.error('[API] TMDB enrich error:', err.message);
   }
 
   // Dedup VODs internally first (merge year/lang variants of same title)
@@ -297,14 +287,14 @@ router.get('/videos/:id', async (req, res) => {
 
   // 1. Try admin-managed videos table (SQLite)
   const row = db.prepare('SELECT * FROM videos WHERE id = ?').get(id);
-  if (row) return res.json({ ...row, poster_url: proxyPosterUrl(row.poster_url || ''), source: 'video' });
+  if (row) return res.json({ ...row, poster_url: posterProxyUrl(row.poster_url || ''), source: 'video' });
 
   // 2. Try SQLite vods table
   const vod = db.prepare('SELECT * FROM vods WHERE vod_id = ?').get(id);
   if (vod) return res.json({
     id: vod.vod_id, title: vod.vod_name, category: vod.type_name,
-    description: vod.vod_content || '', poster_url: proxyPosterUrl(vod.poster || vod.vod_pic || ''),
-    video_url: vod.vod_play_url || '', year: vod.vod_year || '', duration: '',
+    description: vod.vod_content || '', poster_url: posterProxyUrl(vod.poster || vod.vod_pic || ''),
+    backdrop_url: '', video_url: vod.vod_play_url || '', year: vod.vod_year || '', duration: '',
     genre: vod.vod_type || '', rating: parseFloat(vod.douban_rating || vod.vod_score) || 0,
     badge: '', is_live: 0, sort_order: 0, source: 'vod',
     vod_id: vod.vod_id
@@ -318,8 +308,8 @@ router.get('/videos/:id', async (req, res) => {
       const v = rows[0];
       return res.json({
         id: v.vod_id, title: v.vod_name, category: v.type_name,
-        description: v.vod_content || '', poster_url: proxyPosterUrl(v.poster || v.vod_pic || ''),
-        video_url: v.vod_play_url || '', year: v.vod_year || '', duration: '',
+        description: v.vod_content || '', poster_url: posterProxyUrl(v.poster || v.vod_pic || ''),
+        backdrop_url: '', video_url: v.vod_play_url || '', year: v.vod_year || '', duration: '',
         genre: v.vod_type || '', rating: parseFloat(v.douban_rating || v.vod_score) || 0,
         badge: '', is_live: 0, sort_order: 0, source: 'vod',
         vod_id: v.vod_id
@@ -430,6 +420,29 @@ router.put('/videos/:id', authMiddleware, async (req, res) => {
     const values = Object.values(updates);
     values.push(id);
     db.prepare(`UPDATE vods SET ${setClauses} WHERE vod_id=?`).run(...values);
+
+    // Sync a copy to the videos table so admin-specific fields (backdrop_url, duration) persist
+    const existingLocal = db.prepare('SELECT * FROM videos WHERE title = ?').get(existing.vod_name);
+    if (existingLocal) {
+      updateVideosRow(existingLocal);
+    } else {
+      db.prepare(`INSERT INTO videos (title, category, description, poster_url, backdrop_url, video_url, year, duration, genre, rating, badge, is_live, featured, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+        title !== undefined ? title : existing.vod_name,
+        category !== undefined ? category : existing.type_name,
+        description !== undefined ? description : (existing.vod_content || ''),
+        poster_url !== undefined ? poster_url : (existing.poster || existing.vod_pic || ''),
+        backdrop_url !== undefined ? backdrop_url : '',
+        video_url !== undefined ? video_url : (existing.vod_play_url || ''),
+        year !== undefined ? year : (existing.vod_year || ''),
+        duration !== undefined ? duration : '',
+        genre !== undefined ? genre : (existing.vod_type || ''),
+        rating !== undefined ? rating : (parseFloat(existing.douban_rating || existing.vod_score) || 0),
+        badge !== undefined ? badge : '',
+        is_live !== undefined ? is_live : 0,
+        featured !== undefined ? featured : 0,
+        sort_order !== undefined ? sort_order : 0
+      );
+    }
 
     // Also sync video_url to MySQL
     if (video_url !== undefined) {
@@ -606,7 +619,7 @@ router.get('/search-poster', async (req, res) => {
         const results = dbResponse.data.slice(0, 5).map(item => ({
           title: item.title,
           year: item.year || '',
-          poster: proxyPosterUrl(item.img || item.pic || ''),
+          poster: (item.img || item.pic || ''),
           id: item.id
         })).filter(r => r.poster);
 
@@ -701,7 +714,7 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
         if (result && result.douban_id) {
           const dbEntry = {
             title: cleanTitle(preferChineseTitle(result.title, title)),
-            poster: proxyPosterUrl(result.poster || ''),
+            poster: (result.poster || ''),
             year: result.year || '',
             rating: result.rating || '',
             genre: '',
@@ -746,14 +759,26 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
       // Step 2b: Douban suggest API (lighter, more reliable)
       if (!best || !best.poster) {
         try {
+          const doubanCookie = process.env.DOUBAN_COOKIE || '';
+          const suggestHeaders = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://movie.douban.com/'
+          };
+          if (doubanCookie) suggestHeaders['Cookie'] = doubanCookie;
           const suggestRes = await axios.get('https://movie.douban.com/j/subject_suggest', {
             params: { q: title },
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-              'Referer': 'https://movie.douban.com/'
-            },
-            timeout: 8000
+            headers: suggestHeaders,
+            timeout: 8000,
+            maxRedirects: 5
           });
+
+          // Douban may return HTML login page instead of JSON when IP is blocked
+          if (typeof suggestRes.data === 'string') {
+            if (suggestRes.data.includes('登录跳转') || suggestRes.data.includes('异常请求')) {
+              console.error('[Douban] Suggest API blocked — IP flagged by Douban. Set DOUBAN_COOKIE in .env.');
+            }
+            suggestRes.data = [];
+          }
 
           if (Array.isArray(suggestRes.data) && suggestRes.data.length > 0) {
             const items = suggestRes.data.filter(r => r.id && r.img);
@@ -762,7 +787,7 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
               const item = chineseItems.length > 0 ? chineseItems[0] : items[0];
               const suggestEntry = {
                 title: cleanTitle(preferChineseTitle(item.title, title)),
-                poster: proxyPosterUrl(item.img || ''),
+                poster: (item.img || ''),
                 year: item.year || '',
                 rating: '',
                 genre: '',
@@ -840,174 +865,155 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
   }
 });
 
-// Batch auto-fill: enrich all existing videos — TMDB first, Douban fallback
+// Background enrichment state
+let enrichRunning = false;
+let enrichProgress = { total: 0, done: 0, updated: 0, failed: 0, current: '' };
+
+// Batch auto-fill: enrich videos + VODs — TMDB first, Douban fallback
+// Runs in background; check GET /api/batch-auto-fill/status for progress
 router.post('/batch-auto-fill', authMiddleware, async (req, res) => {
-  try {
-    const { searchMovie, getMobileSubjectDetail } = require('../services/douban');
+  if (enrichRunning) {
+    return res.json({ success: true, running: true, progress: enrichProgress });
+  }
 
-    // Get all videos that could benefit from enrichment
-    const videos = db.prepare(`
-      SELECT * FROM videos WHERE
-        (poster_url IS NULL OR poster_url = '' OR poster_url LIKE '%picsum.photos%')
-        OR (description IS NULL OR description = '')
-        OR (year IS NULL OR year = '')
-        OR (genre IS NULL OR genre = '')
-        OR (rating IS NULL OR rating = 0)
-        OR (video_url IS NULL OR video_url = '' OR video_url LIKE '%BigBuckBunny%' OR video_url LIKE '%ElephantsDream%' OR video_url LIKE '%Sintel%' OR video_url LIKE '%TearsOfSteel%' OR video_url LIKE '%ForBiggerBlazes%')
-    `).all();
+  enrichRunning = true;
+  enrichProgress = { total: 0, done: 0, updated: 0, failed: 0, current: '准备中...' };
 
-    let updated = 0;
-    let failed = 0;
+  // Start background work (don't await — return immediately)
+  (async () => {
+    try {
+      const { searchMovie: tmdbSearch } = require('../services/tmdb');
 
-    for (const v of videos) {
-      const title = (v.title || '').trim();
-      if (!title || title.length < 2) { failed++; continue; }
+      // Get admin videos needing enrichment
+      const videos = db.prepare(`
+        SELECT * FROM videos WHERE
+          (poster_url IS NULL OR poster_url = '' OR poster_url LIKE '%picsum.photos%')
+          OR (description IS NULL OR description = '')
+          OR (year IS NULL OR year = '')
+          OR (genre IS NULL OR genre = '')
+          OR (rating IS NULL OR rating = 0)
+          OR (video_url IS NULL OR video_url = '' OR video_url LIKE '%BigBuckBunny%' OR video_url LIKE '%ElephantsDream%' OR video_url LIKE '%Sintel%' OR video_url LIKE '%TearsOfSteel%' OR video_url LIKE '%ForBiggerBlazes%')
+      `).all();
 
-      try {
+      // Get VODs needing enrichment
+      const vods = db.prepare(`
+        SELECT vod_id, vod_name as title, type_name as category, poster, vod_content as description,
+               vod_year as year, vod_type as genre, douban_rating, vod_score, vod_play_url as video_url,
+               douban_id
+        FROM vods WHERE is_active = 1 AND (
+          (poster IS NULL OR poster = '')
+          OR (douban_rating IS NULL OR douban_rating = '' OR douban_rating = '0.0')
+          OR (vod_content IS NULL OR vod_content = '')
+        )
+        ORDER BY vod_hits DESC, updated_at DESC
+        LIMIT 300
+      `).all();
+
+      const allItems = [...videos, ...vods];
+      enrichProgress.total = allItems.length;
+      console.log('[Batch] Starting TMDB enrichment of', allItems.length, 'items (', videos.length, 'videos +', vods.length, 'VODs)');
+
+      for (const v of allItems) {
+        if (!enrichRunning) break; // Allow cancellation
+
+        const rawTitle = (v.title || '').trim();
+        const vodId = v.vod_id || null;
+        const isVod = !!vodId;
+        enrichProgress.current = rawTitle;
+        enrichProgress.done++;
+
+        if (!rawTitle || rawTitle.length < 2) { enrichProgress.failed++; continue; }
+
+        // Pre-clean title for better search match (remove years, season/episode info, language tags)
+        const title = rawTitle
+          .replace(/第[一二三四五六七八九十\d]+[部季集卷]/g, '')
+          .replace(/Season\s*\d+/gi, '')
+          .replace(/Part\s*\d+/gi, '')
+          .replace(/\(\d{4}\)$/g, '')
+          .replace(/\d{4}$/g, '')
+          .replace(/\s*\[.*?\]\s*/g, '')
+          .replace(/\s*-\s*(粤语|国语|英语|日语|韩语|中字|双语|英文|中文|普通话|四川话|配音|原版|修复版|先行版|预告片).*$/g, '')
+          .trim();
+
+        const searchTitle = title.length >= 2 ? title : rawTitle;
+
         let best = null;
 
-        // Step 1: TMDB (primary)
         try {
-          const { searchMovieFull: searchTMDB } = require('../services/tmdb');
-          const tmdbResult = await searchTMDB(title);
-          if (tmdbResult) {
-            best = {
-              title: cleanTitle(tmdbResult.title || title),
-              poster: tmdbResult.poster || '',
-              backdrop_url: tmdbResult.backdrop || '',
-              year: tmdbResult.year || '',
-              rating: tmdbResult.rating || '',
-              genre: tmdbResult.genre || '',
-              description: tmdbResult.description || '',
-              director: tmdbResult.director || '',
-              actors: tmdbResult.actors || ''
-            };
-            if (tmdbResult.duration) best.duration = tmdbResult.duration;
-          }
-        } catch {}
-
-        // Step 2: Douban fallback
-        if (!best || !best.poster) {
+          // TMDB movie search
           try {
-            const result = await searchMovie(title);
-            if (result && result.douban_id) {
-              const dbEntry = {
-                title: cleanTitle(result.title || title),
-                poster: proxyPosterUrl(result.poster || ''),
-                year: result.year || '',
-                rating: result.rating || '',
-                genre: '',
-                description: result.description || '',
-                director: result.director || '',
-                actors: result.actors || ''
+            const tmdbResult = await Promise.race([
+              tmdbSearch(searchTitle),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+            ]);
+            if (tmdbResult && tmdbResult.poster_path) {
+              best = {
+                poster: 'https://image.tmdb.org/t/p/w500' + tmdbResult.poster_path,
+                year: (tmdbResult.release_date || '').substring(0, 4),
+                rating: tmdbResult.vote_average ? String(Math.round(tmdbResult.vote_average * 10) / 10) : '',
+                description: tmdbResult.overview || '',
               };
+            }
+          } catch {}
 
-              try {
-                const mobileDetail = await getMobileSubjectDetail(result.douban_id);
-                if (mobileDetail) {
-                  if (mobileDetail.summary) dbEntry.description = mobileDetail.summary;
-                  if (mobileDetail.rating && !dbEntry.rating) dbEntry.rating = mobileDetail.rating;
-                  if (mobileDetail.genres && mobileDetail.genres.length > 0) {
-                    dbEntry.genre = mobileDetail.genres.join(' / ');
-                  }
-                  if (mobileDetail.duration) dbEntry.duration = mobileDetail.duration;
-                  if (mobileDetail.director && !dbEntry.director) dbEntry.director = mobileDetail.director;
-                }
-              } catch {}
+          if (best) {
+            const fields = [];
+            const values = [];
 
-              if (!best) {
-                best = dbEntry;
-              } else if (!best.poster && dbEntry.poster) {
-                best.poster = dbEntry.poster;
-                if (!best.year && dbEntry.year) best.year = dbEntry.year;
-                if (!best.rating && dbEntry.rating) best.rating = dbEntry.rating;
-                if (!best.genre && dbEntry.genre) best.genre = dbEntry.genre;
-                if (!best.description && dbEntry.description) best.description = dbEntry.description;
-                if (!best.director && dbEntry.director) best.director = dbEntry.director;
-                if (!best.actors && dbEntry.actors) best.actors = dbEntry.actors;
+            if (!isVod) {
+              const needPoster = !v.poster_url || v.poster_url === '' || v.poster_url.includes('picsum.photos');
+              if (needPoster && best.poster) { fields.push('poster_url = ?'); values.push(best.poster); }
+              if ((!v.description || v.description === '') && best.description) { fields.push('description = ?'); values.push(best.description); }
+              if ((!v.year || v.year === '') && best.year) { fields.push('year = ?'); values.push(best.year); }
+              if ((!v.rating || v.rating === 0) && best.rating) { fields.push('rating = ?'); values.push(parseFloat(best.rating) || 0); }
+              if (fields.length > 0) {
+                values.push(v.id);
+                db.prepare(`UPDATE videos SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+                enrichProgress.updated++;
+              }
+            } else {
+              const needPoster = !v.poster || v.poster === '';
+              if (needPoster && best.poster) { fields.push('poster = ?'); values.push(best.poster); }
+              if ((!v.year || v.year === '') && best.year) { fields.push('vod_year = ?'); values.push(String(best.year)); }
+              if (best.description && (!v.description || v.description === '')) { fields.push('vod_content = ?'); values.push(best.description); }
+              if (best.rating) {
+                const needScore = !v.douban_rating || v.douban_rating === '' || v.douban_rating === '0.0';
+                if (needScore) { fields.push('douban_rating = ?'); values.push(String(best.rating)); }
+              }
+              if (fields.length > 0) {
+                values.push(vodId);
+                db.prepare(`UPDATE vods SET ${fields.join(', ')} WHERE vod_id = ?`).run(...values);
+                enrichProgress.updated++;
               }
             }
-          } catch {}
+          } else {
+            enrichProgress.failed++;
+          }
+        } catch (err) {
+          enrichProgress.failed++;
         }
 
-        if (best) {
-          // Only update empty/default fields
-          try {
-            const searchTitle = best.title || title;
-            let vodRow = null;
-            try {
-              const vodDb = require('../db');
-              const [rows] = await vodDb.query(
-                "SELECT vod_play_url FROM vods WHERE vod_name LIKE ? AND vod_play_url IS NOT NULL AND vod_play_url != '' LIMIT 1",
-                [`%${searchTitle}%`]
-              );
-              if (rows.length > 0) vodRow = rows[0];
-            } catch {
-              try {
-                vodRow = db.prepare(
-                  "SELECT vod_play_url FROM vods WHERE vod_name LIKE ? AND vod_play_url IS NOT NULL AND vod_play_url != '' LIMIT 1"
-                ).get(`%${searchTitle}%`);
-              } catch {}
-            }
-            if (vodRow && vodRow.vod_play_url) {
-              best.video_url = vodRow.vod_play_url;
-            }
-          } catch {}
+        // 300ms between TMDB API calls (~40 req/10s, well under rate limit)
+        await new Promise(r => setTimeout(r, 300));
+
+        if (enrichProgress.done % 20 === 0) {
+          console.log('[Batch] Progress:', enrichProgress.done, '/', enrichProgress.total, 'updated:', enrichProgress.updated);
         }
-
-        if (best) {
-          // Only update empty/default fields
-          const fields = [];
-          const values = [];
-
-          if ((!v.poster_url || v.poster_url.includes('picsum.photos')) && best.poster) {
-            fields.push('poster_url = ?');
-            values.push(best.poster);
-          }
-          if ((!v.description || v.description === '') && best.description) {
-            fields.push('description = ?');
-            values.push(best.description);
-          }
-          if ((!v.year || v.year === '') && best.year) {
-            fields.push('year = ?');
-            values.push(best.year);
-          }
-          if ((!v.genre || v.genre === '') && best.genre) {
-            fields.push('genre = ?');
-            values.push(best.genre);
-          }
-          if ((!v.rating || v.rating === 0) && best.rating) {
-            fields.push('rating = ?');
-            values.push(parseFloat(best.rating) || 0);
-          }
-          if ((!v.duration || v.duration === '') && best.duration) {
-            fields.push('duration = ?');
-            values.push(best.duration);
-          }
-          if ((!v.video_url || v.video_url.includes('BigBuckBunny') || v.video_url.includes('ElephantsDream') || v.video_url.includes('Sintel') || v.video_url.includes('TearsOfSteel') || v.video_url.includes('ForBiggerBlazes')) && best.video_url) {
-            fields.push('video_url = ?');
-            values.push(best.video_url);
-          }
-
-          if (fields.length > 0) {
-            values.push(v.id);
-            db.prepare(`UPDATE videos SET ${fields.join(', ')} WHERE id = ?`).run(...values);
-            updated++;
-          }
-        }
-      } catch (err) {
-        failed++;
-        console.error(`[Batch] Failed for "${title}":`, err.message);
       }
-
-      // Rate limiting delay
-      await new Promise(r => setTimeout(r, 800 + Math.random() * 700));
+      console.log('[Batch] Done:', enrichProgress.updated, 'updated,', enrichProgress.failed, 'failed');
+    } catch (err) {
+      console.error('[Batch] Fatal error:', err.message);
+    } finally {
+      enrichRunning = false;
     }
+  })();
 
-    res.json({ success: true, total: videos.length, updated, failed });
-  } catch (err) {
-    res.status(500).json({ success: false, msg: err.message });
-  }
+  res.json({ success: true, running: true, msg: '后台任务已启动', total: enrichProgress.total });
+});
+
+// Check batch auto-fill progress
+router.get('/batch-auto-fill/status', authMiddleware, (req, res) => {
+  res.json({ running: enrichRunning, progress: enrichProgress });
 });
 
 // Douban poster search — manual lookup from admin UI (auth required)
@@ -1033,7 +1039,7 @@ router.get('/douban-poster', authMiddleware, async (req, res) => {
       if (result && result.douban_id) {
         best = {
           title: cleanTitle(preferChineseTitle(result.title, title)),
-          poster: proxyPosterUrl(result.poster || ''),
+          poster: (result.poster || ''),
           year: result.year || '',
           rating: result.rating || '',
           genre: '',
@@ -1061,14 +1067,25 @@ router.get('/douban-poster', authMiddleware, async (req, res) => {
     // Fallback: suggest API
     if (!best || !best.poster) {
       try {
+        const doubanCookie = process.env.DOUBAN_COOKIE || '';
+        const suggestHeaders = {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Referer': 'https://movie.douban.com/'
+        };
+        if (doubanCookie) suggestHeaders['Cookie'] = doubanCookie;
         const suggestRes = await axios.get('https://movie.douban.com/j/subject_suggest', {
           params: { q: title },
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Referer': 'https://movie.douban.com/'
-          },
-          timeout: 8000
+          headers: suggestHeaders,
+          timeout: 8000,
+          maxRedirects: 5
         });
+        // Douban may return HTML login page instead of JSON when IP is blocked
+        if (typeof suggestRes.data === 'string') {
+          if (suggestRes.data.includes('登录跳转') || suggestRes.data.includes('异常请求')) {
+            console.error('[Douban] Suggest API blocked — IP flagged. Set DOUBAN_COOKIE in .env.');
+          }
+          suggestRes.data = [];
+        }
         if (Array.isArray(suggestRes.data) && suggestRes.data.length > 0) {
           const items = suggestRes.data.filter(r => r.id && r.img);
           if (items.length > 0) {
@@ -1076,7 +1093,7 @@ router.get('/douban-poster', authMiddleware, async (req, res) => {
             const item = chineseItems.length > 0 ? chineseItems[0] : items[0];
             best = {
               title: cleanTitle(preferChineseTitle(item.title, title)),
-              poster: proxyPosterUrl(item.img || ''),
+              poster: (item.img || ''),
               year: item.year || '',
               rating: '',
               genre: '',
@@ -1131,6 +1148,45 @@ router.get('/tmdb-poster', authMiddleware, async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, msg: err.message });
   }
+});
+
+// Backward-compatible image proxy for poster URLs already stored in DB as /api/img-proxy
+router.get('/img-proxy', (req, res) => {
+  const imgUrl = req.query.url;
+  if (!imgUrl || (!imgUrl.startsWith('http://') && !imgUrl.startsWith('https://'))) {
+    return res.status(400).json({ error: 'Invalid URL' });
+  }
+
+  const parsed = new URL(imgUrl);
+  const transport = parsed.protocol === 'https:' ? require('https') : require('http');
+
+  transport.get(imgUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Referer': parsed.origin + '/',
+      'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8',
+      'Accept-Language': 'zh-CN,zh;q=0.9'
+    },
+    rejectUnauthorized: false,
+    timeout: 12000
+  }, (imgRes) => {
+    if (imgRes.statusCode !== 200) {
+      // Follow redirect once
+      if ([301, 302, 303, 307, 308].includes(imgRes.statusCode) && imgRes.headers.location) {
+        const redirectUrl = new URL(imgRes.headers.location, imgUrl);
+        const rt = redirectUrl.protocol === 'https:' ? require('https') : require('http');
+        rt.get(redirectUrl.href, { rejectUnauthorized: false, timeout: 12000, headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': parsed.origin + '/' } }, (r2) => {
+          if (r2.statusCode !== 200) return res.status(r2.statusCode).end();
+          res.set({ 'Content-Type': r2.headers['content-type'] || 'image/jpeg', 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' });
+          r2.pipe(res);
+        }).on('error', () => res.status(502).end());
+        return;
+      }
+      return res.status(imgRes.statusCode).end();
+    }
+    res.set({ 'Content-Type': imgRes.headers['content-type'] || 'image/jpeg', 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' });
+    imgRes.pipe(res);
+  }).on('error', () => { if (!res.headersSent) res.status(502).end(); });
 });
 
 module.exports = router;

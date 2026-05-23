@@ -95,8 +95,8 @@
             z-index: 1;
             pointer-events: none;
             background:
-                /* Heavy dark veil */
-                linear-gradient(180deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.55) 30%, rgba(0,0,0,0.40) 55%, rgba(0,0,0,0.55) 70%, rgba(0,0,0,0.92) 100%),
+                /* Heavy dark veil — lighter at bottom so poster wall shows through */
+                linear-gradient(180deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.50) 25%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.50) 75%, rgba(0,0,0,0.75) 100%),
                 /* Side vignettes */
                 linear-gradient(90deg, rgba(0,0,0,0.88) 0%, transparent 25%, transparent 75%, rgba(0,0,0,0.88) 100%),
                 /* Red accent glow */
@@ -249,9 +249,8 @@
         .footer {
             position: relative;
             z-index: 10;
-            background: rgba(0,0,0,0.75);
-            padding: 30px 40px;
-            border-top: 1px solid rgba(255,255,255,0.06);
+            background: transparent;
+            padding: 30px 40px 30px;
         }
         .footer-links {
             display: flex;
@@ -335,7 +334,7 @@
             .header .logo { font-size: 24px; }
             .login-card h1 { font-size: 24px; margin-bottom: 20px; }
             .main { padding: 0 0 30px; align-items: flex-start; }
-            .footer { padding: 20px; border-top: none; }
+            .footer { padding: 20px; }
             .footer-links { gap: 12px 24px; }
             .poster-mosaic { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
         }

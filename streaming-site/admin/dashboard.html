@@ -76,7 +76,8 @@
                         <option value="trendingMovies">🎬 热门电影</option>
                         <option value="trendingTV">📺 热门电视剧</option>
                         <option value="trendingAnime">🎨 热门动漫</option>
-                        <option value="liveTV">📡 电视直播</option>
+                        <option value="trendingVariety">🎪 热门综艺</option>
+                        <option value="liveTV">📡 纪录解说</option>
                         <option value="moreRecommend">⭐ 更多推荐</option>
                     </select>
                 </div>
@@ -174,7 +175,7 @@ let editingId = null;
 // Category label lookup
 const CAT_LABELS = {
   trendingMovies: '热门电影', trendingTV: '热门电视剧', trendingAnime: '热门动漫',
-  liveTV: '电视直播', moreRecommend: '更多推荐'
+  trendingVariety: '热门综艺', liveTV: '纪录解说', moreRecommend: '更多推荐'
 };
 function catLabel(key) { return CAT_LABELS[key] || key; }
 
@@ -740,30 +741,61 @@ document.getElementById('categoryFilter').addEventListener('change', function() 
 });
 
 // Batch auto-fill
-document.getElementById('batchFillBtn').addEventListener('click', async () => {
-  if (!confirm('批量自动填充将扫描所有视频，为缺少封面、简介、评分、视频源的记录自动补充信息。\n\n此过程可能需要几分钟，确定继续吗？')) return;
+let batchPollTimer = null;
+
+async function doBatchFill() {
+  if (!confirm('批量自动填充将扫描缺少封面/评分/简介的视频和VOD（最多300条），通过TMDB自动补充信息。\n\n任务在后台运行，您可以继续操作。确定开始吗？')) return;
 
   const btn = document.getElementById('batchFillBtn');
-  const origText = btn.innerHTML;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 启动中...';
   btn.disabled = true;
 
   try {
     const res = await api('/api/batch-auto-fill', { method: 'POST' });
-    if (!res) { btn.innerHTML = origText; btn.disabled = false; return; }
+    if (!res) { btn.innerHTML = '<i class="fas fa-magic"></i> 批量自动填充'; btn.disabled = false; return; }
     const json = await res.json();
-    if (json.success) {
-      alert(`批量填充完成！\n\n共扫描 ${json.total} 条记录\n成功更新 ${json.updated} 条\n失败 ${json.failed} 条`);
-      loadVideos();
+    if (json.success && json.running) {
+      startPolling();
     } else {
-      alert('批量填充失败: ' + (json.msg || '未知错误'));
+      alert('启动失败');
+      btn.innerHTML = '<i class="fas fa-magic"></i> 批量自动填充';
+      btn.disabled = false;
     }
   } catch (err) {
     alert('网络错误: ' + err.message);
+    btn.innerHTML = '<i class="fas fa-magic"></i> 批量自动填充';
+    btn.disabled = false;
   }
-  btn.innerHTML = origText;
-  btn.disabled = false;
-});
+}
+
+function startPolling() {
+  const btn = document.getElementById('batchFillBtn');
+  const updateBtn = (p) => {
+    const pct = p.total > 0 ? Math.round(p.done / p.total * 100) : 0;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + pct + '% (' + p.done + '/' + p.total + ') 已更新' + p.updated;
+  };
+
+  batchPollTimer = setInterval(async () => {
+    try {
+      const res = await api('/api/batch-auto-fill/status');
+      if (!res) return;
+      const json = await res.json();
+      if (json.running) {
+        updateBtn(json.progress);
+      } else {
+        clearInterval(batchPollTimer);
+        batchPollTimer = null;
+        btn.innerHTML = '<i class="fas fa-magic"></i> 批量自动填充';
+        btn.disabled = false;
+        const p = json.progress;
+        alert('批量填充完成！\n\n共 ' + p.total + ' 条\n成功更新 ' + p.updated + ' 条\n失败 ' + p.failed + ' 条');
+        loadVideos();
+      }
+    } catch {}
+  }, 2000);
+}
+
+document.getElementById('batchFillBtn').addEventListener('click', doBatchFill);
 
 loadCategories();
 loadVideos();

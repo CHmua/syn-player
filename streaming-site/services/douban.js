@@ -8,15 +8,35 @@ const cache = require('./cache');
 
 const DOUBAN_SEARCH = 'https://www.douban.com/search';
 const DOUBAN_SUBJECT = 'https://movie.douban.com/subject';
+const DOUBAN_COOKIE = process.env.DOUBAN_COOKIE || '';
+
+const isBlocked = !!DOUBAN_COOKIE ? false : undefined; // unknown until first request if no cookie
 
 const client = axios.create({
   timeout: 10000,
   headers: {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'Accept-Language': 'zh-CN,zh;q=0.9'
-  }
+    'Accept-Language': 'zh-CN,zh;q=0.9',
+    ...(DOUBAN_COOKIE ? { 'Cookie': DOUBAN_COOKIE } : {})
+  },
+  maxRedirects: 5
 });
+
+// Detect if Douban returned a security/login page instead of real content
+function isSecurityPage(html) {
+  if (!html || typeof html !== 'string') return true;
+  if (html.length < 500) {
+    // Short response is not a normal Douban page
+    if (html.includes('sec.douban.com') || html.includes('异常请求') || html.includes('登录跳转') || html.includes('有异常请求从你的 IP 发出')) {
+      return true;
+    }
+  }
+  if (html.includes('登录跳转页') || html.includes('有异常请求从你的 IP 发出')) {
+    return true;
+  }
+  return false;
+}
 
 // --------------- Score how well a search result matches the query ---------------
 function scoreMatch(resultTitle, resultYear, query, queryYear) {
@@ -75,9 +95,15 @@ async function searchMovie(name, year) {
     const searchName = parsed.name || name;
     const searchYear = year || parsed.year || '';
 
-    const { data: html } = await client.get(DOUBAN_SEARCH, {
+    const { data: html, request } = await client.get(DOUBAN_SEARCH, {
       params: { cat: 1002, q: searchName }
     });
+
+    // Check if Douban blocked the request (security page / login redirect)
+    if (isSecurityPage(html)) {
+      console.error('[Douban] IP blocked by Douban security — set DOUBAN_COOKIE in .env to bypass. Get your cookie from douban.com after logging in.');
+      return null;
+    }
 
     // Douban search result blocks use: <div class="result"><div class="pic">...</div><div class="content">...</div></div>
     // Extract all result blocks by splitting on the result div boundaries
@@ -177,6 +203,8 @@ async function getPosterFromSubject(doubanId) {
   try {
     const { data: html } = await client.get(`${DOUBAN_SUBJECT}/${doubanId}/`);
 
+    if (isSecurityPage(html)) return '';
+
     // Try og:image meta tag
     const ogMatch = html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]*)"/);
     if (ogMatch) return normalizePosterUrl(ogMatch[1]);
@@ -200,6 +228,8 @@ async function getPosterFromSubject(doubanId) {
 async function getSubjectDetail(doubanId) {
   try {
     const { data: html } = await client.get(`${DOUBAN_SUBJECT}/${doubanId}/`);
+
+    if (isSecurityPage(html)) return null;
 
     return {
       douban_id: doubanId,
@@ -339,9 +369,15 @@ async function getMobileSubjectDetail(doubanId) {
       headers: {
         'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
         'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'zh-CN,zh;q=0.9'
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        ...(DOUBAN_COOKIE ? { 'Cookie': DOUBAN_COOKIE } : {})
       }
     });
+
+    if (isSecurityPage(html)) {
+      console.error('[Douban] Mobile subject blocked — IP flagged by Douban');
+      return null;
+    }
 
     // Chinese title from og:title: "永生之太元仙府 (豆瓣)" → "永生之太元仙府"
     let title = '';

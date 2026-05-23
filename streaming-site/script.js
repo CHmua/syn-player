@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     backToTopBtn.addEventListener('click', function() {
-        window.scrollTo({ top: 0, behavior: 'instant' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         backToTopBtn.classList.remove('visible');
     });
 
@@ -202,9 +202,13 @@ document.addEventListener('DOMContentLoaded', function() {
     var searchOverlayResults = document.getElementById('searchOverlayResults');
 
     function showSearchOverlay(query) {
+        var iconEl = document.querySelector('.search-overlay-icon');
         searchOverlayQuery.textContent = '「' + query + '」';
+        if (iconEl) iconEl.style.display = '';
         searchOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
+        // Scroll results to top when new search starts
+        if (searchOverlayContent) searchOverlayContent.scrollTop = 0;
 
         // Show loading state
         searchOverlayResults.innerHTML = '' +
@@ -220,6 +224,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (result.success && result.data && result.data.length > 0) {
                     renderSearchResults(result.data, result.source);
                 } else {
+                    if (iconEl) iconEl.style.display = '';
                     searchOverlayResults.innerHTML = '' +
                         '<div class="search-no-results">' +
                         '  <i class="fas fa-film"></i>' +
@@ -229,6 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(function() {
+                if (iconEl) iconEl.style.display = '';
                 searchOverlayResults.innerHTML = '' +
                     '<div class="search-no-results">' +
                     '  <i class="fas fa-film"></i>' +
@@ -239,21 +245,37 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderSearchResults(vods, source) {
-        var sourceLabel = source === 'external' ? '来自资源站' : source === 'local' ? '本地数据库' : '缓存';
-        var html = '<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">找到 ' + vods.length + ' 个结果 (' + sourceLabel + ')</div>';
+        // Hide the decorative search icon when results are shown
+        var iconEl = document.querySelector('.search-overlay-icon');
+        if (iconEl) iconEl.style.display = 'none';
+        // Scroll to top of results
+        if (searchOverlayContent) searchOverlayContent.scrollTop = 0;
+
+        var sourceLabel = source === 'external' ? '外部资源站' : source === 'local' ? '本地数据库' : '缓存';
+        var sourceDotClass = source === 'external' ? 'external' : source === 'local' ? 'local' : 'cache';
+        var html = '<div class="vod-search-source">' +
+            '<span class="source-dot ' + sourceDotClass + '"></span>' +
+            '找到 <span class="vod-search-count">' + vods.length + '</span> 个结果' +
+            '<span style="opacity:0.6;">· ' + sourceLabel + '</span>' +
+            '</div>';
         html += '<div class="vod-search-grid">';
         vods.forEach(function(v) {
             var title = v.vod_name || v.title || '未知影片';
-            var pic = v.vod_pic || v.poster_url || 'https://picsum.photos/seed/' + (v.vod_id || 'x') + '/300/400';
+            var pic = v.vod_pic || v.poster_url || '';
             var remark = v.vod_remarks || '';
             var year = v.vod_year || v.year || '';
-            html += '<div class="vod-search-card" onclick="location.href=\'video-player.html?id=' + (v.vod_id || v.id) + '\'">';
-            html += '<img src="' + pic + '" alt="' + title + '" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=\'https://picsum.photos/seed/\' + Math.random().toString(36).slice(2,8) + \'/300/400\'">';
+            var typeName = v.type_name || v.vod_type || '';
+            var rating = v.vod_score || v.douban_rating || '';
+            var fallbackSeed = (v.vod_id || Math.random()).toString(36).substring(0, 8);
+            html += '<div class="vod-search-card" onclick="location.href=\'video-player.html?id=' + (v.vod_id || v.id) + '\'" title="' + title + '">';
+            html += '<img src="' + (pic || 'https://picsum.photos/seed/' + fallbackSeed + '/140/200') + '" alt="' + title + '" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=\'https://picsum.photos/seed/\' + Math.random().toString(36).slice(2,8) + \'/140/200\'">';
             html += '<div class="vod-search-card-body">';
             html += '<div class="vod-search-title">' + title + '</div>';
             html += '<div class="vod-search-meta">';
-            if (year) html += '<span>' + year + '</span>';
-            if (remark) html += '<span style="color:var(--red);">' + remark + '</span>';
+            if (year) html += '<span class="meta-year">' + year + '</span>';
+            if (rating && parseFloat(rating) > 0) html += '<span class="meta-tag">' + parseFloat(rating).toFixed(1) + '</span>';
+            if (typeName) html += '<span class="meta-type">' + typeName + '</span>';
+            if (remark) html += '<span style="color:var(--red);font-size:11px;">' + remark + '</span>';
             html += '</div></div></div>';
         });
         html += '</div>';
@@ -389,7 +411,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var html = '<div class="' + cardClass + '" onclick="location.href=\'video-player.html?id=' + video.id + '\'">';
         html += '<div class="thumb-poster">';
-        html += '<img src="' + imgSrc + '" alt="' + video.title + '" loading="lazy" referrerpolicy="no-referrer" onerror="window._imgProxyRetry(this)" data-orig-src="' + (useBackdrop ? (video.backdrop_url || video.poster_url || '') : (video.poster_url || '')) + '">';
+        html += '<img src="' + imgSrc + '" alt="' + video.title + '" loading="lazy" referrerpolicy="no-referrer">';
         html += '<div style="display:none;width:100%;height:100%;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);align-items:center;justify-content:center;font-size:12px;color:#888;text-align:center;padding:10px;">' + video.title + '</div>';
         if (badgeText) {
             if (rating > 0) {
@@ -421,10 +443,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var sizeClass = '';
         if (index % 7 === 0) sizeClass = 'size-lg';
-        else if (index % 5 === 0) sizeClass = 'size-wide';
+        else if (index % 5 === 0) sizeClass = 'size-tall';
 
         return '<div class="more-recommend-card ' + sizeClass + '" data-index="' + index + '" onclick="location.href=\'video-player.html?id=' + (video.vod_id || video.id) + '\'">' +
-            '<img class="poster-img" src="' + (posterUrl || 'https://picsum.photos/seed/' + (video.vod_id || video.id) + '/400/600') + '" alt="' + title + '" loading="lazy" onerror="window._imgProxyRetry(this)" data-orig-src="' + posterUrl + '">' +
+            '<img class="poster-img" src="' + (posterUrl || 'https://picsum.photos/seed/' + (video.vod_id || video.id) + '/400/600') + '" alt="' + title + '" loading="lazy">' +
             '<div class="poster-overlay">' +
                 (badgeText ? '<span class="poster-badge"><i class="fas fa-star"></i> ' + badgeText + '</span>' : '') +
                 '<div class="poster-title">' + title + '</div>' +
@@ -456,22 +478,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Global thumb image fallback — retries through proxy, then shows gradient placeholder
+    // Global thumb image fallback — show gradient placeholder on error
     window._imgProxyRetry = function(img) {
-        if (img.dataset.proxyRetried) {
-            // Already retried — show gradient fallback
-            img.style.display = 'none';
-            if (img.nextElementSibling) img.nextElementSibling.style.display = 'flex';
-            return;
-        }
-        img.dataset.proxyRetried = '1';
-        var orig = img.getAttribute('data-orig-src') || img.src;
-        if (orig && !orig.includes('/api/img-proxy')) {
-            img.src = '/api/img-proxy?url=' + encodeURIComponent(orig);
-        } else {
-            img.style.display = 'none';
-            if (img.nextElementSibling) img.nextElementSibling.style.display = 'flex';
-        }
+        img.style.display = 'none';
+        if (img.nextElementSibling) img.nextElementSibling.style.display = 'flex';
     };
 
     // Global hero image fallback — searches for better posters in real-time
@@ -629,7 +639,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Detect broken carousel background images and try proxy fallback
+    // Detect broken carousel background images and fall back to picsum
     function fixCarouselBg() {
         var slides = document.querySelectorAll('.hero-bg[data-orig-bg]');
         slides.forEach(function(slide) {
@@ -639,15 +649,7 @@ document.addEventListener('DOMContentLoaded', function() {
             testImg.onerror = function() {
                 if (slide.dataset.bgFixed) return;
                 slide.dataset.bgFixed = '1';
-                var proxyUrl = '/api/img-proxy?url=' + encodeURIComponent(origBg);
-                var proxyImg = new Image();
-                proxyImg.onload = function() {
-                    slide.style.backgroundImage = 'url(' + proxyUrl + ')';
-                };
-                proxyImg.onerror = function() {
-                    slide.style.backgroundImage = 'url(https://picsum.photos/seed/' + encodeURIComponent(origBg.slice(-20)) + '/1400/800)';
-                };
-                proxyImg.src = proxyUrl;
+                slide.style.backgroundImage = 'url(https://picsum.photos/seed/' + encodeURIComponent(origBg.slice(-20)) + '/1400/800)';
             };
             testImg.src = origBg;
         });
@@ -675,7 +677,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function loadSections() {
         // Phase 1: Load the 4 main sections in parallel, track shown vod_ids
-        var mainSections = ['trendingMovies', 'trendingTV', 'trendingAnime', 'liveTV'];
+        var mainSections = ['trendingMovies', 'trendingTV', 'trendingAnime', 'trendingVariety', 'liveTV'];
         var shownIds = new Set();
 
         var mainPromises = mainSections.map(function(sectionId) {
@@ -692,9 +694,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     trendingTVData = videos.slice();
                 } else if (sectionId === 'trendingAnime') {
                     trendingAnimeData = videos.slice();
+                } else if (sectionId === 'trendingVariety') {
+                    trendingVarietyData = videos.slice();
                 }
-                var limit = sectionId === 'liveTV' ? 6 : 12;
-                var useBackdrop = sectionId === 'trendingMovies' || sectionId === 'trendingTV' || sectionId === 'trendingAnime';
+                var limit = (sectionId === 'liveTV' || sectionId === 'trendingVariety') ? 6 : 12;
+                var useBackdrop = sectionId === 'trendingMovies' || sectionId === 'trendingTV' || sectionId === 'trendingAnime' || sectionId === 'trendingVariety';
                 container.innerHTML = videos.slice(0, limit).map(function(v) { return renderVideoCard(v, { useBackdrop: useBackdrop }); }).join('');
             }).catch(function() {
                 container.innerHTML = '<p style="color:#999;padding:20px;">加载失败</p>';
@@ -753,11 +757,13 @@ document.addEventListener('DOMContentLoaded', function() {
     var trendingData = [];
     var trendingTVData = [];
     var trendingAnimeData = [];
+    var trendingVarietyData = [];
 
     var sectionDataMap = {
         'trendingMovies': function() { return trendingData; },
         'trendingTV': function() { return trendingTVData; },
-        'trendingAnime': function() { return trendingAnimeData; }
+        'trendingAnime': function() { return trendingAnimeData; },
+        'trendingVariety': function() { return trendingVarietyData; }
     };
 
     document.querySelectorAll('.section-tabs').forEach(function(tabsWrap) {

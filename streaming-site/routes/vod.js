@@ -2,10 +2,18 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { searchAcrossSources, getRecentUpdates, parsePlayUrls, checkUrlValid } = require('../services/collect');
-const { proxyHandler } = require('../services/m3u8-proxy');
 const { dedupVods } = require('../utils/dedup');
 const cache = require('../services/cache');
 const { authMiddleware } = require('../middleware/auth');
+
+// Wrap external poster URLs through image proxy to bypass hotlink/CORS/SSL issues
+function proxyImageUrl(url) {
+  if (!url) return '';
+  // Don't double-wrap already-proxied URLs or local resources
+  if (url.startsWith('/api/') || url.includes('picsum.photos') || url.startsWith('data:')) return url;
+  if (!url.startsWith('http')) return url;
+  return '/api/vod/image-proxy?url=' + encodeURIComponent(url);
+}
 
 // Unified DB helper — tries MySQL (with connection test), falls back to SQLite
 let _vodDb = null;
@@ -247,6 +255,8 @@ router.get('/detail/:vodId', async (req, res) => {
           vod.episodes.push({ ...ep, source_name: src.source_name });
         }
       }
+      // Attach proxied poster URL for hotlink/CORS/SSL bypass
+      vod.poster_url = proxyImageUrl(vod.vod_pic || '');
       await cache.set(cacheKey, vod, 1800);
       return res.json({ success: true, data: vod, source: 'local' });
     }
@@ -277,12 +287,9 @@ router.get('/parse-sources', (req, res) => {
   const { parseWithLines } = require('../services/collect');
   const sources = parseWithLines(playUrl, playFrom);
 
-  // Add proxy URLs and type detection
+  // Add type detection (no proxy — client connects directly)
   for (const source of sources) {
     source.source_code = source.source_name.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 6) || 'line';
-    for (const ep of source.episodes) {
-      ep.proxy_url = '/api/vod/m3u8-proxy?url=' + encodeURIComponent(ep.play_url);
-    }
   }
 
   res.json({
@@ -311,10 +318,62 @@ router.get('/source-health', async (req, res) => {
   });
 });
 
-// --------------- m3u8 Proxy (core streaming) ---------------
-// Proxies: .m3u8 playlists, .ts segments, .key files
-// Rewrites internal links, spoofs Referer/UA, handles CORS
-router.get('/m3u8-proxy', proxyHandler);
+// --------------- Image Proxy (poster/CORS/SSL bypass) ---------------
+// Proxies external poster images to bypass hotlink protection, SSL errors, and CORS
+router.get('/image-proxy', (req, res) => {
+  const imgUrl = req.query.url;
+  if (!imgUrl || (!imgUrl.startsWith('http://') && !imgUrl.startsWith('https://'))) {
+    return res.status(400).json({ error: 'Invalid URL' });
+  }
+
+  const parsed = new URL(imgUrl);
+  const isHttps = parsed.protocol === 'https:';
+  const transport = isHttps ? require('https') : require('http');
+
+  const opts = {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'Referer': parsed.origin + '/',
+      'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+      'Accept-Language': 'zh-CN,zh;q=0.9'
+    },
+    rejectUnauthorized: false,
+    timeout: 12000
+  };
+
+  transport.get(imgUrl, opts, (imgRes) => {
+    // Follow redirects (up to 3)
+    if ([301, 302, 303, 307, 308].includes(imgRes.statusCode)) {
+      const redirectUrl = imgRes.headers.location;
+      if (redirectUrl) {
+        const redirectParsed = new URL(redirectUrl, imgUrl);
+        const redirectTransport = redirectParsed.protocol === 'https:' ? require('https') : require('http');
+        opts.headers.Referer = parsed.origin + '/';
+        redirectTransport.get(redirectParsed.href, opts, (redirectRes) => {
+          pipeImageResponse(redirectRes, res);
+        }).on('error', () => res.status(502).end());
+        return;
+      }
+    }
+    pipeImageResponse(imgRes, res);
+  }).on('error', (err) => {
+    if (!res.headersSent) res.status(502).end();
+  });
+});
+
+function pipeImageResponse(source, dest) {
+  if (source.statusCode !== 200) {
+    return dest.status(source.statusCode >= 400 ? source.statusCode : 502).end();
+  }
+  const contentType = source.headers['content-type'] || 'image/jpeg';
+  dest.set({
+    'Content-Type': contentType,
+    'Cache-Control': 'public, max-age=86400',
+    'Access-Control-Allow-Origin': '*'
+  });
+  source.pipe(dest);
+  source.on('error', () => { if (!dest.headersSent) dest.status(502).end(); });
+}
 
 // --------------- Check URL validity ---------------
 router.get('/check-url', async (req, res) => {
@@ -482,94 +541,6 @@ async function incrementHotKeyword(keyword) {
     }
   } catch { /* non-critical */ }
 }
-
-// ============================================================
-//  Soupian.pro (搜片.com) routes
-// ============================================================
-
-// Direct soupian search — returns metadata + external playback links
-router.get('/soupian/search', async (req, res) => {
-  const keyword = (req.query.wd || '').trim();
-  if (!keyword) return res.json({ success: false, msg: 'Missing keyword' });
-
-  try {
-    const { fetchSoupianSearch } = require('../services/collect');
-    const results = await fetchSoupianSearch(keyword);
-    res.json({ success: true, data: results, total: results.length, source: 'soupian' });
-  } catch (err) {
-    res.status(500).json({ success: false, msg: err.message });
-  }
-});
-
-// Pipeline: soupian detail → scrape external AppleCMS playback pages → extract m3u8
-router.get('/soupian/enrich/:name', async (req, res) => {
-  const name = decodeURIComponent(req.params.name || '');
-  if (!name) return res.json({ success: false, msg: 'Missing name' });
-
-  try {
-    const { getSoupianDetailForName } = require('../services/collect');
-    const detail = await getSoupianDetailForName(name);
-    if (!detail || detail.total_sources === 0) {
-      return res.json({ success: false, msg: 'Not found on soupian' });
-    }
-
-    // Run Playwright pipeline to extract m3u8 from external sites
-    const { enrichSoupianWithStreams } = require('../services/soupian-parser');
-    const maxSites = parseInt(req.query.max) || 3;
-    const enriched = await enrichSoupianWithStreams(detail, { maxSites });
-
-    res.json({ success: true, data: enriched });
-  } catch (err) {
-    res.status(500).json({ success: false, msg: err.message });
-  }
-});
-
-// Soupian detail — external source links for a movie name
-router.get('/soupian/detail/:name', async (req, res) => {
-  const name = decodeURIComponent(req.params.name || '');
-  if (!name) return res.json({ success: false, msg: 'Missing name' });
-
-  try {
-    const { getSoupianDetailForName } = require('../services/collect');
-    const detail = await getSoupianDetailForName(name);
-    if (detail) {
-      return res.json({ success: true, data: detail });
-    }
-    res.json({ success: false, msg: 'Not found' });
-  } catch (err) {
-    res.status(500).json({ success: false, msg: err.message });
-  }
-});
-
-// ============================================================
-//  HTML / Playwright scraping routes (admin-only)
-// ============================================================
-
-// Scrape a HTML source's detail page for m3u8/mp4 URLs
-router.post('/scrape-detail', authMiddleware, async (req, res) => {
-  const { url, source } = req.body;
-  if (!url) return res.json({ success: false, msg: 'Missing url' });
-
-  try {
-    const { getHTMLDetailPage } = require('../services/collect');
-    const result = await getHTMLDetailPage(url, source || 'manual');
-    res.json({ success: true, data: result });
-  } catch (err) {
-    res.status(500).json({ success: false, msg: err.message });
-  }
-});
-
-// Manual trigger: run HTML source collection (Playwright)
-router.post('/collect-html', authMiddleware, async (req, res) => {
-  try {
-    const { collectHTMLSources } = require('../services/collect-scheduler');
-    // Run in background
-    res.json({ success: true, msg: 'HTML source collection started' });
-    collectHTMLSources().catch(err => console.error('[Collect-HTML] Background error:', err.message));
-  } catch (err) {
-    res.status(500).json({ success: false, msg: err.message });
-  }
-});
 
 // ============================================================
 //  Sync / Collection Routes (admin-only)

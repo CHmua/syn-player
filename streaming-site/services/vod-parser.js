@@ -125,13 +125,6 @@ function buildVodObject(vodData) {
 
   const sources = parseAppleCMS(vod_play_from, vod_play_url);
 
-  // Generate proxy URLs for all episodes
-  for (const source of sources) {
-    for (const ep of source.episodes) {
-      ep.proxy_url = '/api/vod/m3u8-proxy?url=' + encodeURIComponent(ep.play_url);
-    }
-  }
-
   return {
     vod_id,
     vod_name,

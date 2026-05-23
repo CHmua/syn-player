@@ -27,46 +27,57 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     <ul class="nav-menu" id="navMenu">
         <li><a href="index.html" class="active"><i class="fas fa-home"></i> 首页</a></li>
         <li>
-            <a href="javascript:;"><i class="fas fa-film"></i> 电影 <i class="fas fa-chevron-down"></i></a>
+            <a href="browse.html?section=trendingMovies&title=电影"><i class="fas fa-film"></i> 电影 <i class="fas fa-chevron-down"></i></a>
             <ul class="dropdown">
-                <li><a href="javascript:;">英语</a></li>
-                <li><a href="javascript:;">中文</a></li>
-                <li><a href="javascript:;">印地语</a></li>
-                <li><a href="javascript:;">阿拉伯语</a></li>
-                <li><a href="javascript:;">俄语</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=动作片">动作片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=喜剧片">喜剧片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=剧情片">剧情片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=恐怖片">恐怖片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=爱情片">爱情片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=科幻片">科幻片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=惊悚片">惊悚片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=战争片">战争片</a></li>
+                <li class="dropdown-divider"></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影">全部电影</a></li>
             </ul>
         </li>
         <li>
-            <a href="javascript:;"><i class="fas fa-tv"></i> 电视剧 <i class="fas fa-chevron-down"></i></a>
+            <a href="browse.html?section=trendingTV&title=电视剧"><i class="fas fa-tv"></i> 电视剧 <i class="fas fa-chevron-down"></i></a>
             <ul class="dropdown">
-                <li><a href="javascript:;">真人秀</a></li>
-                <li><a href="javascript:;">喜剧</a></li>
-                <li><a href="javascript:;">剧情</a></li>
-                <li><a href="javascript:;">犯罪</a></li>
-                <li><a href="javascript:;">惊悚</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=国产剧">国产剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=欧美剧">欧美剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=日本剧">日本剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=韩国剧">韩国剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=泰国剧">泰国剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=香港剧">香港剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=台湾剧">台湾剧</a></li>
+                <li class="dropdown-divider"></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧">全部剧集</a></li>
             </ul>
         </li>
         <li>
-            <a href="javascript:;"><i class="fas fa-laptop"></i> 网络节目 <i class="fas fa-chevron-down"></i></a>
+            <a href="browse.html?section=trendingAnime&title=动漫"><i class="fas fa-laptop"></i> 动漫 <i class="fas fa-chevron-down"></i></a>
             <ul class="dropdown">
-                <li><a href="javascript:;">剧情</a></li>
-                <li><a href="javascript:;">惊悚</a></li>
-                <li><a href="javascript:;">真人秀</a></li>
-                <li><a href="javascript:;">犯罪</a></li>
-                <li><a href="javascript:;">喜剧</a></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫&genre=国产动漫">国产动漫</a></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫&genre=日韩动漫">日韩动漫</a></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫&genre=动漫电影">动漫电影</a></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫&genre=漫剧">漫剧</a></li>
+                <li class="dropdown-divider"></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫">全部动漫</a></li>
             </ul>
         </li>
-        <li><a href="javascript:;"><i class="fas fa-th-large"></i> 频道</a></li>
         <li>
-            <a href="javascript:;"><i class="fas fa-music"></i> 音乐 <i class="fas fa-chevron-down"></i></a>
+            <a href="browse.html?section=trendingVariety&title=综艺"><i class="fas fa-th-large"></i> 综艺 <i class="fas fa-chevron-down"></i></a>
             <ul class="dropdown">
-                <li><a href="javascript:;">中文</a></li>
-                <li><a href="javascript:;">英语</a></li>
-                <li><a href="javascript:;">阿拉伯语</a></li>
-                <li><a href="javascript:;">旁遮普语</a></li>
-                <li><a href="javascript:;">俄语</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺&genre=大陆综艺">大陆综艺</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺&genre=日韩综艺">日韩综艺</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺&genre=港台综艺">港台综艺</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺&genre=欧美综艺">欧美综艺</a></li>
+                <li class="dropdown-divider"></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺">全部综艺</a></li>
             </ul>
         </li>
+        <li><a href="browse.html?section=liveTV&title=纪录解说"><i class="fas fa-music"></i> 纪录片</a></li>
         <li>
             <a href="javascript:;"><i class="fas fa-broadcast-tower"></i> 电视直播 <i class="fas fa-chevron-down"></i></a>
             <ul class="dropdown">
@@ -162,16 +173,30 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         <div class="thumb-grid" id="trendingAnime"></div>
     </section>
 
-    <!-- 4. 电视直播 — iQiyi-style grid (6 cards) -->
+    <!-- 3. 热门综艺 — iQiyi-style 2-row grid (12 cards) -->
     <section class="section section-trending-iqiyi">
         <div class="section-header">
-            <h3>电视直播</h3>
-            <a href="live-tv.html" class="more-link">更多频道 <i class="fas fa-chevron-right"></i></a>
+            <h3>热门综艺</h3>
+            <div class="section-tabs">
+                <button class="section-tab active" data-tab="recommend">推荐</button>
+                <button class="section-tab" data-tab="hot">最热</button>
+                <button class="section-tab" data-tab="new">最新</button>
+            </div>
+            <a href="browse.html?section=trendingVariety&title=热门综艺" class="more-link">更多综艺 <i class="fas fa-chevron-right"></i></a>
+        </div>
+        <div class="thumb-grid" id="trendingVariety"></div>
+    </section>
+
+    <!-- 5. 纪录解说 — iQiyi-style grid (6 cards) -->
+    <section class="section section-trending-iqiyi">
+        <div class="section-header">
+            <h3>纪录解说</h3>
+            <a href="browse.html?section=liveTV&title=纪录解说" class="more-link">更多内容 <i class="fas fa-chevron-right"></i></a>
         </div>
         <div class="thumb-grid" id="liveTV"></div>
     </section>
 
-    <!-- 5. 更多推荐 — portrait cards with lazy load -->
+    <!-- 6. 更多推荐 — portrait cards with lazy load -->
     <section class="section section-more-recommend">
         <div class="section-header">
             <h3>更多推荐</h3>
@@ -187,63 +212,55 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 <footer class="footer">
     <div class="footer-grid">
         <div class="footer-col">
-            <h4>热门电影</h4>
+            <h4>电影分类</h4>
             <ul>
-                <li><a href="javascript:;">速度与激情 9</a></li>
-                <li><a href="javascript:;">复仇者联盟</a></li>
-                <li><a href="javascript:;">蜘蛛侠 3</a></li>
-                <li><a href="javascript:;">权力的游戏</a></li>
-                <li><a href="javascript:;">巴霍巴利王 2</a></li>
-                <li><a href="javascript:;">泰坦尼克号</a></li>
-                <li><a href="javascript:;">绿巨人浩克</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=动作片">动作片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=喜剧片">喜剧片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=剧情片">剧情片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=科幻片">科幻片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=恐怖片">恐怖片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=爱情片">爱情片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影">全部电影</a></li>
             </ul>
         </div>
         <div class="footer-col">
-            <h4>热门节目</h4>
+            <h4>电视剧分类</h4>
             <ul>
-                <li><a href="javascript:;">速度与激情 9</a></li>
-                <li><a href="javascript:;">复仇者联盟</a></li>
-                <li><a href="javascript:;">蜘蛛侠 3</a></li>
-                <li><a href="javascript:;">权力的游戏</a></li>
-                <li><a href="javascript:;">巴霍巴利王 2</a></li>
-                <li><a href="javascript:;">泰坦尼克号</a></li>
-                <li><a href="javascript:;">绿巨人浩克</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=国产剧">国产剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=欧美剧">欧美剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=日本剧">日本剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=韩国剧">韩国剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=泰国剧">泰国剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=香港剧">香港剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧">全部剧集</a></li>
             </ul>
         </div>
         <div class="footer-col">
-            <h4>按语言分类</h4>
+            <h4>动漫分类</h4>
             <ul>
-                <li><a href="javascript:;">英语电影</a></li>
-                <li><a href="javascript:;">中文电影</a></li>
-                <li><a href="javascript:;">印地语电影</a></li>
-                <li><a href="javascript:;">阿拉伯语电影</a></li>
-                <li><a href="javascript:;">俄语电影</a></li>
-                <li><a href="javascript:;">韩语电影</a></li>
-                <li><a href="javascript:;">日语电影</a></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫&genre=国产动漫">国产动漫</a></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫&genre=日韩动漫">日韩动漫</a></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫&genre=动漫电影">动漫电影</a></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫&genre=漫剧">漫剧</a></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫">全部动漫</a></li>
             </ul>
         </div>
         <div class="footer-col">
-            <h4>热播电视剧</h4>
+            <h4>综艺分类</h4>
             <ul>
-                <li><a href="javascript:;">速度与激情 9</a></li>
-                <li><a href="javascript:;">复仇者联盟</a></li>
-                <li><a href="javascript:;">蜘蛛侠 3</a></li>
-                <li><a href="javascript:;">权力的游戏</a></li>
-                <li><a href="javascript:;">巴霍巴利王 2</a></li>
-                <li><a href="javascript:;">泰坦尼克号</a></li>
-                <li><a href="javascript:;">绿巨人浩克</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺&genre=大陆综艺">大陆综艺</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺&genre=日韩综艺">日韩综艺</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺&genre=港台综艺">港台综艺</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺&genre=欧美综艺">欧美综艺</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺">全部综艺</a></li>
             </ul>
         </div>
         <div class="footer-col">
-            <h4>热门演员</h4>
+            <h4>更多内容</h4>
             <ul>
-                <li><a href="javascript:;">小罗伯特·唐尼</a></li>
-                <li><a href="javascript:;">斯嘉丽·约翰逊</a></li>
-                <li><a href="javascript:;">克里斯·海姆斯沃斯</a></li>
-                <li><a href="javascript:;">道恩·强森</a></li>
-                <li><a href="javascript:;">莱昂纳多·迪卡普里奥</a></li>
-                <li><a href="javascript:;">汤姆·克鲁斯</a></li>
-                <li><a href="javascript:;">布拉德·皮特</a></li>
+                <li><a href="browse.html?section=liveTV&title=纪录解说">纪录解说</a></li>
+                <li><a href="live-tv.html">电视直播</a></li>
+                <li><a href="news.html">资讯</a></li>
             </ul>
         </div>
     </div>
@@ -258,11 +275,11 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             <h4>探索</h4>
             <ul>
                 <li><a href="index.html">首页</a></li>
-                <li><a href="javascript:;">网络节目</a></li>
-                <li><a href="javascript:;">电影</a></li>
-                <li><a href="javascript:;">电视剧</a></li>
-                <li><a href="javascript:;">音乐</a></li>
-                <li><a href="javascript:;">频道</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影">电影</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧">电视剧</a></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫">动漫</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺">综艺</a></li>
+                <li><a href="browse.html?section=liveTV&title=纪录解说">纪录解说</a></li>
                 <li><a href="news.html">资讯</a></li>
             </ul>
         </div>
