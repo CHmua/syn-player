@@ -17,11 +17,5 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          MACHINES=$(flyctl m list --app syn-player-jm 2>/dev/null | grep -c '^[a-f0-9]' || echo 0)
-          if [ "$MACHINES" = "0" ]; then
-            echo "No machines, creating first one..."
-            flyctl m run . --app syn-player-jm --yes
-          else
-            echo "Updating $MACHINES existing machine(s)..."
-            flyctl deploy --app syn-player-jm --ha=false
-          fi
+          flyctl launch --name syn-player-jm --region nrt --now --copy-config --ha=false --yes 2>&1 || \
+          flyctl deploy --app syn-player-jm --ha=false 2>&1
