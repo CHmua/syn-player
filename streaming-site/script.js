@@ -671,33 +671,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 var poster = v.backdrop_url || v.poster_url || v.poster || v.vod_pic || 'https://picsum.photos/seed/c' + i + '/1400/800';
                 var title = v.title || v.vod_name || '未知影片';
                 var rating = v.rating || '';
-                var type = v.type || v.vod_class || '';
+                var type = v.type || v.vod_class || v.type_name || '';
                 var year = v.year || v.vod_year || v.release_year || '';
                 var releaseDate = v.release_date || '';
-                var desc = v.description || v.plot || '';
+                var area = v.vod_area || v.area || '';
+                var duration = v.duration || '';
+                var genre = v.genre || v.vod_type || '';
+                var desc = v.description || v.plot || v.vod_content || '';
                 var id = v.id || v.vod_id || '';
                 var ratingFloat = parseFloat(rating);
                 var ratingValue = isFinite(ratingFloat) && ratingFloat > 0 ? rating : '暂无';
                 var ratingSourceLabel = v.rating_source || '';
                 if (ratingSourceLabel && ratingValue !== '暂无') ratingSourceLabel += ' ';
 
-                // Format release date: "YYYY年MM月DD日上映"
+                // Format release date: "上映时间：YYYY年-MM月-DD日 (地区) 类型 时长"
                 var dateDisplay = '';
                 if (releaseDate && releaseDate.length >= 10) {
                     var d = new Date(releaseDate);
                     if (!isNaN(d.getTime())) {
-                        dateDisplay = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日上映';
+                        dateDisplay = d.getFullYear() + '年-' + String(d.getMonth() + 1).padStart(2, '0') + '月-' + String(d.getDate()).padStart(2, '0') + '日';
                     }
                 }
                 if (!dateDisplay && year && year.length === 4) {
-                    dateDisplay = year + '年上映';
+                    dateDisplay = year + '年';
                 }
 
                 var metaParts = [];
+                if (dateDisplay) metaParts.push('上映时间：' + dateDisplay);
+                else if (year) metaParts.push('上映时间：' + year + '年');
+                if (area) metaParts.push(area);
                 if (type) metaParts.push(type);
-                if (dateDisplay) metaParts.push(dateDisplay);
-                else if (year && !dateDisplay) metaParts.push(year);
-                var meta = metaParts.join(' · ');
+                if (duration) metaParts.push(duration);
+                var meta = metaParts.join('  ');
 
                 var html = '';
                 html += '<div class="swiper-slide">';
@@ -715,7 +720,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 html += '<span class="hero-rating-value">' + ratingValue + '</span>';
                 html += '</div>';
                 html += '<h1 class="hero-title">' + title + '</h1>';
-                html += '<h2 class="hero-subtitle">' + meta + (rating ? ' · ' + rating : '') + '</h2>';
+                html += '<h2 class="hero-subtitle">' + meta + '</h2>';
                 if (desc) {
                     var short = desc.length > 240 ? desc.substr(0, 240) + '…' : desc;
                     html += '<p class="hero-desc">' + short + '</p>';
