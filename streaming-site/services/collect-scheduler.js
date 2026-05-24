@@ -380,4 +380,45 @@ function startCollectScheduler() {
   }, 15000);
 }
 
-module.exports = { startCollectScheduler, collectRecentUpdates, fullDeepSync, detectDeadUrls };
+// Manual trigger — runs collection and returns summary
+async function runNow() {
+  if (isCollecting) {
+    return { status: 'already_running', message: '采集任务正在运行中，请稍后再试' };
+  }
+  const startTime = Date.now();
+  try {
+    const previous = {
+      vodCount: 0,
+      videoCount: 0
+    };
+    try {
+      const sqlite = require('../database');
+      previous.vodCount = (sqlite.prepare('SELECT COUNT(*) as c FROM vods').get() || {}).c || 0;
+      previous.videoCount = (sqlite.prepare('SELECT COUNT(*) as c FROM videos').get() || {}).c || 0;
+    } catch {}
+
+    await collectRecentUpdates();
+
+    const now = {
+      vodCount: 0,
+      videoCount: 0
+    };
+    try {
+      const sqlite = require('../database');
+      now.vodCount = (sqlite.prepare('SELECT COUNT(*) as c FROM vods').get() || {}).c || 0;
+      now.videoCount = (sqlite.prepare('SELECT COUNT(*) as c FROM videos').get() || {}).c || 0;
+    } catch {}
+
+    return {
+      status: 'completed',
+      duration_ms: Date.now() - startTime,
+      vod_before: previous.vodCount,
+      vod_after: now.vodCount,
+      vod_added: now.vodCount - previous.vodCount
+    };
+  } catch (err) {
+    return { status: 'failed', error: err.message, duration_ms: Date.now() - startTime };
+  }
+}
+
+module.exports = { startCollectScheduler, collectRecentUpdates, fullDeepSync, detectDeadUrls, runNow };

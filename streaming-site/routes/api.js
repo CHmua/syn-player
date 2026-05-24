@@ -90,9 +90,11 @@ function getCategoryCondition(category) {
 }
 
 router.get('/videos', async (req, res) => {
-  const { category, search, limit, featured } = req.query;
+  const { category, search, limit, featured, page } = req.query;
   const limitNum = parseInt(limit) || (category === 'moreRecommend' ? 400 : 200);
   const featuredOnly = featured === '1';
+  const pageNum = Math.max(1, parseInt(page) || 1);
+  const offset = (pageNum - 1) * limitNum;
 
   // ============================================================
   //  Phase 1: Load admin-managed videos (SQLite videos table)
@@ -184,12 +186,12 @@ router.get('/videos', async (req, res) => {
           params.push(...cond.params);
         }
       }
-      sql += ' ORDER BY featured DESC, updated_at DESC LIMIT ' + limitNum;
+      sql += ' ORDER BY featured DESC, updated_at DESC LIMIT ' + limitNum + ' OFFSET ' + offset;
       [mysqlRows] = await vodDb.query(sql, params);
 
       if (mysqlRows.length === 0 && category && !search) {
         const [allRows] = await vodDb.query(
-          'SELECT * FROM vods WHERE is_active = 1 ORDER BY featured DESC, updated_at DESC LIMIT ' + limitNum
+          'SELECT * FROM vods WHERE is_active = 1 ORDER BY featured DESC, updated_at DESC LIMIT ' + limitNum + ' OFFSET ' + offset
         );
         mysqlRows = allRows;
       }
@@ -209,9 +211,9 @@ router.get('/videos', async (req, res) => {
         }
       }
       if (category === 'moreRecommend') {
-        s += ' ORDER BY featured DESC, vod_hits DESC, updated_at DESC LIMIT ' + limitNum;
+        s += ' ORDER BY featured DESC, vod_hits DESC, updated_at DESC LIMIT ' + limitNum + ' OFFSET ' + offset;
       } else {
-        s += ' ORDER BY featured DESC, updated_at DESC LIMIT ' + limitNum;
+        s += ' ORDER BY featured DESC, updated_at DESC LIMIT ' + limitNum + ' OFFSET ' + offset;
       }
       mysqlRows = sParams.length > 0
         ? db2.prepare(s).all(...sParams)
@@ -219,7 +221,7 @@ router.get('/videos', async (req, res) => {
 
       if (mysqlRows.length === 0 && category && !search) {
         mysqlRows = db2.prepare(
-          'SELECT * FROM vods WHERE is_active = 1 ORDER BY featured DESC, updated_at DESC LIMIT ' + limitNum
+          'SELECT * FROM vods WHERE is_active = 1 ORDER BY featured DESC, updated_at DESC LIMIT ' + limitNum + ' OFFSET ' + offset
         ).all();
       }
     }
@@ -277,6 +279,28 @@ router.get('/videos', async (req, res) => {
 
   // Merge: admin videos first (authoritative), then non-conflicting VODs
   const merged = [...adminVideos, ...filteredVods];
+
+  // Paginated response (admin dashboard)
+  if (req.query.page) {
+    // Get total count for pagination
+    let totalAdmin = 0;
+    if (search) {
+      totalAdmin = db.prepare('SELECT COUNT(*) as c FROM videos WHERE title LIKE ?').get(`%${search}%`).c;
+    } else if (category) {
+      totalAdmin = db.prepare('SELECT COUNT(*) as c FROM videos WHERE category = ?').get(category).c;
+    } else {
+      totalAdmin = db.prepare('SELECT COUNT(*) as c FROM videos').get().c;
+    }
+    // Estimate total VODs (get exact count from the non-deduped rows)
+    const paginated = merged.slice(0, limitNum);
+    return res.json({
+      data: paginated,
+      total: paginated.length,  // actual returned count
+      page: pageNum,
+      per_page: limitNum,
+      has_more: paginated.length >= limitNum
+    });
+  }
 
   res.json(merged);
 });
@@ -681,6 +705,56 @@ router.post('/admin/cleanup', authMiddleware, (req, res) => {
   db.prepare('DELETE FROM vods').run();
   db.prepare('DELETE FROM collect_logs').run();
   res.json({ success: true, videos_deleted: vDel.changes, vods_deleted: vodCount.c });
+});
+
+// ===== Sync Status & Manual Trigger =====
+
+// Get collection sync status
+router.get('/admin/sync-status', authMiddleware, async (req, res) => {
+  try {
+    // Counts
+    const vodCount = db.prepare('SELECT COUNT(*) as c FROM vods WHERE is_active = 1').get().c;
+    const vodWithUrl = db.prepare("SELECT COUNT(*) as c FROM vods WHERE is_active = 1 AND vod_play_url IS NOT NULL AND vod_play_url != ''").get().c;
+    const videoCount = db.prepare('SELECT COUNT(*) as c FROM videos').get().c;
+
+    // Last sync log
+    const lastLog = db.prepare(
+      "SELECT * FROM collect_logs WHERE status = 'success' ORDER BY created_at DESC LIMIT 1"
+    ).get();
+
+    // VOD count by type
+    const typeStats = db.prepare(
+      "SELECT type_name, COUNT(*) as c FROM vods WHERE is_active = 1 AND type_name != '' GROUP BY type_name ORDER BY c DESC LIMIT 20"
+    ).all();
+
+    res.json({
+      vod_count: vodCount,
+      vod_with_url: vodWithUrl,
+      video_count: videoCount,
+      last_sync: lastLog ? {
+        type: lastLog.collect_type,
+        fetched: lastLog.total_fetched,
+        added: lastLog.new_added,
+        updated: lastLog.updated_existing,
+        duration_ms: lastLog.duration_ms,
+        time: lastLog.created_at
+      } : null,
+      type_stats: typeStats
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Manual sync trigger
+router.post('/admin/sync-now', authMiddleware, async (req, res) => {
+  try {
+    const scheduler = require('../services/collect-scheduler');
+    const result = await scheduler.runNow();
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
 });
 
 // Online user count (public)

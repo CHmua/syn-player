@@ -27,6 +27,8 @@
         <button class="btn-batch" id="batchFillBtn" title="自动为所有缺少信息的视频补充封面、简介、评分等"><i class="fas fa-magic"></i> 批量自动填充</button>
         <button class="btn-users" id="usersBtn" title="查看注册用户"><i class="fas fa-users"></i> 用户管理</button>
         <button class="btn-series" id="seriesBtn" title="系列管理（季/部归类）"><i class="fas fa-layer-group"></i> 系列管理</button>
+        <button class="btn-sync" id="syncNowBtn" title="立即从资源站采集最新影片"><i class="fas fa-sync-alt"></i> 立即采集</button>
+        <span id="syncStatus" style="font-size:12px;color:#888;margin-left:8px;"></span>
         <button class="btn-del-batch" id="batchDelBtn" title="批量删除选中的视频" style="display:none"><i class="fas fa-trash"></i> 批量删除 (<span id="selCount">0</span>)</button>
     </div>
 
@@ -60,6 +62,7 @@
         </div>
 
         <p class="count-info" id="countInfo"></p>
+        <div class="pagination" id="pagination" style="display:flex;justify-content:center;gap:8px;margin-top:12px;"></div>
     </div>
 
     <!-- User management section -->
@@ -397,8 +400,17 @@ async function loadVideos() {
   } else if (search) params.set('search', search);
   else if (category) params.set('category', category);
 
+  // Pagination
+  params.set('page', currentPage);
+  params.set('limit', '50');
+
   const res = await fetch('/api/videos?' + params);
-  const videos = await res.json();
+  const result = await res.json();
+  // Handle both paginated and flat responses
+  const videos = result.data || result;
+  const hasMore = result.has_more !== undefined ? result.has_more : false;
+  const total = result.total || videos.length;
+
   const tbody = document.getElementById('videoTable');
   tbody.innerHTML = videos.map(v => `
     <tr>
@@ -420,7 +432,10 @@ async function loadVideos() {
     </tr>
   `).join('');
   updateSelectAllState();
-  document.getElementById('countInfo').textContent = `共 ${videos.length} 条记录`;
+  document.getElementById('countInfo').textContent = `第 ${currentPage} 页 · ${videos.length} 条` + (hasMore ? '（还有更多）' : '');
+
+  // Pagination controls
+  renderPagination(hasMore);
 
   // Bind edit buttons
   tbody.querySelectorAll('.btn-edit').forEach(btn => btn.addEventListener('click', () => editVideo(videos.find(v => v.id == btn.dataset.id))));
@@ -481,6 +496,7 @@ async function loadCategories() {
       this.classList.add('active');
       document.getElementById('categoryFilter').value = this.dataset.category;
       document.getElementById('searchInput').value = '';
+      currentPage = 1;
       loadVideos();
     });
     tabsWrap.appendChild(btn);
@@ -496,6 +512,7 @@ async function loadCategories() {
     this.classList.add('active');
     document.getElementById('categoryFilter').value = '';
     document.getElementById('searchInput').value = '';
+    currentPage = 1;
     loadVideos();
   });
   tabsWrap.appendChild(featuredTab);
@@ -506,6 +523,7 @@ async function loadCategories() {
     this.classList.add('active');
     document.getElementById('categoryFilter').value = '';
     document.getElementById('searchInput').value = '';
+    currentPage = 1;
     loadVideos();
   });
 }
@@ -911,22 +929,22 @@ document.getElementById('pwdForm').addEventListener('submit', async function(e) 
 });
 
 document.getElementById('searchInput').addEventListener('input', function() {
-  // When searching, clear category filter and section tabs
   if (this.value) {
     document.getElementById('categoryFilter').value = '';
     document.querySelectorAll('#sectionTabs .section-tab').forEach(t => t.classList.remove('active'));
     document.querySelector('#sectionTabs .section-tab[data-category=""]').classList.add('active');
   }
+  currentPage = 1;
   loadVideos();
 });
 document.getElementById('categoryFilter').addEventListener('change', function() {
-  // Sync section tabs with dropdown
   var val = this.value;
   document.querySelectorAll('#sectionTabs .section-tab').forEach(function(t) {
     t.classList.remove('active');
     if (t.dataset.category === val) t.classList.add('active');
   });
   if (!val) document.querySelector('#sectionTabs .section-tab[data-category=""]').classList.add('active');
+  currentPage = 1;
   loadVideos();
 });
 
@@ -991,6 +1009,70 @@ document.getElementById('batchFillBtn').addEventListener('click', doBatchFill);
 //  User Management
 // ============================================================
 let currentView = 'videos'; // 'videos' | 'users' | 'series'
+let currentPage = 1;
+const PER_PAGE = 50;
+
+function renderPagination(hasMore) {
+  const pag = document.getElementById('pagination');
+  if (!pag) return;
+  let html = '';
+  if (currentPage > 1) {
+    html += `<button class="btn-sm" onclick="goToPage(${currentPage - 1})">上一页</button>`;
+  }
+  html += `<span style="color:#888;font-size:13px;line-height:30px;">第 ${currentPage} 页</span>`;
+  if (hasMore) {
+    html += `<button class="btn-sm" onclick="goToPage(${currentPage + 1})">下一页</button>`;
+  }
+  pag.innerHTML = html;
+}
+
+function goToPage(p) {
+  currentPage = p;
+  loadVideos();
+}
+
+// Sync status — load on startup
+async function loadSyncStatus() {
+  try {
+    const res = await api('/api/admin/sync-status');
+    if (!res) return;
+    const data = await res.json();
+    const el = document.getElementById('syncStatus');
+    if (!el) return;
+    let text = `VOD: ${data.vod_count} 条（有源: ${data.vod_with_url}）`;
+    if (data.last_sync) {
+      const t = data.last_sync.time.replace('T', ' ').substring(0, 16);
+      text += ` | 上次采集: ${t} (+${data.last_sync.added}条)`;
+    }
+    el.textContent = text;
+  } catch {}
+}
+
+// Sync now button
+document.getElementById('syncNowBtn').addEventListener('click', async function() {
+  this.disabled = true;
+  this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 采集中...';
+  document.getElementById('syncStatus').textContent = '正在从 dbzy.tv 采集影片...';
+  try {
+    const res = await api('/api/admin/sync-now', { method: 'POST' });
+    if (!res) return;
+    const data = await res.json();
+    if (data.status === 'completed') {
+      alert(`采集完成！用时 ${(data.duration_ms / 1000).toFixed(1)}s，新增 ${data.vod_added} 条影片。`);
+    } else if (data.status === 'already_running') {
+      alert(data.message);
+    } else {
+      alert('采集失败: ' + (data.error || '未知错误'));
+    }
+  } catch (err) {
+    alert('采集失败: ' + err.message);
+  } finally {
+    this.disabled = false;
+    this.innerHTML = '<i class="fas fa-sync-alt"></i> 立即采集';
+    loadSyncStatus();
+    loadVideos();
+  }
+});
 
 document.getElementById('usersBtn').addEventListener('click', () => {
   if (currentView === 'users') {
@@ -1193,6 +1275,7 @@ async function deleteUser(id, username) {
 
 loadCategories();
 loadVideos();
+loadSyncStatus();
 </script>
 </body>
 </html>
