@@ -428,6 +428,178 @@ async function fullDeepSync() {
   }
 }
 
+// --------------- Batch series grouping ---------------
+// Groups VODs into series using pattern matching + common-prefix clustering
+// Handles cases like 哆啦A梦 第一季 / 哆啦A梦：大雄的月球探险记 → all under 哆啦A梦
+async function groupAllSeries() {
+  console.log('[Series] Running batch series grouping...');
+
+  try {
+    await getDB();
+    if (!dbBackend) return { error: 'No database' };
+
+    // Fetch all active VODs with titles
+    const [allVods] = await dbQuery(
+      "SELECT vod_id, vod_name FROM vods WHERE is_active = 1 AND vod_name != ''"
+    );
+    if (!allVods || allVods.length === 0) {
+      console.log('[Series] No VODs to group');
+      return { total: 0, grouped: 0 };
+    }
+
+    // Step 1: Pattern-based detection (existing logic)
+    const { detectSeriesGroups } = require('../utils/series-detect');
+    const assignments = detectSeriesGroups(allVods.map(v => ({ id: v.vod_id, title: v.vod_name })));
+
+    // Build series groups from pattern matches
+    const seriesGroups = new Map(); // seriesTitle → [{ vod_id, season_label }]
+    const standalone = []; // { vod_id, vod_name } — no pattern match
+
+    for (const a of assignments) {
+      if (a.seriesTitle !== a.originalTitle) {
+        const key = a.seriesTitle;
+        if (!seriesGroups.has(key)) seriesGroups.set(key, []);
+        seriesGroups.get(key).push({ vod_id: a.id, season_label: a.seasonLabel });
+      } else {
+        standalone.push({ vod_id: a.id, vod_name: a.originalTitle });
+      }
+    }
+
+    console.log(`[Series] Pattern groups: ${seriesGroups.size} series, ${standalone.length} standalone`);
+
+    // Step 2: Common-prefix clustering for standalone titles
+    // If a standalone title starts with a known series title, add it to that series
+    const seriesNames = Array.from(seriesGroups.keys());
+    let prefixMatches = 0;
+
+    for (const item of standalone) {
+      const title = item.vod_name.trim();
+
+      // Try to match against existing series titles
+      let bestMatch = null;
+      let bestLen = 0;
+
+      for (const seriesName of seriesNames) {
+        // Check if title starts with the series name (allowing for colon/dash separators)
+        if (title === seriesName) {
+          bestMatch = seriesName;
+          bestLen = seriesName.length;
+          break;
+        }
+        // Match: "哆啦A梦：xxx" or "哆啦A梦 之 xxx" or "哆啦A梦 剧场版"
+        const sepPattern = new RegExp(`^${escapeRegex(seriesName)}[：: 　\\-–—··【\\[(（].+$`);
+        if (sepPattern.test(title) && seriesName.length > bestLen) {
+          // Don't re-match if it already looks like a season pattern
+          const remaining = title.substring(seriesName.length).replace(/^[：: 　\\-–—··【\\[(（]+/, '');
+          if (remaining.length > 0) {
+            bestMatch = seriesName;
+            bestLen = seriesName.length;
+          }
+        }
+      }
+
+      if (bestMatch) {
+        const remaining = title.substring(bestMatch.length).replace(/^[：: 　\-–—··【\[(（]+/, '').trim();
+        if (!seriesGroups.has(bestMatch)) seriesGroups.set(bestMatch, []);
+        seriesGroups.get(bestMatch).push({
+          vod_id: item.vod_id,
+          season_label: remaining || '特别篇'
+        });
+        prefixMatches++;
+      } else {
+        // Step 3: Find new series from standalone titles that share a meaningful prefix
+        // Only cluster if at least 2 standalone titles share the same prefix
+        // (handled after this loop)
+      }
+    }
+
+    // Step 3: Discover new groups among remaining standalones
+    // If 2+ standalones share a common prefix (split at ：or 空格), group them
+    const remainingStandalone = standalone.filter(
+      s => !Array.from(seriesGroups.values()).some(g => g.some(m => m.vod_id === s.vod_id))
+    );
+
+    // Build prefix index for remaining standalones
+    const prefixMap = new Map(); // prefix → [{ vod_id, vod_name, full_title }]
+    for (const item of remainingStandalone) {
+      const title = item.vod_name.trim();
+      // Extract prefix: split at common separators, use the part before
+      const prefixMatch = title.match(/^(.+?)[：: 　]*(?:第[一二三四五六七八九十百千\d]+[季部期]|[（(]\d{4}[）)]|剧场版|电影版|OVA|OAD|SP|特别篇|番外篇|外传|之\s*\S)/);
+      let prefix;
+      if (prefixMatch) {
+        prefix = prefixMatch[1].trim();
+      } else {
+        // Try splitting at ：or ：
+        const colonIdx = Math.max(
+          title.indexOf('：'), title.indexOf(':')
+        );
+        if (colonIdx > 0) {
+          prefix = title.substring(0, colonIdx).trim();
+        } else {
+          // No clear delimiter — use the first 2-4 chars as potential prefix
+          // Only for Chinese/Japanese titles
+          if (/^[一-鿿぀-ゟ゠-ヿ]{3,}/.test(title)) {
+            prefix = title.substring(0, Math.min(4, title.length));
+          }
+        }
+      }
+
+      if (prefix && prefix.length >= 2) {
+        if (!prefixMap.has(prefix)) prefixMap.set(prefix, []);
+        prefixMap.get(prefix).push({ vod_id: item.vod_id, vod_name: title, full_title: title });
+      }
+    }
+
+    let newGroups = 0;
+    for (const [prefix, items] of prefixMap) {
+      if (items.length < 2) continue; // need at least 2 to form a series
+
+      // Don't create group if prefix is too short or already a known series
+      if (prefix.length < 2) continue;
+      if (seriesGroups.has(prefix)) continue;
+
+      seriesGroups.set(prefix, []);
+      for (const item of items) {
+        let seasonLabel = item.vod_name.substring(prefix.length).replace(/^[：: 　\-–—··]+/, '').trim();
+        if (!seasonLabel) seasonLabel = '';
+        seriesGroups.get(prefix).push({ vod_id: item.vod_id, season_label: seasonLabel });
+      }
+      newGroups++;
+      console.log(`[Series] New group from prefix: "${prefix}" (${items.length} items)`);
+    }
+
+    console.log(`[Series] Prefix matches: ${prefixMatches}, new groups: ${newGroups}`);
+
+    // Step 4: Apply series_title and season_label to all VODs in groups
+    let totalUpdated = 0;
+    for (const [seriesTitle, members] of seriesGroups) {
+      if (members.length < 2 && !seriesNames.includes(seriesTitle)) continue; // skip single-member new groups
+
+      for (const m of members) {
+        await dbQuery(
+          'UPDATE vods SET series_title = ?, season_label = ?, updated_at = CURRENT_TIMESTAMP WHERE vod_id = ?',
+          [seriesTitle, m.season_label || '', m.vod_id]
+        );
+        totalUpdated++;
+      }
+    }
+
+    // Also set series_title for standalone items (self-reference for consistency)
+    // Skip this — standalone items stay as is with empty series_title
+
+    console.log(`[Series] Done: ${seriesGroups.size} series groups, ${totalUpdated} VODs updated`);
+    return { total: allVods.length, series_groups: seriesGroups.size, updated: totalUpdated };
+
+  } catch (err) {
+    console.error('[Series] Grouping error:', err.message);
+    return { error: err.message };
+  }
+}
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // --------------- Dead URL detection ---------------
 async function detectDeadUrls() {
   console.log('[URL-Check] Starting dead URL detection...');
@@ -479,10 +651,12 @@ function startCollectScheduler() {
     await collectRecentUpdates();
   });
 
-  // Every 12 hours: full deep sync with enrichment
+  // Every 12 hours: full deep sync with enrichment + series grouping
   cron.schedule('0 */12 * * *', async () => {
     console.log('[Cron] Running deep sync...');
     await fullDeepSync();
+    console.log('[Cron] Running series grouping...');
+    await groupAllSeries();
   });
 
   // Every 2 hours: detect dead URLs
@@ -539,4 +713,4 @@ async function runNow() {
   }
 }
 
-module.exports = { startCollectScheduler, collectRecentUpdates, fullDeepSync, detectDeadUrls, runNow };
+module.exports = { startCollectScheduler, collectRecentUpdates, fullDeepSync, detectDeadUrls, runNow, groupAllSeries };
