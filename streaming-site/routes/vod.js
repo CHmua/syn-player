@@ -57,9 +57,13 @@ router.get('/search', async (req, res) => {
     const cacheKey = `search:${keyword}`;
     const cached = await cache.get(cacheKey);
     if (cached) {
-      // Log search
       logSearch(keyword, cached.length, 'cache', req.ip);
-      return res.json({ success: true, data: cached, source: 'cache' });
+      const proxied = cached.map(v => ({
+        ...v,
+        vod_pic: proxyImageUrl(v.vod_pic || v.poster || ''),
+        poster_url: proxyImageUrl(v.poster || v.vod_pic || '')
+      }));
+      return res.json({ success: true, data: proxied, source: 'cache' });
     }
 
     // 2. Check local database (MySQL or SQLite)
@@ -83,7 +87,11 @@ router.get('/search', async (req, res) => {
 
     // 3. If local results found, dedup, cache and return
     if (localResults.length > 0) {
-      const deduped = dedupVods(localResults);
+      const deduped = dedupVods(localResults).map(v => ({
+        ...v,
+        vod_pic: proxyImageUrl(v.vod_pic || v.poster || ''),
+        poster_url: proxyImageUrl(v.poster || v.vod_pic || '')
+      }));
       await cache.set(cacheKey, deduped, 3600);
       logSearch(keyword, deduped.length, 'local', req.ip);
       await incrementHotKeyword(keyword);
@@ -94,12 +102,17 @@ router.get('/search', async (req, res) => {
     const { results } = await searchAcrossSources(keyword);
 
     if (results.length > 0) {
-      // 5. Save to MySQL (INSERT IGNORE for dedup)
+      // 5. Save to DB, proxy posters, async TMDB enrich
       await saveVodsToDB(results);
-      const deduped = dedupVods(results);
+      const deduped = dedupVods(results).map(v => ({
+        ...v,
+        vod_pic: proxyImageUrl(v.vod_pic || ''),
+        poster_url: proxyImageUrl(v.vod_pic || '')
+      }));
       await cache.set(cacheKey, deduped, 3600);
       logSearch(keyword, deduped.length, 'external', req.ip);
       await incrementHotKeyword(keyword);
+      enrichVodsWithTMDB(results).catch(() => {});
       return res.json({ success: true, data: deduped, source: 'external' });
     }
 
@@ -611,5 +624,25 @@ router.get('/sources', (req, res) => {
     }))
   });
 });
+
+// Async TMDB poster enrichment for VOD records (fire-and-forget)
+async function enrichVodsWithTMDB(vods) {
+  if (!vods || vods.length === 0) return;
+  try {
+    const { enrichVods } = require('../services/tmdb');
+    const enriched = await enrichVods(vods.slice(0, 10)); // limit to 10 to avoid rate limits
+    for (const v of enriched) {
+      if (!v.poster) continue;
+      try {
+        const vdb = await getVODDB();
+        if (vdb.type === 'mysql') {
+          await vdb.pool.query('UPDATE vods SET poster = ? WHERE vod_id = ?', [v.poster, v.vod_id]);
+        } else if (vdb.type === 'sqlite') {
+          vdb.sqlite.prepare('UPDATE vods SET poster = ? WHERE vod_id = ?').run(v.poster, v.vod_id);
+        }
+      } catch {}
+    }
+  } catch {}
+}
 
 module.exports = router;

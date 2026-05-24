@@ -366,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var rating = v.vod_score || v.douban_rating || '';
             var fallbackSeed = (v.vod_id || Math.random()).toString(36).substring(0, 8);
             html += '<div class="vod-search-card" onclick="location.href=\'video-player.html?id=' + (v.vod_id || v.id) + '\'" title="' + title + '">';
-            html += '<img src="' + (pic || 'https://picsum.photos/seed/' + fallbackSeed + '/140/200') + '" alt="' + title + '" loading="lazy" referrerpolicy="no-referrer" onerror="this.src=\'https://picsum.photos/seed/\' + Math.random().toString(36).slice(2,8) + \'/140/200\'">';
+            html += '<img src="' + (pic || '/api/vod/image-proxy?fallback=1') + '" alt="' + title + '" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">';
             html += '<div class="vod-search-card-body">';
             html += '<div class="vod-search-title">' + title + '</div>';
             html += '<div class="vod-search-meta">';
