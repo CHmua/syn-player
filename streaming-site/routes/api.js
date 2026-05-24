@@ -828,13 +828,14 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
       best.backdrop_url = best.poster || '';
     }
 
-    // Step 3: Search VOD database for matching video source URL (try MySQL first, then SQLite)
+    // Step 3: Search for video source URL — DB first, then live AppleCMS API
     if (best) {
-      try {
-        const searchTitle = best.title || title;
-        let vodRow = null;
+      const searchTitle = best.title || title;
+      let foundUrl = false;
 
-        // Try MySQL first (primary VOD storage)
+      // 3a: Search local VOD database
+      try {
+        let vodRow = null;
         try {
           const vodDb = require('../db');
           const [rows] = await vodDb.query(
@@ -843,20 +844,33 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
           );
           if (rows.length > 0) vodRow = rows[0];
         } catch {
-          // MySQL not available, try SQLite
           try {
             vodRow = db.prepare(
               "SELECT vod_play_url, source_name FROM vods WHERE vod_name LIKE ? AND vod_play_url IS NOT NULL AND vod_play_url != '' LIMIT 1"
             ).get(`%${searchTitle}%`);
-          } catch { /* both failed */ }
+          } catch {}
         }
-
         if (vodRow && vodRow.vod_play_url) {
-          // Return full multi-episode URL (format: 第01集$URL#第02集$URL#...)
           best.video_url = vodRow.vod_play_url;
           best.video_source = vodRow.source_name || '';
+          foundUrl = true;
         }
-      } catch { /* VOD search is optional */ }
+      } catch {}
+
+      // 3b: Fallback — search AppleCMS source directly
+      if (!foundUrl) {
+        try {
+          const { searchAcrossSources } = require('../services/collect');
+          const { results } = await searchAcrossSources(searchTitle);
+          if (results && results.length > 0) {
+            const withUrl = results.filter(r => r.vod_play_url);
+            if (withUrl.length > 0) {
+              best.video_url = withUrl[0].vod_play_url;
+              best.video_source = withUrl[0].source_name || '';
+            }
+          }
+        } catch {}
+      }
     }
 
     if (best && (best.title || best.poster)) {
