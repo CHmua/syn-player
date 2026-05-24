@@ -510,6 +510,18 @@ router.delete('/videos/:id', authMiddleware, async (req, res) => {
   res.status(404).json({ error: '视频不存在' });
 });
 
+// Batch delete videos
+router.post('/videos/batch-delete', authMiddleware, (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: '请提供要删除的视频ID列表' });
+  }
+  const placeholders = ids.map(() => '?').join(',');
+  const vResult = db.prepare(`DELETE FROM videos WHERE id IN (${placeholders})`).run(...ids);
+  const vodResult = db.prepare(`DELETE FROM vods WHERE vod_id IN (${placeholders})`).run(...ids);
+  res.json({ success: true, videos_deleted: vResult.changes, vods_deleted: vodResult.changes });
+});
+
 // Soft-delete a VOD from MySQL by matching title
 async function softDeleteMySQLVod(title) {
   if (!title) return;

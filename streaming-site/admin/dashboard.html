@@ -26,6 +26,7 @@
         <button class="btn-add" id="addBtn">+ 新增视频</button>
         <button class="btn-batch" id="batchFillBtn" title="自动为所有缺少信息的视频补充封面、简介、评分等"><i class="fas fa-magic"></i> 批量自动填充</button>
         <button class="btn-users" id="usersBtn" title="查看注册用户"><i class="fas fa-users"></i> 用户管理</button>
+        <button class="btn-del-batch" id="batchDelBtn" title="批量删除选中的视频" style="display:none"><i class="fas fa-trash"></i> 批量删除 (<span id="selCount">0</span>)</button>
     </div>
 
     <!-- Video management section -->
@@ -39,6 +40,7 @@
             <table>
                 <thead>
                     <tr>
+                        <th><input type="checkbox" id="selectAll" title="全选"></th>
                         <th>ID</th>
                         <th>封面</th>
                         <th>轮播</th>
@@ -351,6 +353,7 @@ async function loadVideos() {
   const tbody = document.getElementById('videoTable');
   tbody.innerHTML = videos.map(v => `
     <tr>
+      <td><input type="checkbox" class="row-cb" data-id="${v.id}"></td>
       <td>${v.id}</td>
       <td><img src="${v.poster_url || ''}" class="thumb-preview" onerror="this.style.display='none'"></td>
       <td><label class="featured-toggle-wrap" title="设为首页轮播"><input type="checkbox" class="featured-cb" data-id="${v.id}" ${v.featured ? 'checked' : ''}><span class="featured-slider"></span></label></td>
@@ -366,6 +369,7 @@ async function loadVideos() {
       </td>
     </tr>
   `).join('');
+  updateSelectAllState();
   document.getElementById('countInfo').textContent = `共 ${videos.length} 条记录`;
 
   // Bind edit buttons
@@ -764,6 +768,47 @@ async function deleteVideo(id, source) {
     alert('网络错误: ' + err.message);
   }
 }
+
+// Batch delete logic
+function getSelectedIds() {
+  return [...document.querySelectorAll('#videoTable .row-cb:checked')].map(cb => parseInt(cb.dataset.id));
+}
+function updateSelectAllState() {
+  const cbs = document.querySelectorAll('#videoTable .row-cb');
+  const selAll = document.getElementById('selectAll');
+  if (!selAll) return;
+  const count = document.querySelectorAll('#videoTable .row-cb:checked').length;
+  selAll.checked = cbs.length > 0 && count === cbs.length;
+  selAll.indeterminate = count > 0 && count < cbs.length;
+  document.getElementById('selCount').textContent = count;
+  document.getElementById('batchDelBtn').style.display = count > 0 ? '' : 'none';
+}
+document.getElementById('selectAll').addEventListener('change', function() {
+  document.querySelectorAll('#videoTable .row-cb').forEach(cb => { cb.checked = this.checked; });
+  updateSelectAllState();
+});
+document.getElementById('videoTable').addEventListener('change', function(e) {
+  if (e.target.classList.contains('row-cb')) updateSelectAllState();
+});
+document.getElementById('batchDelBtn').addEventListener('click', async function() {
+  const ids = getSelectedIds();
+  if (ids.length === 0) return;
+  if (!confirm('确定要删除选中的 ' + ids.length + ' 条视频吗？此操作不可撤销。')) return;
+  try {
+    const res = await api('/api/videos/batch-delete', { method: 'POST', body: JSON.stringify({ ids }) });
+    if (!res) return;
+    if (res.ok) {
+      const data = await res.json();
+      alert('已删除 ' + (data.videos_deleted || 0) + ' 条视频记录');
+      loadVideos();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert('批量删除失败: ' + (err.error || ''));
+    }
+  } catch (err) {
+    alert('网络错误: ' + err.message);
+  }
+});
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
   localStorage.removeItem('syn_token');
