@@ -75,7 +75,24 @@ async function parseXML(text) {
 // --------------- Normalize: AppleCMS → unified format ---------------
 function normalize(item, sourceName) {
   const vodId = item.vod_id || item.id || '';
-  const playUrl = item.vod_play_url || '';
+  let playUrl = item.vod_play_url || '';
+  let playFrom = item.vod_play_from || '';
+
+  // Filter: only keep "豆瓣云" source when collecting from dbzy.tv
+  if (sourceName === 'dbzy' && playFrom && playUrl) {
+    const fromParts = playFrom.split('$$$');
+    let doubanIdx = -1;
+    for (let i = 0; i < fromParts.length; i++) {
+      if (fromParts[i].trim() === '豆瓣云') { doubanIdx = i; break; }
+    }
+    if (doubanIdx >= 0) {
+      const urlBlocks = playUrl.split('$$$');
+      if (urlBlocks[doubanIdx]) {
+        playUrl = urlBlocks[doubanIdx].trim();
+        playFrom = '豆瓣云';
+      }
+    }
+  }
 
   return {
     vod_id: String(vodId),
@@ -92,7 +109,7 @@ function normalize(item, sourceName) {
     vod_score: item.vod_score || item.douban_score || item.score || '0.0',
     vod_type: item.vod_type || item.type || '',
     type_name: item.type_name || item.type || '',
-    vod_play_from: item.vod_play_from || '',
+    vod_play_from: playFrom,
     source_name: sourceName,
     douban_id: item.vod_douban_id || ''
   };
