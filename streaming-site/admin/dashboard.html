@@ -348,6 +348,17 @@ function parseEpisodes(videoUrl) {
     }
   }
 
+  // Sort: non-.m3u8 URLs first (mp4, etc. play more reliably than m3u8)
+  if (allEps.length > 1) {
+    allEps.sort(function(a, b) {
+      var aM3U8 = /\.m3u8/i.test(a.url);
+      var bM3U8 = /\.m3u8/i.test(b.url);
+      if (aM3U8 && !bM3U8) return 1;
+      if (!aM3U8 && bM3U8) return -1;
+      return 0;
+    });
+  }
+
   if (allEps.length > 0) return allEps;
   return [{ name: '', url: '' }];
 }
