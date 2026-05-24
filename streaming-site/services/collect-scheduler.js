@@ -5,8 +5,29 @@ const { delPattern } = require('./cache');
 // ============================================================
 //  Auto-Collection Scheduler
 //  AppleCMS multi-source sync with play URL enrichment
+//  + TMDB metadata + series detection + type filtering
 //  Supports MySQL (primary) and SQLite (fallback)
 // ============================================================
+
+// --------------- Type filter: exclude short drama & sports ---------------
+const ALLOWED_TYPE_PATTERNS = [
+  /电影/, /剧$/, /剧集/, /动漫/, /动画/, /综艺/, /纪录/, /纪录片/
+];
+const EXCLUDED_TYPE_PATTERNS = [
+  /短剧/, /体育/
+];
+
+function shouldCollect(typeName) {
+  if (!typeName) return true; // no type = allow (will be categorized later)
+  const t = typeName.trim();
+  for (const pat of EXCLUDED_TYPE_PATTERNS) {
+    if (pat.test(t)) return false;
+  }
+  for (const pat of ALLOWED_TYPE_PATTERNS) {
+    if (pat.test(t)) return true;
+  }
+  return false; // unknown types: skip
+}
 
 let isCollecting = false;
 let initialSyncDone = false;
@@ -147,6 +168,75 @@ async function saveVodToDB(item) {
   }
 }
 
+// --------------- Auto-enrich VOD with TMDB metadata + series detection ---------------
+async function enrichVodRecord(vodId, vodName, vodYear) {
+  try {
+    const updates = {};
+    let enriched = false;
+
+    // Step 1: TMDB full metadata
+    try {
+      const { searchMovieFull } = require('./tmdb');
+      const tmdb = await searchMovieFull(vodName, vodYear);
+      if (tmdb) {
+        if (tmdb.poster) {
+          updates.poster = tmdb.poster;
+          updates.vod_pic = tmdb.poster; // also update vod_pic for image proxy
+          enriched = true;
+        }
+        if (tmdb.backdrop) {
+          updates.backdrop_url = tmdb.backdrop;
+          enriched = true;
+        }
+        if (tmdb.year) { updates.vod_year = tmdb.year; enriched = true; }
+        if (tmdb.rating) { updates.vod_score = tmdb.rating; enriched = true; }
+        if (tmdb.genre) { updates.genre = tmdb.genre; enriched = true; }
+        if (tmdb.description) { updates.vod_content = tmdb.description; enriched = true; }
+        if (tmdb.director) { updates.vod_director = tmdb.director; enriched = true; }
+        if (tmdb.actors) { updates.vod_actor = tmdb.actors; enriched = true; }
+        if (tmdb.duration) { updates.duration = tmdb.duration; enriched = true; }
+        if (tmdb.tmdb_id) { updates.tmdb_id = tmdb.tmdb_id; enriched = true; }
+      }
+    } catch (err) {
+      console.error(`[Enrich] TMDB error for ${vodId}:`, err.message);
+    }
+
+    // Step 2: Series/season detection from title
+    try {
+      const { detectSeriesGroups } = require('../utils/series-detect');
+      const result = detectSeriesGroups([{ id: vodId, title: vodName }]);
+      if (result && result.length > 0 && result[0].seriesTitle !== result[0].originalTitle) {
+        updates.series_title = result[0].seriesTitle;
+        updates.season_label = result[0].seasonLabel;
+        enriched = true;
+      }
+    } catch (err) {
+      // Series detection is non-critical
+    }
+
+    // Step 3: Apply updates if any enrichment happened
+    if (enriched) {
+      const setClauses = [];
+      const values = [];
+      for (const [key, val] of Object.entries(updates)) {
+        setClauses.push(`${key} = ?`);
+        values.push(val);
+      }
+      values.push(vodId);
+      await dbQuery(
+        `UPDATE vods SET ${setClauses.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE vod_id = ?`,
+        values
+      );
+      console.log(`[Enrich] ${vodId}: updated ${Object.keys(updates).join(', ')}`);
+    }
+
+    return enriched;
+  } catch (err) {
+    console.error(`[Enrich] Failed for ${vodId}:`, err.message);
+    return false;
+  }
+}
+
 // --------------- Collect with enrichment ---------------
 async function collectRecentUpdates() {
   if (isCollecting) return;
@@ -191,14 +281,30 @@ async function collectRecentUpdates() {
     console.log(`[Collect] Fetching listings (pages 1-${pages})...`);
 
     const allItems = await getRecentUpdatesMulti(1, pages);
-    totalFetched = allItems.length;
+    // Filter: exclude 短剧, 体育; only keep 电影/电视剧/动漫/综艺/纪录片
+    const filteredItems = allItems.filter(item => shouldCollect(item.type_name));
+    const skippedCount = allItems.length - filteredItems.length;
+    if (skippedCount > 0) console.log(`[Collect] Skipped ${skippedCount} excluded types (短剧/体育/unknown)`);
+    totalFetched = filteredItems.length;
     console.log(`[Collect] Fetched ${totalFetched} items from all sources`);
 
-    // Phase 3: Save to DB
-    for (const item of allItems) {
+    // Phase 3: Save to DB + enrich new items with TMDB
+    let enrichQueue = [];
+    for (const item of filteredItems) {
       const result = await saveVodToDB(item);
-      if (result === 'new') newAdded++;
-      else if (result === 'updated') updatedExisting++;
+      if (result === 'new') {
+        newAdded++;
+        // Queue for enrichment (limit to avoid API rate limits)
+        if (enrichQueue.length < 30) {
+          enrichQueue.push({ vod_id: item.vod_id, vod_name: item.vod_name, vod_year: item.vod_year });
+        }
+      } else if (result === 'updated') updatedExisting++;
+    }
+
+    // Phase 3.5: Enrich new items with TMDB metadata + series detection
+    for (const vod of enrichQueue) {
+      const didEnrich = await enrichVodRecord(vod.vod_id, vod.vod_name, vod.vod_year);
+      if (didEnrich) enrichedCount++;
     }
 
     // Phase 4: Enrich items without play URLs
@@ -224,7 +330,7 @@ async function collectRecentUpdates() {
     await delPattern('search:*');
 
     const duration = Date.now() - startTime;
-    console.log(`[Collect] Done: ${totalFetched} fetched, ${newAdded} new, ${updatedExisting} updated, ${enrichedCount} enriched (${duration}ms)`);
+    console.log(`[Collect] Done: ${totalFetched} fetched, ${newAdded} new, ${updatedExisting} updated, ${enrichedCount} TMDB-enriched (${duration}ms)`);
 
     // Log
     await dbQuery(
@@ -268,12 +374,24 @@ async function fullDeepSync() {
 
     console.log('[Collect] Deep sync: fetching pages 1-20...');
     const allItems = await getRecentUpdatesMulti(1, 20);
-    totalFetched = allItems.length;
+    const filteredItems = allItems.filter(item => shouldCollect(item.type_name));
+    totalFetched = filteredItems.length;
+    console.log(`[Collect] Deep sync: ${totalFetched} items after filtering (skipped ${allItems.length - totalFetched})`);
 
-    for (const item of allItems) {
+    let enrichQueue = [];
+    for (const item of filteredItems) {
       const result = await saveVodToDB(item);
-      if (result === 'new') newAdded++;
-      else if (result === 'updated') updatedExisting++;
+      if (result === 'new') {
+        newAdded++;
+        if (enrichQueue.length < 100) {
+          enrichQueue.push({ vod_id: item.vod_id, vod_name: item.vod_name, vod_year: item.vod_year });
+        }
+      } else if (result === 'updated') updatedExisting++;
+    }
+
+    for (const vod of enrichQueue) {
+      const didEnrich = await enrichVodRecord(vod.vod_id, vod.vod_name, vod.vod_year);
+      if (didEnrich) enrichedCount++;
     }
 
     const [missing] = await dbQuery(
@@ -293,7 +411,7 @@ async function fullDeepSync() {
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[Collect] Deep sync done: ${totalFetched} fetched, ${newAdded} new, ${updatedExisting} updated, ${enrichedCount} enriched (${duration}ms)`);
+    console.log(`[Collect] Deep sync done: ${totalFetched} fetched, ${newAdded} new, ${updatedExisting} updated, ${enrichedCount} TMDB-enriched (${duration}ms)`);
 
     await dbQuery(
       `INSERT INTO collect_logs (source_name, collect_type, total_fetched, new_added, updated_existing, status, duration_ms)

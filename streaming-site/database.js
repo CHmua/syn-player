@@ -109,6 +109,14 @@ try { db.exec('ALTER TABLE videos ADD COLUMN backdrop_url TEXT DEFAULT \'\''); }
 // Add featured column to vods table for hero carousel support
 try { db.exec('ALTER TABLE vods ADD COLUMN featured INTEGER DEFAULT 0'); } catch(e) {}
 
+// Add enrichment columns to vods for auto-collection metadata
+try { db.exec('ALTER TABLE vods ADD COLUMN backdrop_url TEXT DEFAULT \'\''); } catch(e) {}
+try { db.exec('ALTER TABLE vods ADD COLUMN series_title TEXT DEFAULT \'\''); } catch(e) {}
+try { db.exec('ALTER TABLE vods ADD COLUMN season_label TEXT DEFAULT \'\''); } catch(e) {}
+try { db.exec('ALTER TABLE vods ADD COLUMN duration TEXT DEFAULT \'\''); } catch(e) {}
+try { db.exec('ALTER TABLE vods ADD COLUMN genre TEXT DEFAULT \'\''); } catch(e) {}
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_vods_series ON vods(series_title)'); } catch(e) {}
+
 // Add featured flag for manual hero carousel control
 try { db.exec('ALTER TABLE videos ADD COLUMN featured INTEGER DEFAULT 0'); } catch(e) {}
 
