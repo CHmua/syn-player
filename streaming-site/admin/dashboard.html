@@ -522,7 +522,10 @@ async function doAutoFill(triggeredBy) {
   btn.disabled = true;
 
   try {
-    const res = await api('/api/auto-fill?title=' + encodeURIComponent(title));
+    const year = document.getElementById('vyear').value.trim();
+    let url = '/api/auto-fill?title=' + encodeURIComponent(title);
+    if (year) url += '&year=' + encodeURIComponent(year);
+    const res = await api(url);
     if (!res) { btn.innerHTML = origText; btn.disabled = false; return; }
     const json = await res.json();
     if (!json.success) {

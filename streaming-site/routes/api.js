@@ -668,6 +668,7 @@ router.get('/search-poster', async (req, res) => {
 // Auto-fill video metadata — TMDB first, Douban fallback (admin auth required)
 router.get('/auto-fill', authMiddleware, async (req, res) => {
   const title = (req.query.title || '').trim();
+  const year = (req.query.year || '').trim();
   if (!title) return res.status(400).json({ error: 'title required' });
 
   // Prefer Chinese title over English
@@ -684,7 +685,7 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
     // Step 1: TMDB (primary — best poster quality + full metadata)
     try {
       const { searchMovieFull: searchTMDB } = require('../services/tmdb');
-      const tmdbResult = await searchTMDB(title);
+      const tmdbResult = await searchTMDB(title, year);
       if (tmdbResult) {
         best = {
           title: cleanTitle(tmdbResult.title || title),
@@ -709,7 +710,7 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
 
       // Step 2a: Douban HTML scraper
       try {
-        const result = await searchMovie(title);
+        const result = await searchMovie(title, year);
         if (result && result.douban_id) {
           const dbEntry = {
             title: cleanTitle(preferChineseTitle(result.title, title)),
@@ -857,13 +858,21 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
         }
       } catch {}
 
-      // 3b: Fallback — search AppleCMS source directly
+      // 3b: Fallback — search AppleCMS source directly, then fetch detail for play URLs
       if (!foundUrl) {
         try {
-          const { searchAcrossSources } = require('../services/collect');
+          const { searchAcrossSources, enrichWithPlayUrls, fetchAppleCMSDetail } = require('../services/collect');
           const { results } = await searchAcrossSources(searchTitle);
           if (results && results.length > 0) {
-            const withUrl = results.filter(r => r.vod_play_url);
+            // Filter by year if available
+            let candidates = results;
+            if (year) {
+              const yearFilter = candidates.filter(r => r.vod_year === year);
+              if (yearFilter.length > 0) candidates = yearFilter;
+            }
+            // Search results lack play URLs — fetch detail via ac=videolist
+            const enriched = await enrichWithPlayUrls(candidates.slice(0, 3));
+            const withUrl = enriched.filter(r => r.vod_play_url);
             if (withUrl.length > 0) {
               best.video_url = withUrl[0].vod_play_url;
               best.video_source = withUrl[0].source_name || '';
