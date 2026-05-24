@@ -68,4 +68,42 @@ router.put('/password', (req, res) => {
   res.json({ success: true, message: '密码修改成功' });
 });
 
+// List all registered users (admin)
+router.get('/users', (req, res) => {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    return res.status(401).json({ error: '未登录' });
+  }
+  try {
+    jwt.verify(header.slice(7), JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: '登录已过期' });
+  }
+  const users = db.prepare('SELECT id, username, email, created_at FROM users ORDER BY created_at DESC').all();
+  res.json(users);
+});
+
+// Delete a user (admin)
+router.delete('/users/:id', (req, res) => {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    return res.status(401).json({ error: '未登录' });
+  }
+  let adminUser;
+  try {
+    adminUser = jwt.verify(header.slice(7), JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: '登录已过期' });
+  }
+  const targetId = parseInt(req.params.id);
+  if (adminUser.id === targetId) {
+    return res.status(400).json({ error: '不能删除自己的账号' });
+  }
+  const result = db.prepare('DELETE FROM users WHERE id = ?').run(targetId);
+  if (result.changes === 0) {
+    return res.status(404).json({ error: '用户不存在' });
+  }
+  res.json({ success: true });
+});
+
 module.exports = router;

@@ -25,34 +25,57 @@
         </select>
         <button class="btn-add" id="addBtn">+ 新增视频</button>
         <button class="btn-batch" id="batchFillBtn" title="自动为所有缺少信息的视频补充封面、简介、评分等"><i class="fas fa-magic"></i> 批量自动填充</button>
+        <button class="btn-users" id="usersBtn" title="查看注册用户"><i class="fas fa-users"></i> 用户管理</button>
     </div>
 
-    <!-- Section Tabs — matches homepage layout -->
-    <div class="section-tabs" id="sectionTabs">
-        <button class="section-tab active" data-category="">全部</button>
+    <!-- Video management section -->
+    <div id="videoSection">
+        <!-- Section Tabs — matches homepage layout -->
+        <div class="section-tabs" id="sectionTabs">
+            <button class="section-tab active" data-category="">全部</button>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>封面</th>
+                        <th>轮播</th>
+                        <th>标题</th>
+                        <th>分类</th>
+                        <th>来源</th>
+                        <th>角标</th>
+                        <th>评分</th>
+                        <th>年份</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="videoTable"></tbody>
+            </table>
+        </div>
+
+        <p class="count-info" id="countInfo"></p>
     </div>
 
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>封面</th>
-                    <th>轮播</th>
-                    <th>标题</th>
-                    <th>分类</th>
-                    <th>来源</th>
-                    <th>角标</th>
-                    <th>评分</th>
-                    <th>年份</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody id="videoTable"></tbody>
-        </table>
+    <!-- User management section -->
+    <div id="userSection" style="display:none;">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>用户名</th>
+                        <th>邮箱</th>
+                        <th>注册时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="userTable"></tbody>
+            </table>
+        </div>
+        <p class="count-info" id="userCountInfo"></p>
     </div>
-
-    <p class="count-info" id="countInfo"></p>
 </div>
 
 <!-- Edit / Add Modal -->
@@ -859,6 +882,66 @@ function startPolling() {
 }
 
 document.getElementById('batchFillBtn').addEventListener('click', doBatchFill);
+
+// ============================================================
+//  User Management
+// ============================================================
+let currentView = 'videos'; // 'videos' | 'users'
+
+document.getElementById('usersBtn').addEventListener('click', () => {
+  if (currentView === 'users') {
+    // Switch back to videos
+    currentView = 'videos';
+    document.getElementById('usersBtn').innerHTML = '<i class="fas fa-users"></i> 用户管理';
+    document.getElementById('usersBtn').classList.remove('active');
+    document.getElementById('videoSection').style.display = '';
+    document.getElementById('userSection').style.display = 'none';
+  } else {
+    // Switch to users
+    currentView = 'users';
+    document.getElementById('usersBtn').innerHTML = '<i class="fas fa-arrow-left"></i> 返回视频';
+    document.getElementById('usersBtn').classList.add('active');
+    document.getElementById('videoSection').style.display = 'none';
+    document.getElementById('userSection').style.display = '';
+    loadUsers();
+  }
+});
+
+function formatDateTime(dt) {
+  if (!dt) return '-';
+  return dt.replace('T', ' ').replace('Z', '').slice(0, 19);
+}
+
+async function loadUsers() {
+  const res = await api('/api/auth/users');
+  if (!res) return;
+  const users = await res.json();
+  const tbody = document.getElementById('userTable');
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td>${u.id}</td>
+      <td><strong>${u.username}</strong></td>
+      <td>${u.email || '-'}</td>
+      <td>${formatDateTime(u.created_at)}</td>
+      <td>
+        <button class="btn-sm btn-del" onclick="deleteUser(${u.id}, '${u.username}')">删除</button>
+      </td>
+    </tr>
+  `).join('');
+  document.getElementById('userCountInfo').textContent = `共 ${users.length} 位注册用户`;
+}
+
+async function deleteUser(id, username) {
+  if (!confirm(`确定要删除用户 "${username}" 吗？此操作不可撤销。`)) return;
+  const res = await api(`/api/auth/users/${id}`, { method: 'DELETE' });
+  if (!res) return;
+  if (res.ok) {
+    loadUsers();
+  } else {
+    const err = await res.json().catch(() => ({}));
+    alert('删除失败: ' + (err.error || res.statusText));
+  }
+}
 
 loadCategories();
 loadVideos();

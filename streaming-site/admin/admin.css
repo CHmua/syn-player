@@ -45,6 +45,9 @@ tbody tr:hover{background:#252525}
 .btn-batch{padding:8px 18px;background:#2a2a4a;color:#64b5f6;border:1px solid #3a3a6a;border-radius:6px;font-size:14px;cursor:pointer;font-weight:600;transition:all .2s}
 .btn-batch:hover{background:#3a3a7a;border-color:#4a4a9a}
 .btn-batch:disabled{opacity:.6;cursor:not-allowed}
+.btn-users{padding:8px 18px;background:#1a3a2a;color:#66bb6a;border:1px solid #2a4a3a;border-radius:6px;font-size:14px;cursor:pointer;font-weight:600;transition:all .2s;margin-left:auto}
+.btn-users:hover{background:#2a4a2a;border-color:#3a6a3a}
+.btn-users.active{background:#2a5a2a;color:#81c784;border-color:#4a8a4a}
 .btn-logout{background:#444}
 .btn-edit{background:#0078d4;margin-right:4px}
 .btn-edit:hover{background:#1084e0}
