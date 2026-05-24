@@ -514,59 +514,83 @@ async function groupAllSeries() {
       }
     }
 
-    // Step 3: Discover new groups among remaining standalones
-    // If 2+ standalones share a common prefix (split at ：or 空格), group them
+    // Step 3: Discover new groups among remaining standalones by name clustering
     const remainingStandalone = standalone.filter(
       s => !Array.from(seriesGroups.values()).some(g => g.some(m => m.vod_id === s.vod_id))
     );
 
-    // Build prefix index for remaining standalones
-    const prefixMap = new Map(); // prefix → [{ vod_id, vod_name, full_title }]
+    // Build prefix index: generate candidate prefixes for each standalone title
+    const prefixMap = new Map(); // prefix → [{ vod_id, vod_name }]
     for (const item of remainingStandalone) {
       const title = item.vod_name.trim();
-      // Extract prefix: split at common separators, use the part before
-      const prefixMatch = title.match(/^(.+?)[：: 　]*(?:第[一二三四五六七八九十百千\d]+[季部期]|[（(]\d{4}[）)]|剧场版|电影版|OVA|OAD|SP|特别篇|番外篇|外传|之\s*\S)/);
-      let prefix;
-      if (prefixMatch) {
-        prefix = prefixMatch[1].trim();
-      } else {
-        // Try splitting at ：or ：
-        const colonIdx = Math.max(
-          title.indexOf('：'), title.indexOf(':')
-        );
-        if (colonIdx > 0) {
-          prefix = title.substring(0, colonIdx).trim();
-        } else {
-          // No clear delimiter — use the first 2-4 chars as potential prefix
-          // Only for Chinese/Japanese titles
-          if (/^[一-鿿぀-ゟ゠-ヿ]{3,}/.test(title)) {
-            prefix = title.substring(0, Math.min(4, title.length));
+      const candidates = new Set();
+
+      // Method 1: Split at ：or ：colon
+      const colonIdx = Math.max(title.indexOf('：'), title.indexOf(':'), title.indexOf('：'));
+      if (colonIdx > 0) {
+        candidates.add(title.substring(0, colonIdx).trim());
+      }
+
+      // Method 2: Remove known suffixes (season/episode markers, year, etc.)
+      const stripped = title
+        .replace(/[：: 　]*第[一二三四五六七八九十百千\d]+[季部期册卷]$/, '')
+        .replace(/[：: 　]*Season\s*\d+$/i, '')
+        .replace(/[：: 　]*[（(]\d{4}[）)]$/, '')
+        .replace(/[：: 　]*(剧场版|電影版|电影版|OVA|OAD|SP|特别篇|番外篇|外传|之\s*\S.*)$/, '')
+        .trim();
+      if (stripped !== title && stripped.length >= 2) {
+        candidates.add(stripped);
+      }
+
+      // Method 3: First N chars for Chinese/Japanese titles (sliding window 2-6 chars)
+      if (/^[一-鿿぀-ゟ゠-ヿa-zA-Z0-9]/.test(title)) {
+        for (let len = 6; len >= 2; len--) {
+          if (title.length >= len) {
+            candidates.add(title.substring(0, len));
           }
         }
       }
 
-      if (prefix && prefix.length >= 2) {
+      // Add all candidates to prefix map
+      for (const prefix of candidates) {
+        if (prefix.length < 2) continue;
         if (!prefixMap.has(prefix)) prefixMap.set(prefix, []);
-        prefixMap.get(prefix).push({ vod_id: item.vod_id, vod_name: title, full_title: title });
+        // Avoid duplicates within same prefix
+        const existing = prefixMap.get(prefix);
+        if (!existing.some(e => e.vod_id === item.vod_id)) {
+          existing.push({ vod_id: item.vod_id, vod_name: title });
+        }
       }
     }
 
+    // Choose best groups: prefer longest prefixes with most members
     let newGroups = 0;
-    for (const [prefix, items] of prefixMap) {
-      if (items.length < 2) continue; // need at least 2 to form a series
+    const assignedVods = new Set(); // track already-assigned VODs
 
-      // Don't create group if prefix is too short or already a known series
-      if (prefix.length < 2) continue;
+    // Sort prefix groups by: member count desc, then prefix length desc
+    const sortedPrefixes = Array.from(prefixMap.entries())
+      .filter(([, items]) => items.length >= 2) // need at least 2
+      .sort((a, b) => {
+        const countDiff = b[1].length - a[1].length;
+        if (countDiff !== 0) return countDiff;
+        return b[0].length - a[0].length; // longer prefix = better match
+      });
+
+    for (const [prefix, items] of sortedPrefixes) {
       if (seriesGroups.has(prefix)) continue;
+      // Filter out already-assigned VODs
+      const available = items.filter(item => !assignedVods.has(item.vod_id));
+      if (available.length < 2) continue;
 
       seriesGroups.set(prefix, []);
-      for (const item of items) {
-        let seasonLabel = item.vod_name.substring(prefix.length).replace(/^[：: 　\-–—··]+/, '').trim();
+      for (const item of available) {
+        let seasonLabel = item.vod_name.substring(prefix.length).replace(/^[：: 　\-–—··【\[(（]+/, '').trim();
         if (!seasonLabel) seasonLabel = '';
         seriesGroups.get(prefix).push({ vod_id: item.vod_id, season_label: seasonLabel });
+        assignedVods.add(item.vod_id);
       }
       newGroups++;
-      console.log(`[Series] New group from prefix: "${prefix}" (${items.length} items)`);
+      console.log(`[Series] New group from prefix: "${prefix}" (${available.length} items)`);
     }
 
     console.log(`[Series] Prefix matches: ${prefixMatches}, new groups: ${newGroups}`);
