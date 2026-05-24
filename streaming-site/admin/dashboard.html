@@ -776,7 +776,7 @@ async function deleteVideo(id, source) {
 
 // Batch delete logic
 function getSelectedIds() {
-  return [...document.querySelectorAll('#videoTable .row-cb:checked')].map(cb => parseInt(cb.dataset.id));
+  return [...document.querySelectorAll('#videoTable .row-cb:checked')].map(cb => cb.dataset.id);
 }
 function updateSelectAllState() {
   const cbs = document.querySelectorAll('#videoTable .row-cb');

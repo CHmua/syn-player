@@ -510,16 +510,39 @@ router.delete('/videos/:id', authMiddleware, async (req, res) => {
   res.status(404).json({ error: '视频不存在' });
 });
 
-// Batch delete videos
-router.post('/videos/batch-delete', authMiddleware, (req, res) => {
+// Batch delete videos (handles videos table + vods table in both SQLite and MySQL)
+router.post('/videos/batch-delete', authMiddleware, async (req, res) => {
   const { ids } = req.body;
   if (!Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: '请提供要删除的视频ID列表' });
   }
   const placeholders = ids.map(() => '?').join(',');
-  const vResult = db.prepare(`DELETE FROM videos WHERE id IN (${placeholders})`).run(...ids);
+
+  // 1. Delete from SQLite videos table (by integer id)
+  const numericIds = ids.map(Number).filter(n => !isNaN(n));
+  let vDeleted = 0;
+  if (numericIds.length > 0) {
+    const np = numericIds.map(() => '?').join(',');
+    vDeleted = db.prepare(`DELETE FROM videos WHERE id IN (${np})`).run(...numericIds).changes;
+  }
+
+  // 2. Delete from SQLite vods table (by vod_id, both numeric and string)
   const vodResult = db.prepare(`DELETE FROM vods WHERE vod_id IN (${placeholders})`).run(...ids);
-  res.json({ success: true, videos_deleted: vResult.changes, vods_deleted: vodResult.changes });
+
+  // 3. Also soft-delete from MySQL vods table if available
+  let mysqlDeleted = 0;
+  try {
+    const vodDb = require('../db');
+    const [r] = await vodDb.query(`UPDATE vods SET is_active = 0 WHERE vod_id IN (${placeholders})`, ids);
+    mysqlDeleted = r.affectedRows || 0;
+  } catch {}
+
+  res.json({
+    success: true,
+    videos_deleted: vDeleted,
+    vods_sqlite_deleted: vodResult.changes,
+    vods_mysql_soft_deleted: mysqlDeleted
+  });
 });
 
 // Soft-delete a VOD from MySQL by matching title
