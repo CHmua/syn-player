@@ -761,6 +761,42 @@ router.post('/admin/sync-now', authMiddleware, async (req, res) => {
   }
 });
 
+// Reset & re-collect: deletes all VODs and triggers full deep sync + series grouping
+let resetInProgress = false;
+router.post('/admin/reset-collection', authMiddleware, async (req, res) => {
+  if (resetInProgress) {
+    return res.json({ success: false, error: '重置采集中，请稍后再试' });
+  }
+  resetInProgress = true;
+  res.json({ success: true, message: '重置采集已开始，请稍后查看同步状态' });
+
+  // Run in background
+  (async () => {
+    try {
+      const scheduler = require('../services/collect-scheduler');
+
+      // Delete all VODs
+      const db = require('../database');
+      const vodCount = db.prepare('SELECT COUNT(*) as c FROM vods').get().c;
+      db.prepare('DELETE FROM vods').run();
+      db.prepare('DELETE FROM collect_logs').run();
+      console.log(`[Reset] Deleted ${vodCount} VODs, starting fresh collection...`);
+
+      // Full deep sync (pages 1-20)
+      await scheduler.fullDeepSync();
+
+      // Series grouping
+      await scheduler.groupAllSeries();
+
+      console.log('[Reset] Re-collection complete');
+    } catch (err) {
+      console.error('[Reset] Error:', err.message);
+    } finally {
+      resetInProgress = false;
+    }
+  })();
+});
+
 // Online user count (public)
 router.get('/online', (req, res) => {
   res.json({ count: getOnlineCount() });
