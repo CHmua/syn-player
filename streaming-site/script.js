@@ -676,6 +676,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 var releaseDate = v.release_date || '';
                 var area = v.vod_area || v.area || '';
                 var duration = v.duration || '';
+                // Format duration: "120 min" → "2小时0分钟", "3 seasons" → "3季"
+                var durationDisplay = '';
+                if (duration) {
+                    var minMatch = duration.match(/(\d+)\s*min/i);
+                    var seasonMatch = duration.match(/(\d+)\s*season/i);
+                    if (minMatch) {
+                        var mins = parseInt(minMatch[1]);
+                        var h = Math.floor(mins / 60);
+                        var m = mins % 60;
+                        durationDisplay = h > 0 ? h + '小时' + (m > 0 ? m + '分钟' : '') : m + '分钟';
+                    } else if (seasonMatch) {
+                        durationDisplay = seasonMatch[1] + '季';
+                    } else {
+                        durationDisplay = duration;
+                    }
+                }
                 var genre = v.genre || v.vod_type || '';
                 var desc = v.description || v.plot || v.vod_content || '';
                 var id = v.id || v.vod_id || '';
@@ -684,12 +700,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 var ratingSourceLabel = v.rating_source || '';
                 if (ratingSourceLabel && ratingValue !== '暂无') ratingSourceLabel += ' ';
 
-                // Format release date: "上映时间：YYYY年-MM月-DD日 (地区) 类型 时长"
+                // Format release date: "上映时间：YYYY年-MM月 (地区) 影片类型 时长"
                 var dateDisplay = '';
-                if (releaseDate && releaseDate.length >= 10) {
-                    var d = new Date(releaseDate);
-                    if (!isNaN(d.getTime())) {
-                        dateDisplay = d.getFullYear() + '年-' + String(d.getMonth() + 1).padStart(2, '0') + '月-' + String(d.getDate()).padStart(2, '0') + '日';
+                if (releaseDate && releaseDate.length >= 4) {
+                    var parts = releaseDate.split('-');
+                    if (parts.length >= 2) {
+                        dateDisplay = parts[0] + '年-' + String(parseInt(parts[1])).padStart(2, '0') + '月';
                     }
                 }
                 if (!dateDisplay && year && year.length === 4) {
@@ -699,9 +715,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 var metaParts = [];
                 if (dateDisplay) metaParts.push('上映时间：' + dateDisplay);
                 else if (year) metaParts.push('上映时间：' + year + '年');
-                if (area) metaParts.push(area);
+                if (area) metaParts.push('(' + area + ')');
                 if (type) metaParts.push(type);
-                if (duration) metaParts.push(duration);
+                if (durationDisplay) metaParts.push(durationDisplay);
                 var meta = metaParts.join('  ');
 
                 var html = '';
@@ -803,8 +819,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!container) return Promise.resolve();
             return fetch('/api/videos?category=' + sectionId).then(function(r) { return r.json(); }).then(function(videos) {
                 if (!videos.length) { container.innerHTML = '<p style="color:#999;padding:20px;">暂无内容</p>'; return; }
-                // Track all vod_ids shown in these sections
-                videos.forEach(function(v) { shownIds.add(String(v.vod_id || v.id)); });
                 // Store for tab sorting
                 if (sectionId === 'trendingMovies') {
                     trendingData = videos.slice();
@@ -817,7 +831,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 var limit = (sectionId === 'liveTV' || sectionId === 'trendingVariety') ? 6 : 12;
                 var useBackdrop = sectionId === 'trendingMovies' || sectionId === 'trendingTV' || sectionId === 'trendingAnime' || sectionId === 'trendingVariety';
-                container.innerHTML = videos.slice(0, limit).map(function(v) { return renderVideoCard(v, { useBackdrop: useBackdrop }); }).join('');
+                var rendered = videos.slice(0, limit);
+                // Only track actually-rendered IDs so moreRecommend still has items to show
+                rendered.forEach(function(v) { shownIds.add(String(v.vod_id || v.id)); });
+                container.innerHTML = rendered.map(function(v) { return renderVideoCard(v, { useBackdrop: useBackdrop }); }).join('');
             }).catch(function() {
                 container.innerHTML = '<p style="color:#999;padding:20px;">加载失败</p>';
             });

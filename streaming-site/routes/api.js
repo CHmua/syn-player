@@ -120,49 +120,9 @@ router.get('/videos', async (req, res) => {
     featured: r.featured || 0,
     source: 'video'
   }));
-  // If only featured videos requested, include VODs as well
+  // Featured videos: only return admin-managed videos — user controls hero carousel manually
   if (featuredOnly) {
-    // Load featured VODs from both DBs
-    let vodFeatured = [];
-    try {
-      const db2 = require('../database');
-      let vRows = [];
-      try {
-        const vodDb = require('../db');
-        const [rows] = await vodDb.query('SELECT * FROM vods WHERE is_active = 1 AND featured = 1 ORDER BY updated_at DESC');
-        vRows = rows;
-      } catch {
-        vRows = db2.prepare('SELECT * FROM vods WHERE is_active = 1 AND featured = 1 ORDER BY updated_at DESC').all();
-      }
-      vodFeatured = vRows.map(r => ({
-        id: r.vod_id,
-        title: r.vod_name,
-        category: r.type_name,
-        poster_url: posterProxyUrl(r.poster || r.vod_pic || ''),
-        poster: r.poster || r.vod_pic || '',
-        backdrop_url: r.backdrop_url || '',
-        video_url: r.vod_play_url || '',
-        year: r.vod_year,
-        release_date: r.release_date || '',
-        duration: r.duration || '',
-        rating: r.douban_rating || r.vod_score || '',
-        rating_source: (r.douban_rating || r.vod_score) ? (r.douban_id ? '豆瓣' : 'TMDB') : '',
-        featured: 1,
-        description: r.vod_content || '',
-        genre: r.genre || r.vod_type || '',
-        series_title: r.series_title || '',
-        season_label: r.season_label || '',
-        vod_id: r.vod_id,
-        source: 'vod'
-      }));
-      // Enrich with TMDB posters
-      try {
-        const { enrichVods } = require('../services/tmdb');
-        vodFeatured = await enrichVods(vodFeatured);
-        vodFeatured = vodFeatured.map(v => ({ ...v, poster_url: posterProxyUrl(v.poster || v.poster_url || '') }));
-      } catch (e) {}
-    } catch (e) {}
-    return res.json([...adminVideos, ...vodFeatured]);
+    return res.json(adminVideos);
   }
 
   // Build set of normalized admin titles for dedup against VODs

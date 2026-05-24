@@ -645,37 +645,52 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         var raw = String(v.video_url || v.vod_play_url || '').trim();
         if (!raw) { showError('暂无播放地址', true); return; }
 
-        // Handle $$$ multi-source separator — use first source
-        if (raw.indexOf('$$$') > -1) raw = raw.split('$$$')[0].trim();
-        // Parse multi-episode format
-        if (raw.indexOf('$') > -1 || raw.indexOf('#') > -1) {
-            var parts = raw.split('#').filter(Boolean);
+        // Parse multi-source format: source1$$$source2$$$...
+        var sourceGroups = raw.split('$$$').filter(Boolean);
+        var allSources = [];
+
+        for (var s = 0; s < sourceGroups.length; s++) {
+            var group = sourceGroups[s].trim();
             var episodes = [];
-            for (var i = 0; i < parts.length; i++) {
-                var dollarIdx = parts[i].indexOf('$');
-                if (dollarIdx >= 0) {
-                    var epUrl = parts[i].substring(dollarIdx + 1).trim();
-                    if (epUrl.indexOf('http') === 0) {
+
+            if (group.indexOf('$') > -1 || group.indexOf('#') > -1) {
+                var parts = group.split('#').filter(Boolean);
+                for (var i = 0; i < parts.length; i++) {
+                    var dollarIdx = parts[i].indexOf('$');
+                    if (dollarIdx >= 0) {
+                        var epUrl = parts[i].substring(dollarIdx + 1).trim();
+                        if (epUrl.indexOf('http') === 0) {
+                            episodes.push({
+                                episode_name: parts[i].substring(0, dollarIdx).trim(),
+                                play_url: epUrl
+                            });
+                        }
+                    } else if (parts[i].indexOf('http') === 0) {
                         episodes.push({
-                            episode_name: parts[i].substring(0, dollarIdx).trim(),
-                            play_url: epUrl
+                            episode_name: '第' + String(i + 1).padStart(2, '0') + '集',
+                            play_url: parts[i].trim()
                         });
                     }
-                } else if (parts[i].indexOf('http') === 0) {
-                    episodes.push({
-                        episode_name: '第' + String(i + 1).padStart(2, '0') + '集',
-                        play_url: parts[i].trim()
-                    });
                 }
             }
+
+            if (episodes.length === 0 && group.indexOf('http') === 0) {
+                episodes = [{ episode_name: '默认', play_url: group, type: 'm3u8' }];
+            }
+
             if (episodes.length > 0) {
-                vodSources = [{ source_name: '默认', episodes: episodes }];
-                renderAll();
-                playCurrentSource();
-                return;
+                allSources.push({ source_name: '默认', episodes: episodes });
             }
         }
 
+        if (allSources.length > 0) {
+            vodSources = allSources;
+            renderAll();
+            playCurrentSource();
+            return;
+        }
+
+        // Plain single URL
         vodSources = [{
             source_name: '默认',
             episodes: [{ episode_name: '默认', play_url: raw, type: 'm3u8' }]
@@ -688,40 +703,63 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         document.title = (v.title || '播放') + ' - Syn Player';
         if (!v.video_url) { showError('暂无播放地址', true); return; }
 
-        // Parse multi-episode format: name1$url1#name2$url2#...
         var raw = String(v.video_url).trim();
-        // Handle $$$ multi-source separator — use first source
-        if (raw.indexOf('$$$') > -1) raw = raw.split('$$$')[0].trim();
-        if (raw.indexOf('$') > -1 || raw.indexOf('#') > -1) {
-            var parts = raw.split('#').filter(Boolean);
+
+        // Parse multi-source format: source1$$$source2$$$...
+        // Each source can have multi-episode format: name1$url1#name2$url2#...
+        var sourceGroups = raw.split('$$$').filter(Boolean);
+        var allSources = [];
+
+        for (var s = 0; s < sourceGroups.length; s++) {
+            var group = sourceGroups[s].trim();
+            var sourceName = '默认';
             var episodes = [];
-            for (var i = 0; i < parts.length; i++) {
-                var dollarIdx = parts[i].indexOf('$');
-                if (dollarIdx >= 0) {
-                    var epUrl = parts[i].substring(dollarIdx + 1).trim();
-                    if (epUrl.indexOf('http') === 0) {
+
+            if (group.indexOf('$') > -1 || group.indexOf('#') > -1) {
+                var parts = group.split('#').filter(Boolean);
+                for (var i = 0; i < parts.length; i++) {
+                    var dollarIdx = parts[i].indexOf('$');
+                    if (dollarIdx >= 0) {
+                        var epUrl = parts[i].substring(dollarIdx + 1).trim();
+                        if (epUrl.indexOf('http') === 0) {
+                            episodes.push({
+                                episode_name: parts[i].substring(0, dollarIdx).trim(),
+                                play_url: epUrl
+                            });
+                        }
+                    } else if (parts[i].indexOf('http') === 0) {
                         episodes.push({
-                            episode_name: parts[i].substring(0, dollarIdx).trim(),
-                            play_url: epUrl
+                            episode_name: '第' + String(i + 1).padStart(2, '0') + '集',
+                            play_url: parts[i].trim()
                         });
                     }
-                } else if (parts[i].indexOf('http') === 0) {
-                    episodes.push({
-                        episode_name: '第' + String(i + 1).padStart(2, '0') + '集',
-                        play_url: parts[i].trim()
-                    });
+                }
+                if (episodes.length > 0 && episodes[0].episode_name) {
+                    sourceName = episodes[0].episode_name;
                 }
             }
+
+            if (episodes.length === 0 && group.indexOf('http') === 0) {
+                episodes = [{ episode_name: '默认', play_url: group, type: 'm3u8' }];
+            }
+
             if (episodes.length > 0) {
-                vodSources = [{ source_name: '默认', episodes: episodes }];
-                renderAll();
-                playCurrentSource();
-                updateInfoSection(v);
-                return;
+                if (sourceGroups.length > 1 && episodes[0].episode_name && episodes[0].episode_name !== '默认') {
+                    sourceName = episodes[0].episode_name;
+                }
+                allSources.push({ source_name: sourceName, episodes: episodes });
             }
         }
 
-        // Plain single URL
+        if (allSources.length > 0) {
+            vodSources = allSources;
+            renderAll();
+            playCurrentSource();
+            updateInfoSection(v);
+            return;
+        }
+
+        // Plain single URL (fallback)
         vodSources = [{
             source_name: '默认',
             episodes: [{ episode_name: '默认', play_url: raw, type: 'm3u8' }]

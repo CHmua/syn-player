@@ -320,29 +320,35 @@ function updateRemoveButtons() {
 }
 
 // Parse video_url into episodes array
+// Supports $$$ multi-source separator — returns all sources' episodes
 function parseEpisodes(videoUrl) {
   if (!videoUrl) return [{ name: '', url: '' }];
   var str = String(videoUrl).trim();
 
-  // Handle $$$ multi-source separator — use first source only
-  if (str.indexOf('$$$') > -1) {
-    str = str.split('$$$')[0].trim();
+  // Handle $$$ multi-source separator — parse all source groups
+  var groups = str.split('$$$').filter(Boolean);
+  var allEps = [];
+
+  for (var g = 0; g < groups.length; g++) {
+    var group = groups[g].trim();
+
+    // Check if it's multi-episode format: name1$url1#name2$url2#...
+    if (group.indexOf('$') > -1 || group.indexOf('#') > -1) {
+      var parts = group.split('#').filter(Boolean);
+      var eps = parts.map(function(part) {
+        var dollarIdx = part.indexOf('$');
+        if (dollarIdx >= 0) {
+          return { name: part.substring(0, dollarIdx).trim(), url: part.substring(dollarIdx + 1).trim() };
+        }
+        return { name: '', url: part.trim() };
+      }).filter(function(ep) { return ep.url && (ep.url.indexOf('http') === 0); });
+      if (eps.length > 0) allEps = allEps.concat(eps);
+    } else if (group.indexOf('http') === 0) {
+      allEps.push({ name: '', url: group });
+    }
   }
 
-  // Check if it's multi-episode format: name1$url1#name2$url2#...
-  if (str.indexOf('$') > -1 || str.indexOf('#') > -1) {
-    var parts = str.split('#').filter(Boolean);
-    var eps = parts.map(function(part) {
-      var dollarIdx = part.indexOf('$');
-      if (dollarIdx >= 0) {
-        return { name: part.substring(0, dollarIdx).trim(), url: part.substring(dollarIdx + 1).trim() };
-      }
-      return { name: '', url: part.trim() };
-    }).filter(function(ep) { return ep.url && (ep.url.indexOf('http') === 0); });
-    if (eps.length > 0) return eps;
-  }
-  // Plain URL
-  if (str.indexOf('http') === 0) return [{ name: '', url: str }];
+  if (allEps.length > 0) return allEps;
   return [{ name: '', url: '' }];
 }
 
