@@ -928,7 +928,7 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
         best = {
           title: cleanTitle(tmdbResult.title || searchTitle),
           poster: tmdbResult.poster || '',
-          backdrop_url: tmdbResult.backdrop || '',
+          backdrop_url: tmdbResult.backdrop_w1280 || tmdbResult.backdrop || '',
           year: tmdbResult.year || '',
           rating: tmdbResult.rating || '',
           genre: tmdbResult.genre || '',
@@ -989,10 +989,8 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
       best.video_source = vodMatch.source_name || '';
     }
 
-    // Fallback backdrop: use poster when no TMDB backdrop
-    if (best && !best.backdrop_url) {
-      best.backdrop_url = best.poster || '';
-    }
+    // Don't fall back to poster for backdrop — backdrop should be horizontal (16:9)
+    // Poster is vertical and already used as the cover image
 
     if (best && (best.title || best.poster)) {
       return res.json({ success: true, data: best });
