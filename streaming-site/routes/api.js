@@ -367,11 +367,11 @@ router.put('/videos/:id/featured', authMiddleware, async (req, res) => {
 // Update video (auth required, supports videos, vods SQLite, and MySQL vods)
 router.put('/videos/:id', authMiddleware, async (req, res) => {
   const id = req.params.id;
-  const { title, category, description, poster_url, backdrop_url, video_url, year, duration, genre, rating, badge, is_live, featured, sort_order } = req.body;
+  const { title, category, description, poster_url, backdrop_url, video_url, year, duration, genre, rating, badge, is_live, featured, sort_order, series_title, season_label } = req.body;
 
   // Helper: perform the update on a SQLite videos row
   function updateVideosRow(existing) {
-    db.prepare(`UPDATE videos SET title=?, category=?, description=?, poster_url=?, backdrop_url=?, video_url=?, year=?, duration=?, genre=?, rating=?, badge=?, is_live=?, featured=?, sort_order=? WHERE id=?`).run(
+    db.prepare(`UPDATE videos SET title=?, category=?, description=?, poster_url=?, backdrop_url=?, video_url=?, year=?, duration=?, genre=?, rating=?, badge=?, is_live=?, featured=?, sort_order=?, series_title=?, season_label=? WHERE id=?`).run(
       title !== undefined ? title : existing.title,
       category !== undefined ? category : existing.category,
       description !== undefined ? description : existing.description,
@@ -386,6 +386,8 @@ router.put('/videos/:id', authMiddleware, async (req, res) => {
       is_live !== undefined ? is_live : existing.is_live,
       featured !== undefined ? featured : existing.featured,
       sort_order !== undefined ? sort_order : existing.sort_order,
+      series_title !== undefined ? series_title : (existing.series_title || ''),
+      season_label !== undefined ? season_label : (existing.season_label || ''),
       id
     );
   }
@@ -553,6 +555,88 @@ async function softDeleteMySQLVod(title) {
     await vodDb.query('UPDATE vods SET is_active = 0 WHERE vod_name LIKE ?', [`%${title}%`]);
   } catch {}
 }
+
+// ===== Series / Season Grouping =====
+
+// List all series (distinct series_title with video count)
+router.get('/series', (req, res) => {
+  const series = db.prepare(`
+    SELECT series_title, COUNT(*) as video_count, MAX(poster_url) as poster_url, MAX(year) as year, MAX(category) as category
+    FROM videos WHERE series_title != '' AND series_title IS NOT NULL
+    GROUP BY series_title ORDER BY series_title
+  `).all();
+  res.json(series);
+});
+
+// Get series detail — all seasons with episodes
+router.get('/series/:encodedTitle', (req, res) => {
+  const title = decodeURIComponent(req.params.encodedTitle);
+  const videos = db.prepare(`
+    SELECT * FROM videos WHERE series_title = ? ORDER BY season_label, sort_order, id
+  `).all(title);
+
+  if (videos.length === 0) {
+    return res.status(404).json({ error: 'Series not found' });
+  }
+
+  // Build seasons array, each with episodes from video_url
+  const seasons = [];
+  const seenLabels = new Map();
+
+  for (const v of videos) {
+    const label = v.season_label || '默认';
+    let season = seenLabels.get(label);
+    if (!season) {
+      season = { label, videos: [] };
+      seenLabels.set(label, season);
+    }
+    season.videos.push(v);
+  }
+
+  res.json({
+    series_title: title,
+    video_count: videos.length,
+    poster_url: videos[0].poster_url || videos[0].backdrop_url || '',
+    backdrop_url: videos[0].backdrop_url || '',
+    category: videos[0].category || '',
+    year: videos[0].year || '',
+    description: videos[0].description || '',
+    seasons: [...seenLabels.values()],
+  });
+});
+
+// Auto-detect series groups across all videos
+router.post('/videos/auto-detect-series', authMiddleware, (req, res) => {
+  const allVideos = db.prepare('SELECT id, title FROM videos ORDER BY id').all();
+  const { analyzeSeries } = require('../utils/series-detect');
+  const result = analyzeSeries(allVideos);
+  res.json(result);
+});
+
+// Apply series grouping to multiple videos
+router.put('/videos/apply-series', authMiddleware, (req, res) => {
+  const { items } = req.body; // [{ id, series_title, season_label }]
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'No items provided' });
+  }
+  const stmt = db.prepare('UPDATE videos SET series_title = ?, season_label = ? WHERE id = ?');
+  const updateMany = db.transaction((rows) => {
+    let changes = 0;
+    for (const r of rows) {
+      const result = stmt.run(r.series_title, r.season_label, r.id);
+      changes += result.changes;
+    }
+    return changes;
+  });
+  const changes = updateMany(items);
+  res.json({ success: true, changes });
+});
+
+// Remove a video from its series (clear series_title and season_label)
+router.put('/videos/:id/remove-from-series', authMiddleware, (req, res) => {
+  const result = db.prepare('UPDATE videos SET series_title = \'\', season_label = \'\' WHERE id = ?').run(req.params.id);
+  res.json({ success: true, changes: result.changes });
+});
 
 // Admin login
 router.post('/login', (req, res) => {

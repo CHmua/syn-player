@@ -507,7 +507,8 @@ document.addEventListener('DOMContentLoaded', function() {
             imgSrc = video.poster_url || 'https://picsum.photos/seed/' + video.id + '/400/600';
         }
 
-        var html = '<div class="' + cardClass + '" onclick="location.href=\'video-player.html?id=' + video.id + '\'">';
+        var clickUrl = video.series_title ? 'series.html?title=' + encodeURIComponent(video.series_title) : 'video-player.html?id=' + video.id;
+        var html = '<div class="' + cardClass + '" onclick="location.href=\'' + clickUrl + '\'">';
         html += '<div class="thumb-poster">';
         html += '<img src="' + imgSrc + '" alt="' + video.title + '" loading="lazy" referrerpolicy="no-referrer">';
         html += '<div style="display:none;width:100%;height:100%;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);align-items:center;justify-content:center;font-size:12px;color:#888;text-align:center;padding:10px;">' + video.title + '</div>';
@@ -522,7 +523,9 @@ document.addEventListener('DOMContentLoaded', function() {
         html += '</div>';
         html += '<div class="thumb-info">';
         html += '<div class="thumb-title">' + video.title + '</div>';
-        if (subtitle) {
+        if (video.series_title && video.season_label) {
+            html += '<div class="thumb-subtitle" style="color:#e50914;">' + video.season_label + '</div>';
+        } else if (subtitle) {
             html += '<div class="thumb-subtitle">' + subtitle + '</div>';
         }
         html += '</div></div>';
@@ -543,7 +546,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (index % 7 === 0) sizeClass = 'size-lg';
         else if (index % 5 === 0) sizeClass = 'size-tall';
 
-        return '<div class="more-recommend-card ' + sizeClass + '" data-index="' + index + '" onclick="location.href=\'video-player.html?id=' + (video.vod_id || video.id) + '\'">' +
+        var recClickUrl = video.series_title ? 'series.html?title=' + encodeURIComponent(video.series_title) : 'video-player.html?id=' + (video.vod_id || video.id);
+        return '<div class="more-recommend-card ' + sizeClass + '" data-index="' + index + '" onclick="location.href=\'' + recClickUrl + '\'">' +
             '<img class="poster-img" src="' + (posterUrl || 'https://picsum.photos/seed/' + (video.vod_id || video.id) + '/400/600') + '" alt="' + title + '" loading="lazy">' +
             '<div class="poster-overlay">' +
                 (badgeText ? '<span class="poster-badge"><i class="fas fa-star"></i> ' + badgeText + '</span>' : '') +
@@ -808,8 +812,18 @@ document.addEventListener('DOMContentLoaded', function() {
             var container = document.getElementById('moreRecommend');
             if (!container) return;
             fetch('/api/videos?category=moreRecommend').then(function(r) { return r.json(); }).then(function(videos) {
-                // Filter out videos already shown in other sections
                 var filtered = videos.filter(function(v) { return !shownIds.has(String(v.vod_id || v.id)); });
+                // Fallback: if no moreRecommend videos, load from VOD search as well
+                if (filtered.length < 6) {
+                    return fetch('/api/vod/search?wd=&limit=48').then(function(r) { return r.json(); }).then(function(vodData) {
+                        var vods = (vodData.vods || vodData || []).filter(function(v) { return !shownIds.has(String(v.vod_id || v.id)); });
+                        // Merge: local videos first, then VODs
+                        filtered = filtered.concat(vods);
+                        return filtered;
+                    });
+                }
+                return filtered;
+            }).then(function(filtered) {
                 if (!filtered.length) { container.innerHTML = '<p style="color:#999;padding:20px;">暂无更多推荐</p>'; return; }
                 moreRecommendData = filtered.slice();
                 moreRecommendLoaded = Math.min(MORE_RECOMMEND_BATCH, filtered.length);

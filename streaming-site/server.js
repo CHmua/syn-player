@@ -53,6 +53,7 @@ app.get('/home', userAuthMiddleware, (req, res) => res.sendFile(path.join(__dirn
 app.get('/video-player.html', userAuthMiddleware, (req, res) => res.sendFile(path.join(__dirname, 'video-player.html')));
 app.get('/news.html', userAuthMiddleware, (req, res) => res.sendFile(path.join(__dirname, 'news.html')));
 app.get('/browse.html', userAuthMiddleware, (req, res) => res.sendFile(path.join(__dirname, 'browse.html')));
+app.get('/series.html', userAuthMiddleware, (req, res) => res.sendFile(path.join(__dirname, 'series.html')));
 
 // Serve static files (CSS, JS, images, etc.) — AFTER routes so auth checks run first
 app.use(express.static(__dirname, { index: false }));

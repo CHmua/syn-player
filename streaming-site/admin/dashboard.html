@@ -26,6 +26,7 @@
         <button class="btn-add" id="addBtn">+ 新增视频</button>
         <button class="btn-batch" id="batchFillBtn" title="自动为所有缺少信息的视频补充封面、简介、评分等"><i class="fas fa-magic"></i> 批量自动填充</button>
         <button class="btn-users" id="usersBtn" title="查看注册用户"><i class="fas fa-users"></i> 用户管理</button>
+        <button class="btn-series" id="seriesBtn" title="系列管理（季/部归类）"><i class="fas fa-layer-group"></i> 系列管理</button>
         <button class="btn-del-batch" id="batchDelBtn" title="批量删除选中的视频" style="display:none"><i class="fas fa-trash"></i> 批量删除 (<span id="selCount">0</span>)</button>
     </div>
 
@@ -45,6 +46,7 @@
                         <th>封面</th>
                         <th>轮播</th>
                         <th>标题</th>
+                        <th>系列</th>
                         <th>分类</th>
                         <th>来源</th>
                         <th>角标</th>
@@ -77,6 +79,43 @@
             </table>
         </div>
         <p class="count-info" id="userCountInfo"></p>
+    </div>
+
+    <!-- Series management section -->
+    <div id="seriesSection" style="display:none;">
+        <div style="margin-bottom:16px;display:flex;gap:12px;align-items:center;">
+            <button class="btn-batch" id="autoDetectSeriesBtn" title="自动扫描所有视频标题，识别季/部模式并自动分组">
+                <i class="fas fa-magic"></i> 自动识别系列
+            </button>
+            <span style="color:#888;font-size:13px;" id="seriesDetectStatus"></span>
+        </div>
+
+        <!-- Auto-detect preview -->
+        <div id="seriesPreview" style="display:none;margin-bottom:16px;background:#1a1a2e;border:1px solid #333;border-radius:8px;padding:16px;max-height:400px;overflow-y:auto;">
+            <h3 style="margin:0 0 12px 0;color:#e50914;">检测结果预览</h3>
+            <div id="seriesPreviewContent"></div>
+            <div style="margin-top:12px;display:flex;gap:8px;">
+                <button class="btn-add" id="applySeriesBtn"><i class="fas fa-check"></i> 应用分组</button>
+                <button class="btn-cancel" id="cancelSeriesBtn">取消</button>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>系列名称</th>
+                        <th>视频数</th>
+                        <th>封面</th>
+                        <th>分类</th>
+                        <th>季/部</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="seriesTable"></tbody>
+            </table>
+        </div>
+        <p class="count-info" id="seriesCountInfo"></p>
     </div>
 </div>
 
@@ -169,9 +208,19 @@
                     <input type="text" id="vbadge" placeholder="热门推荐/新片上线等">
                 </div>
                 <div class="form-group">
+                    <label>系列名称</label>
+                    <input type="text" id="vseriestitle" placeholder="同一系列的视频填相同名称，如'哆啦A梦'">
+                </div>
+                <div class="form-group">
+                    <label>季/部标签</label>
+                    <input type="text" id="vseasonlabel" placeholder="如: 第一季, 第二部, 剧场版">
+                </div>
+                <div class="form-group">
                     <label>排序</label>
                     <input type="number" id="vsort" value="0">
                 </div>
+            </div>
+            <div class="form-row cols-4">
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" id="vislive"> 直播频道
@@ -358,6 +407,7 @@ async function loadVideos() {
       <td><img src="${v.poster_url || ''}" class="thumb-preview" onerror="this.style.display='none'"></td>
       <td><label class="featured-toggle-wrap" title="设为首页轮播"><input type="checkbox" class="featured-cb" data-id="${v.id}" ${v.featured ? 'checked' : ''}><span class="featured-slider"></span></label></td>
       <td>${v.title}</td>
+      <td>${v.series_title ? `<span style="color:#e50914;font-size:12px;">${v.series_title}</span>${v.season_label ? `<br><span style="color:#ffa500;font-size:11px;">${v.season_label}</span>` : ''}` : '-'}</td>
       <td>${catLabel(v.category)}</td>
       <td><span class="source-tag ${v.source === 'vod' ? 'source-vod' : 'source-local'}">${v.source === 'vod' ? '采集' : '本地'}</span></td>
       <td>${v.badge || '-'}</td>
@@ -483,6 +533,8 @@ function editVideo(v) {
   document.getElementById('vgenre').value = v.genre || '';
   document.getElementById('vrating').value = v.rating || 0;
   document.getElementById('vbadge').value = v.badge || '';
+  document.getElementById('vseriestitle').value = v.series_title || '';
+  document.getElementById('vseasonlabel').value = v.season_label || '';
   document.getElementById('vsort').value = v.sort_order || 0;
   document.getElementById('vislive').checked = v.is_live === 1;
   document.getElementById('vfeatured').checked = v.featured === 1;
@@ -738,7 +790,9 @@ document.getElementById('videoForm').addEventListener('submit', async (e) => {
     badge: document.getElementById('vbadge').value,
     is_live: document.getElementById('vislive').checked ? 1 : 0,
     featured: document.getElementById('vfeatured').checked ? 1 : 0,
-    sort_order: parseInt(document.getElementById('vsort').value) || 0
+    sort_order: parseInt(document.getElementById('vsort').value) || 0,
+    series_title: document.getElementById('vseriestitle').value,
+    season_label: document.getElementById('vseasonlabel').value
   };
 
   const url = editingId ? `/api/videos/${editingId}` : '/api/videos';
@@ -936,26 +990,170 @@ document.getElementById('batchFillBtn').addEventListener('click', doBatchFill);
 // ============================================================
 //  User Management
 // ============================================================
-let currentView = 'videos'; // 'videos' | 'users'
+let currentView = 'videos'; // 'videos' | 'users' | 'series'
 
 document.getElementById('usersBtn').addEventListener('click', () => {
   if (currentView === 'users') {
-    // Switch back to videos
     currentView = 'videos';
     document.getElementById('usersBtn').innerHTML = '<i class="fas fa-users"></i> 用户管理';
     document.getElementById('usersBtn').classList.remove('active');
     document.getElementById('videoSection').style.display = '';
     document.getElementById('userSection').style.display = 'none';
+    document.getElementById('seriesSection').style.display = 'none';
   } else {
-    // Switch to users
     currentView = 'users';
     document.getElementById('usersBtn').innerHTML = '<i class="fas fa-arrow-left"></i> 返回视频';
     document.getElementById('usersBtn').classList.add('active');
     document.getElementById('videoSection').style.display = 'none';
     document.getElementById('userSection').style.display = '';
+    document.getElementById('seriesSection').style.display = 'none';
     loadUsers();
   }
 });
+
+// ===== Series Management =====
+document.getElementById('seriesBtn').addEventListener('click', () => {
+  if (currentView === 'series') {
+    currentView = 'videos';
+    document.getElementById('seriesBtn').innerHTML = '<i class="fas fa-layer-group"></i> 系列管理';
+    document.getElementById('seriesBtn').classList.remove('active');
+    document.getElementById('videoSection').style.display = '';
+    document.getElementById('userSection').style.display = 'none';
+    document.getElementById('seriesSection').style.display = 'none';
+  } else {
+    currentView = 'series';
+    document.getElementById('seriesBtn').innerHTML = '<i class="fas fa-arrow-left"></i> 返回视频';
+    document.getElementById('seriesBtn').classList.add('active');
+    document.getElementById('videoSection').style.display = 'none';
+    document.getElementById('userSection').style.display = 'none';
+    document.getElementById('seriesSection').style.display = '';
+    if (document.getElementById('usersBtn').classList.contains('active')) {
+      document.getElementById('usersBtn').innerHTML = '<i class="fas fa-users"></i> 用户管理';
+      document.getElementById('usersBtn').classList.remove('active');
+    }
+    loadSeries();
+  }
+});
+
+let seriesPreviewData = null;
+
+async function loadSeries() {
+  const res = await api('/api/series');
+  if (!res) return;
+  const series = await res.json();
+  const tbody = document.getElementById('seriesTable');
+  if (series.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:40px;">暂无系列分组，点击"自动识别系列"开始</td></tr>';
+  } else {
+    tbody.innerHTML = series.map(s => `
+      <tr>
+        <td><strong style="color:#e50914;">${s.series_title}</strong></td>
+        <td>${s.video_count}</td>
+        <td><img src="${s.poster_url || ''}" class="thumb-preview" onerror="this.style.display='none'"></td>
+        <td>${catLabel(s.category)}</td>
+        <td><button class="btn-sm btn-edit" onclick="viewSeriesDetail('${encodeURIComponent(s.series_title)}')"><i class="fas fa-list"></i> 查看详情</button></td>
+        <td><button class="btn-sm btn-del" onclick="ungroupSeries('${encodeURIComponent(s.series_title)}')">取消分组</button></td>
+      </tr>
+    `).join('');
+  }
+  document.getElementById('seriesCountInfo').textContent = `共 ${series.length} 个系列`;
+}
+
+async function viewSeriesDetail(encodedTitle) {
+  const res = await api('/api/series/' + encodedTitle);
+  if (!res) return;
+  const data = await res.json();
+  let html = `<h3 style="color:#e50914;margin:0 0 16px 0;">${data.series_title} (${data.video_count} 部)</h3>`;
+  for (const season of data.seasons) {
+    html += `<div style="margin-bottom:12px;"><strong style="color:#ffa500;">${season.label}</strong>`;
+    html += '<ul style="margin:4px 0 0 20px;font-size:13px;color:#ccc;">';
+    for (const v of season.videos) {
+      html += `<li>${v.title} <span style="color:#888;">(ID:${v.id})</span></li>`;
+    }
+    html += '</ul></div>';
+  }
+  document.getElementById('seriesPreviewContent').innerHTML = html;
+  document.getElementById('seriesPreview').style.display = '';
+  document.getElementById('applySeriesBtn').style.display = 'none';
+  document.getElementById('cancelSeriesBtn').style.display = '';
+}
+
+document.getElementById('cancelSeriesBtn').addEventListener('click', () => {
+  document.getElementById('seriesPreview').style.display = 'none';
+  seriesPreviewData = null;
+});
+
+document.getElementById('autoDetectSeriesBtn').addEventListener('click', async () => {
+  const status = document.getElementById('seriesDetectStatus');
+  status.textContent = '正在扫描...';
+  try {
+    const res = await api('/api/videos/auto-detect-series', { method: 'POST' });
+    if (!res) { status.textContent = ''; return; }
+    const data = await res.json();
+    status.textContent = `发现 ${data.series.length} 个系列，共 ${data.applyList.length} 个视频可分组`;
+    seriesPreviewData = data;
+
+    const preview = document.getElementById('seriesPreviewContent');
+    let html = '';
+    for (const s of data.series) {
+      html += `<div style="margin-bottom:12px;padding:8px;background:#111;border-radius:4px;">`;
+      html += `<strong style="color:#e50914;">${s.seriesTitle}</strong> <span style="color:#888;">(${s.members.length} 部)</span>`;
+      html += '<ul style="margin:4px 0 0 20px;font-size:13px;color:#ccc;">';
+      for (const m of s.members) {
+        html += `<li>${m.originalTitle} → <span style="color:#ffa500;">${m.seasonLabel}</span></li>`;
+      }
+      html += '</ul></div>';
+    }
+    preview.innerHTML = html || '<p style="color:#888;">未找到可自动识别的系列。手动编辑视频填写"系列名称"来分组。</p>';
+    document.getElementById('seriesPreview').style.display = '';
+    document.getElementById('applySeriesBtn').style.display = '';
+    document.getElementById('cancelSeriesBtn').style.display = '';
+  } catch (err) {
+    status.textContent = '检测失败: ' + err.message;
+  }
+});
+
+document.getElementById('applySeriesBtn').addEventListener('click', async () => {
+  if (!seriesPreviewData || !seriesPreviewData.applyList.length) return;
+  const res = await api('/api/videos/apply-series', {
+    method: 'PUT',
+    body: JSON.stringify({ items: seriesPreviewData.applyList })
+  });
+  if (!res) return;
+  if (res.ok) {
+    alert('系列分组已应用！');
+    document.getElementById('seriesPreview').style.display = 'none';
+    seriesPreviewData = null;
+    loadSeries();
+  } else {
+    const err = await res.json().catch(() => ({}));
+    alert('应用失败: ' + (err.error || '未知错误'));
+  }
+});
+
+async function ungroupSeries(encodedTitle) {
+  const title = decodeURIComponent(encodedTitle);
+  if (!confirm(`确定要取消"${title}"系列的分组吗？所有相关视频将恢复为独立视频。`)) return;
+  // Clear series_title for all videos in this series
+  const res = await api('/api/series/' + encodedTitle);
+  if (!res) return;
+  const data = await res.json();
+  const ids = [];
+  for (const season of data.seasons) {
+    for (const v of season.videos) {
+      ids.push(v.id);
+    }
+  }
+  let ok = true;
+  for (const id of ids) {
+    const r = await api('/api/videos/' + id + '/remove-from-series', { method: 'PUT' });
+    if (!r || !r.ok) ok = false;
+  }
+  if (ok) {
+    alert('已取消分组');
+    loadSeries();
+  }
+}
 
 function formatDateTime(dt) {
   if (!dt) return '-';

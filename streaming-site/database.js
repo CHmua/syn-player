@@ -112,6 +112,11 @@ try { db.exec('ALTER TABLE vods ADD COLUMN featured INTEGER DEFAULT 0'); } catch
 // Add featured flag for manual hero carousel control
 try { db.exec('ALTER TABLE videos ADD COLUMN featured INTEGER DEFAULT 0'); } catch(e) {}
 
+// Add series/season grouping columns
+try { db.exec('ALTER TABLE videos ADD COLUMN series_title TEXT DEFAULT \'\''); } catch(e) {}
+try { db.exec('ALTER TABLE videos ADD COLUMN season_label TEXT DEFAULT \'\''); } catch(e) {}
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_videos_series ON videos(series_title)'); } catch(e) {}
+
 const seedVideos = [
   // ===== 热门电影 (trendingMovies) =====
   // Posters use TMDB/Douban image CDN — real movie posters (not random placeholders)

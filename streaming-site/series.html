@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系列详情 - Syn Player</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        .series-page { min-height:100vh; background:#0a0a0f; color:#fff; padding-top:70px; }
+        .series-header { display:flex; gap:24px; padding:24px 5%; background:linear-gradient(180deg,rgba(10,10,20,0.3) 0%,#0a0a0f 100%); align-items:flex-end; min-height:260px; }
+        .series-poster { width:180px; height:260px; border-radius:8px; object-fit:cover; flex-shrink:0; background:#1a1a2e; }
+        .series-meta { flex:1; min-width:0; }
+        .series-meta h1 { font-size:28px; margin:0 0 8px 0; }
+        .series-meta p { color:#aaa; font-size:14px; line-height:1.6; margin:4px 0; }
+        .series-season-tabs { display:flex; gap:8px; padding:16px 5%; overflow-x:auto; }
+        .series-season-tab { padding:8px 20px; border-radius:20px; border:1px solid #333; background:transparent; color:#ccc; cursor:pointer; white-space:nowrap; font-size:14px; transition:all 0.2s; }
+        .series-season-tab:hover { border-color:#e50914; color:#fff; }
+        .series-season-tab.active { background:#e50914; border-color:#e50914; color:#fff; }
+        .series-episodes { padding:0 5% 40px; }
+        .series-episode-card { display:flex; gap:12px; padding:12px; background:#111; border-radius:8px; margin-bottom:8px; cursor:pointer; transition:background 0.2s; align-items:center; }
+        .series-episode-card:hover { background:#1a1a2e; }
+        .series-episode-card img { width:120px; height:68px; border-radius:4px; object-fit:cover; flex-shrink:0; background:#1a1a2e; }
+        .series-episode-info { flex:1; min-width:0; }
+        .series-episode-info h4 { margin:0 0 4px 0; font-size:15px; }
+        .series-episode-info p { color:#888; font-size:12px; margin:0; }
+        .series-episode-dur { color:#888; font-size:12px; margin-left:auto; }
+        .series-empty { text-align:center; padding:60px 20px; color:#888; }
+        .series-empty i { font-size:48px; margin-bottom:16px; display:block; color:#333; }
+    </style>
+</head>
+<body class="series-page">
+
+<!-- ===== Navigation ===== -->
+<nav class="navbar" id="navbar">
+    <button class="hamburger" id="hamburgerBtn"><i class="fas fa-bars"></i></button>
+    <a href="index.html" class="logo">
+        <span style="font-size:28px;font-weight:800;color:#e50914;">SYN</span><span style="font-size:28px;font-weight:700;color:#fff;">PLAYER</span>
+    </a>
+    <ul class="nav-menu" id="navMenu">
+        <li><a href="index.html"><i class="fas fa-home"></i> 首页</a></li>
+        <li><a href="browse.html?section=trendingMovies&title=电影"><i class="fas fa-film"></i> 电影</a></li>
+        <li><a href="browse.html?section=trendingTV&title=电视剧"><i class="fas fa-tv"></i> 电视剧</a></li>
+        <li><a href="browse.html?section=trendingAnime&title=动漫"><i class="fas fa-laptop"></i> 动漫</a></li>
+        <li><a href="browse.html?section=trendingVariety&title=综艺"><i class="fas fa-laugh"></i> 综艺</a></li>
+        <li><a href="news.html"><i class="fas fa-newspaper"></i> 资讯</a></li>
+    </ul>
+    <div class="nav-right">
+        <a href="#" class="nav-icon" title="登录"><i class="fas fa-user-circle"></i></a>
+    </div>
+</nav>
+
+<div id="seriesContent">
+    <div class="series-empty">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>加载中...</p>
+    </div>
+</div>
+
+<script>
+(function() {
+    const token = localStorage.getItem('syn_user_token');
+    if (!token) { window.location.href = '/login'; return; }
+
+    const params = new URLSearchParams(window.location.search);
+    const seriesTitle = params.get('title');
+    if (!seriesTitle) {
+        document.getElementById('seriesContent').innerHTML = '<div class="series-empty"><i class="fas fa-exclamation-triangle"></i><p>未指定系列</p></div>';
+        return;
+    }
+    document.title = seriesTitle + ' - Syn Player';
+
+    // Hamburger menu
+    document.getElementById('hamburgerBtn').addEventListener('click', function() {
+        document.getElementById('navMenu').classList.toggle('show');
+    });
+
+    fetch('/api/series/' + encodeURIComponent(seriesTitle))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) {
+                document.getElementById('seriesContent').innerHTML = '<div class="series-empty"><i class="fas fa-exclamation-triangle"></i><p>' + data.error + '</p></div>';
+                return;
+            }
+
+            var seasons = data.seasons || [];
+            var html = '';
+
+            // Header
+            html += '<div class="series-header">';
+            html += '<img src="' + (data.poster_url || '') + '" class="series-poster" onerror="this.style.display=\'none\'">';
+            html += '<div class="series-meta">';
+            html += '<h1>' + data.series_title + '</h1>';
+            if (data.year) html += '<p>年份: ' + data.year + '</p>';
+            html += '<p>' + data.video_count + ' 部视频 · ' + seasons.length + ' 个分组</p>';
+            if (data.description) html += '<p>' + data.description + '</p>';
+            html += '</div></div>';
+
+            // Season tabs
+            if (seasons.length > 1) {
+                html += '<div class="series-season-tabs" id="seasonTabs">';
+                seasons.forEach(function(s, i) {
+                    html += '<button class="series-season-tab' + (i === 0 ? ' active' : '') + '" data-idx="' + i + '">' + s.label + '</button>';
+                });
+                html += '</div>';
+            }
+
+            // Episodes
+            html += '<div class="series-episodes" id="seasonPanels">';
+            seasons.forEach(function(s, i) {
+                html += '<div class="season-panel" data-idx="' + i + '" style="display:' + (i === 0 ? '' : 'none') + ';">';
+                s.videos.forEach(function(v) {
+                    html += '<div class="series-episode-card" onclick="window.location.href=\'video-player.html?id=' + v.id + '\'">';
+                    if (v.poster_url) html += '<img src="' + v.poster_url + '" onerror="this.style.display=\'none\'">';
+                    html += '<div class="series-episode-info">';
+                    html += '<h4>' + v.title + '</h4>';
+                    if (v.genre) html += '<p>' + v.genre + '</p>';
+                    html += '</div>';
+                    if (v.duration) html += '<span class="series-episode-dur">' + v.duration + '</span>';
+                    if (v.rating) html += '<span style="color:#ffa500;font-size:13px;margin-left:8px;">' + v.rating + '</span>';
+                    html += '</div>';
+                });
+                html += '</div>';
+            });
+            html += '</div>';
+
+            document.getElementById('seriesContent').innerHTML = html;
+
+            // Season tab switching
+            var tabs = document.querySelectorAll('.series-season-tab');
+            tabs.forEach(function(tab) {
+                tab.addEventListener('click', function() {
+                    tabs.forEach(function(t) { t.classList.remove('active'); });
+                    this.classList.add('active');
+                    var idx = this.dataset.idx;
+                    document.querySelectorAll('.season-panel').forEach(function(p) {
+                        p.style.display = p.dataset.idx === idx ? '' : 'none';
+                    });
+                });
+            });
+        })
+        .catch(function() {
+            document.getElementById('seriesContent').innerHTML = '<div class="series-empty"><i class="fas fa-exclamation-triangle"></i><p>加载失败</p></div>';
+        });
+})();
+</script>
+</body>
+</html>
