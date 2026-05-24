@@ -257,34 +257,20 @@ router.get('/detail/:vodId', async (req, res) => {
       // Parse primary source
       const primarySources = parseWithLines(vod.vod_play_url || '', vod.vod_play_from || '');
 
-      // Filter: only keep 豆瓣云 (dbyun) source for dbzy.tv collected VODs
-      const primaryDbzy = vod.source_name === 'dbzy';
-      let filteredSources = primarySources;
-      if (primaryDbzy) {
-        filteredSources = primarySources.filter(s => {
-          const name = s.source_name.toLowerCase();
-          return name === 'dbyun' || name === '豆瓣云' || name.includes('dbyun');
-        });
-        // Fallback: if filtering removed all sources, keep originals so something plays
-        if (filteredSources.length === 0) {
-          filteredSources = primarySources;
-        }
-      }
-
       // Parse and merge cross sources (avoid duplicate source names)
-      const seenSources = new Set(filteredSources.map(s => s.source_name));
+      const seenSources = new Set(primarySources.map(s => s.source_name));
       for (const cs of crossSources) {
         if (seenSources.has(cs.source_name)) continue;
         const parsed = parseWithLines(cs.vod_play_url, cs.vod_play_from);
         for (const ps of parsed) {
           if (!seenSources.has(ps.source_name) && ps.episodes.length > 0) {
-            filteredSources.push(ps);
+            primarySources.push(ps);
             seenSources.add(ps.source_name);
           }
         }
       }
 
-      vod.sources = filteredSources;
+      vod.sources = primarySources;
       vod.episodes = [];
       for (const src of vod.sources) {
         for (const ep of src.episodes) {
