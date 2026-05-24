@@ -78,12 +78,17 @@ function normalize(item, sourceName) {
   let playUrl = item.vod_play_url || '';
   let playFrom = item.vod_play_from || '';
 
-  // Filter: only keep "豆瓣云" source when collecting from dbzy.tv
+  // Filter: only keep 豆瓣云 (dbyun) source when collecting from dbzy.tv
   if (sourceName === 'dbzy' && playFrom && playUrl) {
     const fromParts = playFrom.split('$$$');
     let doubanIdx = -1;
     for (let i = 0; i < fromParts.length; i++) {
-      if (fromParts[i].trim() === '豆瓣云') { doubanIdx = i; break; }
+      const part = fromParts[i].trim().toLowerCase();
+      // Match both Chinese label "豆瓣云" and abbreviated "dbyun"
+      if (part === '豆瓣云' || part === 'dbyun' || part.includes('dbyun')) {
+        doubanIdx = i;
+        break;
+      }
     }
     if (doubanIdx >= 0) {
       const urlBlocks = playUrl.split('$$$');
