@@ -1381,29 +1381,28 @@ img {
     font-size: 11px;
 }
 
-/* ===== More Recommend — poster wall with varied sizes & fly-up animation ===== */
+/* ===== More Recommend — poster wall with uniform grid, no cropping ===== */
 .section-more-recommend .more-recommend-grid {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    grid-auto-rows: auto;
     gap: 10px;
-    grid-auto-flow: dense;
 }
 
 #moreRecommendSentinel {
     height: 1px;
 }
 
-/* Poster wall card */
+/* Poster wall card — uniform size, natural poster fit */
 .more-recommend-card {
     position: relative;
     overflow: hidden;
     border-radius: 6px;
     cursor: pointer;
+    background: #1a1a1a;
+    aspect-ratio: 2/3;
     opacity: 0;
     transform: translateY(40px);
     transition: opacity 0.5s ease, transform 0.5s ease;
-    aspect-ratio: 2/3;
 }
 
 .more-recommend-card.visible {
@@ -1412,19 +1411,19 @@ img {
 }
 
 .more-recommend-card:hover {
-    transform: scale(1.02);
+    transform: scale(1.03);
     z-index: 2;
     box-shadow: 0 8px 25px rgba(0,0,0,0.4);
 }
 
 .more-recommend-card.visible:hover {
-    transform: translateY(0) scale(1.02);
+    transform: translateY(0) scale(1.03);
 }
 
 .more-recommend-card .poster-img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
 }
 
@@ -1434,8 +1433,8 @@ img {
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 50px 12px 12px;
-    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.35) 55%, transparent 100%);
+    padding: 50px 10px 10px;
+    background: linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.3) 55%, transparent 100%);
     pointer-events: none;
 }
 
@@ -1447,7 +1446,7 @@ img {
     font-weight: 600;
     padding: 2px 6px;
     border-radius: 3px;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 }
 
 .more-recommend-card .poster-badge i {
@@ -1457,7 +1456,7 @@ img {
 
 .more-recommend-card .poster-title {
     color: #fff;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     line-height: 1.3;
     display: -webkit-box;
@@ -1477,56 +1476,42 @@ img {
     text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 
-/* Size variations — all portrait (vertical) proportions */
-.more-recommend-card.size-lg {
-    grid-column: span 2;
-    grid-row: span 2;
+/* Responsive — auto columns, preserve poster aspect ratio */
+@media (max-width: 1200px) {
+    .section-more-recommend .more-recommend-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+    }
 }
 
-.more-recommend-card.size-tall {
-    grid-column: span 1;
-    grid-row: span 1;
-}
-
-.more-recommend-card.size-lg .poster-title {
-    font-size: 18px;
-}
-
-.more-recommend-card.size-lg .poster-badge {
-    font-size: 12px;
-    padding: 3px 8px;
-}
-
-.more-recommend-card.size-tall .poster-title {
-    font-size: 16px;
-}
-
-/* Responsive */
 @media (max-width: 992px) {
     .section-more-recommend .more-recommend-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        grid-auto-rows: 240px;
+        grid-template-columns: repeat(4, 1fr);
         gap: 8px;
     }
     .more-recommend-card .poster-title { font-size: 12px; }
-    .more-recommend-card.size-lg .poster-title { font-size: 15px; }
-    .more-recommend-card.size-tall .poster-title { font-size: 13px; }
     .more-recommend-card .poster-overlay { padding: 40px 8px 8px; }
 }
 
-@media (max-width: 576px) {
+@media (max-width: 768px) {
     .section-more-recommend .more-recommend-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        grid-auto-rows: 200px;
+        grid-template-columns: repeat(3, 1fr);
         gap: 6px;
     }
     .more-recommend-card .poster-title { font-size: 11px; }
-    .more-recommend-card.size-lg .poster-title { font-size: 13px; }
-    .more-recommend-card.size-tall .poster-title { font-size: 12px; }
     .more-recommend-card .poster-overlay { padding: 30px 6px 6px; }
     .more-recommend-card .poster-subtitle { display: none; }
     .more-recommend-card .poster-badge { font-size: 8px; padding: 1px 4px; }
-    .more-recommend-card.size-lg .poster-badge { font-size: 10px; }
+}
+
+@media (max-width: 480px) {
+    .section-more-recommend .more-recommend-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 5px;
+    }
+    .more-recommend-card .poster-title { font-size: 10px; }
+    .more-recommend-card .poster-overlay { padding: 24px 4px 4px; }
+    .more-recommend-card .poster-badge { font-size: 7px; padding: 1px 3px; }
 }
 
 /* ===== Video Player Page ===== */

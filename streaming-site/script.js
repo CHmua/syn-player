@@ -532,7 +532,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return html;
     }
 
-    // Poster-wall card for 更多推荐 — title/gradient on poster, no info below
+    // Poster-wall card for 更多推荐 — uniform grid, no cropping
     function renderPosterWallCard(video, index) {
         var rating = parseFloat(video.rating) || parseFloat(video.douban_rating) || 0;
         var badgeText = rating > 0 ? rating.toFixed(1) : '';
@@ -542,12 +542,8 @@ document.addEventListener('DOMContentLoaded', function() {
         var type = video.type || video.vod_class || video.type_name || '';
         var subtitle = [year, type].filter(Boolean).join(' / ') || '';
 
-        var sizeClass = '';
-        if (index % 7 === 0) sizeClass = 'size-lg';
-        else if (index % 5 === 0) sizeClass = 'size-tall';
-
         var recClickUrl = video.series_title ? 'series.html?title=' + encodeURIComponent(video.series_title) : 'video-player.html?id=' + (video.vod_id || video.id);
-        return '<div class="more-recommend-card ' + sizeClass + '" data-index="' + index + '" onclick="location.href=\'' + recClickUrl + '\'">' +
+        return '<div class="more-recommend-card" data-index="' + index + '" onclick="location.href=\'' + recClickUrl + '\'">' +
             '<img class="poster-img" src="' + (posterUrl || '/api/vod/image-proxy?fallback=1') + '" alt="' + title + '" loading="lazy">' +
             '<div class="poster-overlay">' +
                 (badgeText ? '<span class="poster-badge"><i class="fas fa-star"></i> ' + badgeText + '</span>' : '') +
