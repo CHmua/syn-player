@@ -673,15 +673,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 var rating = v.rating || '';
                 var type = v.type || v.vod_class || '';
                 var year = v.year || v.vod_year || v.release_year || '';
+                var releaseDate = v.release_date || '';
                 var desc = v.description || v.plot || '';
                 var id = v.id || v.vod_id || '';
                 var ratingFloat = parseFloat(rating);
                 var ratingValue = isFinite(ratingFloat) && ratingFloat > 0 ? rating : '暂无';
                 var ratingSourceLabel = v.rating_source || '';
                 if (ratingSourceLabel && ratingValue !== '暂无') ratingSourceLabel += ' ';
+
+                // Format release date: "YYYY年MM月DD日上映"
+                var dateDisplay = '';
+                if (releaseDate && releaseDate.length >= 10) {
+                    var d = new Date(releaseDate);
+                    if (!isNaN(d.getTime())) {
+                        dateDisplay = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日上映';
+                    }
+                }
+                if (!dateDisplay && year && year.length === 4) {
+                    dateDisplay = year + '年上映';
+                }
+
                 var metaParts = [];
                 if (type) metaParts.push(type);
-                if (year) metaParts.push(year);
+                if (dateDisplay) metaParts.push(dateDisplay);
+                else if (year && !dateDisplay) metaParts.push(year);
                 var meta = metaParts.join(' · ');
 
                 var html = '';
@@ -690,6 +705,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 html += '<div class="hero-bg" style="background-image: url(\'' + poster + '\')" data-orig-bg="' + poster.replace(/"/g, '&quot;') + '"></div>';
                 html += '<div class="hero-hover-glow"></div>';
                 html += '<div class="hero-info">';
+                html += '<span class="hero-label">今日推荐</span>';
                 html += '<div class="hero-tag-row">';
                 html += '<span class="hero-rank">No.' + (i + 1) + ' 精选推荐</span>';
                 html += '<span class="hero-score">' + ratingSourceLabel + ratingValue + ' / 10</span>';
@@ -698,7 +714,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 html += '<span class="hero-rating-stars">' + buildStarRating(rating) + '</span>';
                 html += '<span class="hero-rating-value">' + ratingValue + '</span>';
                 html += '</div>';
-                html += '<span class="hero-label">今日推荐</span>';
                 html += '<h1 class="hero-title">' + title + '</h1>';
                 html += '<h2 class="hero-subtitle">' + meta + (rating ? ' · ' + rating : '') + '</h2>';
                 if (desc) {

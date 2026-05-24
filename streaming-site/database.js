@@ -117,6 +117,9 @@ try { db.exec('ALTER TABLE vods ADD COLUMN duration TEXT DEFAULT \'\''); } catch
 try { db.exec('ALTER TABLE vods ADD COLUMN genre TEXT DEFAULT \'\''); } catch(e) {}
 try { db.exec('CREATE INDEX IF NOT EXISTS idx_vods_series ON vods(series_title)'); } catch(e) {}
 
+// Add release_date for full date display (YYYY年MM月DD日)
+try { db.exec('ALTER TABLE vods ADD COLUMN release_date TEXT DEFAULT \'\''); } catch(e) {}
+
 // Add featured flag for manual hero carousel control
 try { db.exec('ALTER TABLE videos ADD COLUMN featured INTEGER DEFAULT 0'); } catch(e) {}
 

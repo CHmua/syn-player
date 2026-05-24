@@ -189,6 +189,7 @@ async function enrichVodRecord(vodId, vodName, vodYear) {
           enriched = true;
         }
         if (tmdb.year) { updates.vod_year = tmdb.year; enriched = true; }
+        if (tmdb.release_date) { updates.release_date = tmdb.release_date; enriched = true; }
         if (tmdb.rating) { updates.vod_score = tmdb.rating; enriched = true; }
         if (tmdb.genre) { updates.genre = tmdb.genre; enriched = true; }
         if (tmdb.description) { updates.vod_content = tmdb.description; enriched = true; }

@@ -28,6 +28,7 @@
         <button class="btn-users" id="usersBtn" title="查看注册用户"><i class="fas fa-users"></i> 用户管理</button>
         <button class="btn-series" id="seriesBtn" title="系列管理（季/部归类）"><i class="fas fa-layer-group"></i> 系列管理</button>
         <button class="btn-sync" id="syncNowBtn" title="立即从资源站采集最新影片"><i class="fas fa-sync-alt"></i> 立即采集</button>
+        <button class="btn-reset" id="resetCollectBtn" title="删除所有采集影片并重新全量采集（含系列归类）" style="background:#b91c1c;color:#fff;"><i class="fas fa-undo-alt"></i> 重置采集</button>
         <span id="syncStatus" style="font-size:12px;color:#888;margin-left:8px;"></span>
         <button class="btn-del-batch" id="batchDelBtn" title="批量删除选中的视频" style="display:none"><i class="fas fa-trash"></i> 批量删除 (<span id="selCount">0</span>)</button>
     </div>
@@ -1071,6 +1072,35 @@ document.getElementById('syncNowBtn').addEventListener('click', async function()
     this.innerHTML = '<i class="fas fa-sync-alt"></i> 立即采集';
     loadSyncStatus();
     loadVideos();
+  }
+});
+
+// Reset & re-collect
+document.getElementById('resetCollectBtn').addEventListener('click', async function() {
+  if (!confirm('确定要删除所有采集的影片并重新全量采集吗？此操作不可撤销，采集过程需要几分钟。')) return;
+
+  this.disabled = true;
+  this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 重置中...';
+  document.getElementById('syncStatus').textContent = '正在重置采集...';
+
+  try {
+    const token = localStorage.getItem('admin_token');
+    const res = await fetch('/api/admin/reset-collection', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert('重置采集已开始！请等待几分钟后刷新页面查看结果。同步状态会在完成后自动更新。');
+    } else {
+      alert('重置失败: ' + (data.error || '未知错误'));
+    }
+  } catch (err) {
+    alert('请求失败: ' + err.message);
+  } finally {
+    this.disabled = false;
+    this.innerHTML = '<i class="fas fa-undo-alt"></i> 重置采集';
+    loadSyncStatus();
   }
 });
 

@@ -243,6 +243,7 @@ async function searchMovieFull(title, year) {
     return {
       title: detail.title || movie.title || '',
       year: (detail.release_date || movie.release_date || '').substring(0, 4),
+      release_date: detail.release_date || movie.release_date || '',
       poster: posterSizes.w500,
       poster_w185: posterSizes.w185,
       poster_w342: posterSizes.w342,
@@ -301,6 +302,7 @@ async function searchTVFull(title, year) {
     return {
       title: detail.name || show.name || '',
       year: (detail.first_air_date || show.first_air_date || '').substring(0, 4),
+      release_date: detail.first_air_date || show.first_air_date || '',
       poster: posterSizes.w500,
       poster_w185: posterSizes.w185,
       poster_w342: posterSizes.w342,
