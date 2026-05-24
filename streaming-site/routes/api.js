@@ -669,7 +669,11 @@ router.get('/search-poster', async (req, res) => {
 router.get('/auto-fill', authMiddleware, async (req, res) => {
   const title = (req.query.title || '').trim();
   const year = (req.query.year || '').trim();
+  const category = (req.query.category || '').trim();
   if (!title) return res.status(400).json({ error: 'title required' });
+
+  // Get expected type_names for this category
+  const expectedTypes = category ? (SECTION_TYPE_MAP[category] || []) : [];
 
   // Prefer Chinese title over English
   function preferChineseTitle(candidateTitle, fallbackTitle) {
@@ -864,14 +868,29 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
           const { searchAcrossSources, enrichWithPlayUrls, fetchAppleCMSDetail } = require('../services/collect');
           const { results } = await searchAcrossSources(searchTitle);
           if (results && results.length > 0) {
-            // Filter by year if available
-            let candidates = results;
-            if (year) {
-              const yearFilter = candidates.filter(r => r.vod_year === year);
-              if (yearFilter.length > 0) candidates = yearFilter;
+            // Score and rank: prefer matching type_name, then matching year
+            const scored = results.map(r => {
+              let score = 0;
+              if (year && r.vod_year === year) score += 100;
+              if (expectedTypes.length > 0 && expectedTypes.some(t => (r.type_name || '').includes(t))) score += 200;
+              if (r.vod_play_url) score += 50; // has play URL already
+              return { ...r, _score: score };
+            }).sort((a, b) => b._score - a._score);
+
+            // Take top candidates that match the category if available
+            let candidates = scored;
+            if (expectedTypes.length > 0) {
+              const matching = scored.filter(r => r._score >= 200);
+              if (matching.length > 0) candidates = matching;
             }
-            // Search results lack play URLs — fetch detail via ac=videolist
-            const enriched = await enrichWithPlayUrls(candidates.slice(0, 3));
+            // Year filter as further refinement
+            if (year && candidates.some(r => r.vod_year === year)) {
+              candidates = candidates.filter(r => r.vod_year === year);
+            }
+
+            // Try up to 5 candidates to find one with play URL
+            const batch = candidates.slice(0, 5);
+            const enriched = await enrichWithPlayUrls(batch);
             const withUrl = enriched.filter(r => r.vod_play_url);
             if (withUrl.length > 0) {
               best.video_url = withUrl[0].vod_play_url;

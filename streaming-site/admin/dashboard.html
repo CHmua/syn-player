@@ -523,8 +523,10 @@ async function doAutoFill(triggeredBy) {
 
   try {
     const year = document.getElementById('vyear').value.trim();
+    const category = document.getElementById('vcategory').value.trim();
     let url = '/api/auto-fill?title=' + encodeURIComponent(title);
     if (year) url += '&year=' + encodeURIComponent(year);
+    if (category) url += '&category=' + encodeURIComponent(category);
     const res = await api(url);
     if (!res) { btn.innerHTML = origText; btn.disabled = false; return; }
     const json = await res.json();
