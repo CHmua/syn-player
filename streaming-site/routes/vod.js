@@ -141,10 +141,12 @@ router.get('/detail/:vodId', async (req, res) => {
   const { vodId } = req.params;
 
   try {
-    // Check cache
+    // Check cache (skip if DB record has empty play_url — needs refresh from source)
     const cacheKey = `detail:${vodId}`;
     const cached = await cache.get(cacheKey);
-    if (cached) return res.json({ success: true, data: cached, source: 'cache' });
+    if (cached && cached.vod_play_url && cached.sources && cached.sources.length > 0) {
+      return res.json({ success: true, data: cached, source: 'cache' });
+    }
 
     const { parseWithLines, fetchAppleCMSDetail, SOURCES } = require('../services/collect');
 
