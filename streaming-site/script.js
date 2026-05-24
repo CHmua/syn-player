@@ -502,9 +502,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Use backdrop (16:9) for landscape sections, poster (2:3) for standard cards
         var imgSrc;
         if (useBackdrop) {
-            imgSrc = video.backdrop_url || video.poster_url || 'https://picsum.photos/seed/' + video.id + '/780/440';
+            imgSrc = video.backdrop_url || video.poster_url || '/api/vod/image-proxy?fallback=1';
         } else {
-            imgSrc = video.poster_url || 'https://picsum.photos/seed/' + video.id + '/400/600';
+            imgSrc = video.poster_url || '/api/vod/image-proxy?fallback=1';
         }
 
         var clickUrl = video.series_title ? 'series.html?title=' + encodeURIComponent(video.series_title) : 'video-player.html?id=' + video.id;
@@ -548,7 +548,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var recClickUrl = video.series_title ? 'series.html?title=' + encodeURIComponent(video.series_title) : 'video-player.html?id=' + (video.vod_id || video.id);
         return '<div class="more-recommend-card ' + sizeClass + '" data-index="' + index + '" onclick="location.href=\'' + recClickUrl + '\'">' +
-            '<img class="poster-img" src="' + (posterUrl || 'https://picsum.photos/seed/' + (video.vod_id || video.id) + '/400/600') + '" alt="' + title + '" loading="lazy">' +
+            '<img class="poster-img" src="' + (posterUrl || '/api/vod/image-proxy?fallback=1') + '" alt="' + title + '" loading="lazy">' +
             '<div class="poster-overlay">' +
                 (badgeText ? '<span class="poster-badge"><i class="fas fa-star"></i> ' + badgeText + '</span>' : '') +
                 '<div class="poster-title">' + title + '</div>' +
@@ -816,7 +816,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Fallback: if no moreRecommend videos, load from VOD search as well
                 if (filtered.length < 6) {
                     return fetch('/api/vod/search?wd=&limit=48').then(function(r) { return r.json(); }).then(function(vodData) {
-                        var vods = (vodData.vods || vodData || []).filter(function(v) { return !shownIds.has(String(v.vod_id || v.id)); });
+                        var vods = (vodData.data || []).filter(function(v) { return !shownIds.has(String(v.vod_id || v.id)); });
                         // Merge: local videos first, then VODs
                         filtered = filtered.concat(vods);
                         return filtered;

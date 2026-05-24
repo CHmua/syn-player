@@ -50,14 +50,15 @@ async function getVODDB() {
 // Flow: Cache → MySQL → External Sources → Save to MySQL → Return
 router.get('/search', async (req, res) => {
   const keyword = (req.query.wd || '').trim();
-  if (!keyword) return res.json({ success: false, msg: '请输入搜索关键词' });
+  // Allow empty keyword — returns recently updated VODs (for moreRecommend fallback, browse, etc.)
+  const limit = parseInt(req.query.limit) || 50;
 
   try {
     // 1. Check Redis/Memory cache (1 hour TTL)
-    const cacheKey = `search:${keyword}`;
+    const cacheKey = keyword ? `search:${keyword}` : 'browse:recent';
     const cached = await cache.get(cacheKey);
     if (cached) {
-      logSearch(keyword, cached.length, 'cache', req.ip);
+      logSearch(keyword || '(browse)', cached.length, 'cache', req.ip);
       const proxied = cached.map(v => ({
         ...v,
         vod_pic: proxyImageUrl(v.vod_pic || v.poster || ''),
@@ -71,15 +72,18 @@ router.get('/search', async (req, res) => {
     try {
       const vdb = await getVODDB();
       if (vdb.type === 'mysql') {
-        const [rows] = await vdb.pool.query(
-          'SELECT * FROM vods WHERE vod_name LIKE ? AND is_active = 1 LIMIT 50',
-          [`%${keyword}%`]
-        );
+        const query = keyword
+          ? 'SELECT * FROM vods WHERE vod_name LIKE ? AND is_active = 1 ORDER BY updated_at DESC LIMIT ?'
+          : 'SELECT * FROM vods WHERE is_active = 1 ORDER BY updated_at DESC LIMIT ?';
+        const params = keyword ? [`%${keyword}%`, limit] : [limit];
+        const [rows] = await vdb.pool.query(query, params);
         localResults = rows;
       } else if (vdb.type === 'sqlite') {
-        localResults = vdb.sqlite.prepare(
-          'SELECT * FROM vods WHERE vod_name LIKE ? AND is_active = 1 LIMIT 50'
-        ).all(`%${keyword}%`);
+        const query = keyword
+          ? 'SELECT * FROM vods WHERE vod_name LIKE ? AND is_active = 1 ORDER BY updated_at DESC LIMIT ?'
+          : 'SELECT * FROM vods WHERE is_active = 1 ORDER BY updated_at DESC LIMIT ?';
+        const params = keyword ? [`%${keyword}%`, limit] : [limit];
+        localResults = vdb.sqlite.prepare(query).all(...params);
       }
     } catch (dbErr) {
       console.error('[VOD] DB search error:', dbErr.message);
@@ -93,9 +97,14 @@ router.get('/search', async (req, res) => {
         poster_url: proxyImageUrl(v.poster || v.vod_pic || '')
       }));
       await cache.set(cacheKey, deduped, 3600);
-      logSearch(keyword, deduped.length, 'local', req.ip);
-      await incrementHotKeyword(keyword);
+      logSearch(keyword || '(browse)', deduped.length, 'local', req.ip);
+      if (keyword) await incrementHotKeyword(keyword);
       return res.json({ success: true, data: deduped, source: 'local' });
+    }
+
+    // 4. No local results — if no keyword, return empty (don't search external with no keyword)
+    if (!keyword) {
+      return res.json({ success: true, data: [], source: 'none', msg: '暂无影片' });
     }
 
     // 4. No local results — query external resource stations
@@ -335,8 +344,9 @@ router.get('/source-health', async (req, res) => {
 // Proxies external poster images to bypass hotlink protection, SSL errors, and CORS
 router.get('/image-proxy', (req, res) => {
   const imgUrl = req.query.url;
-  if (!imgUrl || (!imgUrl.startsWith('http://') && !imgUrl.startsWith('https://'))) {
-    return res.status(400).json({ error: 'Invalid URL' });
+  // Return placeholder when no URL or explicit fallback requested
+  if (!imgUrl || req.query.fallback === '1' || (!imgUrl.startsWith('http://') && !imgUrl.startsWith('https://'))) {
+    return sendPlaceholder(res);
   }
 
   const parsed = new URL(imgUrl);
@@ -364,19 +374,19 @@ router.get('/image-proxy', (req, res) => {
         opts.headers.Referer = parsed.origin + '/';
         redirectTransport.get(redirectParsed.href, opts, (redirectRes) => {
           pipeImageResponse(redirectRes, res);
-        }).on('error', () => res.status(502).end());
+        }).on('error', () => sendPlaceholder(res));
         return;
       }
     }
     pipeImageResponse(imgRes, res);
   }).on('error', (err) => {
-    if (!res.headersSent) res.status(502).end();
+    if (!res.headersSent) sendPlaceholder(res);
   });
 });
 
 function pipeImageResponse(source, dest) {
   if (source.statusCode !== 200) {
-    return dest.status(source.statusCode >= 400 ? source.statusCode : 502).end();
+    return sendPlaceholder(dest);
   }
   const contentType = source.headers['content-type'] || 'image/jpeg';
   dest.set({
@@ -385,7 +395,20 @@ function pipeImageResponse(source, dest) {
     'Access-Control-Allow-Origin': '*'
   });
   source.pipe(dest);
-  source.on('error', () => { if (!dest.headersSent) dest.status(502).end(); });
+  source.on('error', () => { if (!dest.headersSent) sendPlaceholder(dest); });
+}
+
+// SVG placeholder: dark gradient with film reel icon
+function sendPlaceholder(res) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600">
+    <defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#1a1a2e"/><stop offset="100%" style="stop-color:#16213e"/></linearGradient></defs>
+    <rect width="400" height="600" fill="url(#bg)"/>
+    <rect x="80" y="180" width="240" height="200" rx="8" fill="none" stroke="#333" stroke-width="2"/>
+    <polygon points="175,240 175,320 260,280" fill="#444"/>
+    <text x="200" y="430" text-anchor="middle" fill="#555" font-size="14" font-family="sans-serif">暂无封面</text>
+  </svg>`;
+  res.set({ 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=3600', 'Access-Control-Allow-Origin': '*' });
+  res.send(Buffer.from(svg));
 }
 
 // --------------- Check URL validity ---------------

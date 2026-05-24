@@ -1,4 +1,26 @@
 /* ===== CSS Variables & Reset ===== */
+/* HarmonyOS Sans — Huawei's open-source font, free for commercial use */
+@font-face {
+    font-family: 'HarmonyOS Sans SC';
+    src: url('https://cdn.jsdelivr.net/gh/irozhi/HarmonyOS-Sans@main/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'HarmonyOS Sans SC';
+    src: url('https://cdn.jsdelivr.net/gh/irozhi/HarmonyOS-Sans@main/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'HarmonyOS Sans SC';
+    src: url('https://cdn.jsdelivr.net/gh/irozhi/HarmonyOS-Sans@main/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
 :root {
     /* Dark theme (default) */
     --bg-primary: #0d0d0d;
@@ -279,7 +301,7 @@ html {
 }
 
 body {
-    font-family: 'Noto Sans SC', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'HarmonyOS Sans SC', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
     background-color: var(--bg-primary);
     color: var(--text-primary);
     line-height: 1.6;

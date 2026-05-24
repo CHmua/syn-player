@@ -779,9 +779,6 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
   const category = (req.query.category || '').trim();
   if (!title) return res.status(400).json({ error: 'title required' });
 
-  // Get expected type_names for this category
-  const expectedTypes = category ? (SECTION_TYPE_MAP[category] || []) : [];
-
   // Prefer Chinese title over English
   function preferChineseTitle(candidateTitle, fallbackTitle) {
     if (!candidateTitle) return fallbackTitle || '';
@@ -793,13 +790,67 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
   try {
     let best = null;
 
-    // Step 1: TMDB (primary — best poster quality + full metadata)
+    // ====================================================================
+    //  NEW FLOW: AppleCMS first → TMDB/Douban for metadata
+    //  User copies title from dbzy.tv, so we trust AppleCMS for title+URL,
+    //  then enrich with TMDB/Douban poster, backdrop, and metadata.
+    // ====================================================================
+
+    // Step 1: Search local VOD DB for exact title match (fast path)
+    let vodMatch = null;
+    try {
+      try {
+        const vodDb = require('../db');
+        const [rows] = await vodDb.query(
+          "SELECT * FROM vods WHERE vod_name = ? AND is_active = 1 LIMIT 1", [title]
+        );
+        if (rows.length > 0) vodMatch = rows[0];
+      } catch {
+        vodMatch = db.prepare(
+          "SELECT * FROM vods WHERE vod_name = ? AND is_active = 1 LIMIT 1"
+        ).get(title);
+      }
+    } catch {}
+
+    // Step 2: Search AppleCMS (dbzy.tv) for the title — get exact match title + play URL
+    if (!vodMatch) {
+      try {
+        const { searchAcrossSources, enrichWithPlayUrls } = require('../services/collect');
+        const { results } = await searchAcrossSources(title);
+        if (results && results.length > 0) {
+          // Find best match: prefer exact title match, then category match
+          let scored = results.map(r => {
+            let score = 0;
+            const rTitle = (r.vod_name || '').trim();
+            if (rTitle === title) score += 500;       // exact title match
+            else if (rTitle.includes(title) || title.includes(rTitle)) score += 200; // partial match
+            if (r.vod_year === year) score += 100;
+            if (r.vod_play_url) score += 50;
+            return { ...r, _score: score };
+          }).sort((a, b) => b._score - a._score);
+
+          // Fetch play URLs for top candidates
+          const enriched = await enrichWithPlayUrls(scored.slice(0, 5));
+          const withUrl = enriched.filter(r => r.vod_play_url);
+          if (withUrl.length > 0) {
+            vodMatch = withUrl[0];
+          } else if (enriched.length > 0) {
+            vodMatch = enriched[0]; // no play URL but keep the title match
+          }
+        }
+      } catch (e) { console.error('[auto-fill] AppleCMS search error:', e.message); }
+    }
+
+    // Step 3: Use the matching title for metadata search
+    const searchTitle = vodMatch ? (vodMatch.vod_name || title) : title;
+
+    // Step 4: TMDB metadata (best poster quality + full metadata)
     try {
       const { searchMovieFull: searchTMDB } = require('../services/tmdb');
-      const tmdbResult = await searchTMDB(title, year);
+      const tmdbResult = await searchTMDB(searchTitle, year);
       if (tmdbResult) {
         best = {
-          title: cleanTitle(tmdbResult.title || title),
+          title: cleanTitle(tmdbResult.title || searchTitle),
           poster: tmdbResult.poster || '',
           backdrop_url: tmdbResult.backdrop || '',
           year: tmdbResult.year || '',
@@ -815,197 +866,56 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
       }
     } catch { /* TMDB optional */ }
 
-    // Step 2: Douban fallback — when TMDB found nothing or no poster
+    // Step 5: Douban fallback if TMDB found nothing or no poster
     if (!best || !best.poster) {
-      const { searchMovie, getMobileSubjectDetail } = require('../services/douban');
-
-      // Step 2a: Douban HTML scraper
       try {
-        const result = await searchMovie(title, year);
+        const { searchMovie, getMobileSubjectDetail } = require('../services/douban');
+        const result = await searchMovie(searchTitle, year);
         if (result && result.douban_id) {
           const dbEntry = {
-            title: cleanTitle(preferChineseTitle(result.title, title)),
-            poster: (result.poster || ''),
+            title: cleanTitle(preferChineseTitle(result.title, searchTitle)),
+            poster: result.poster || '',
             year: result.year || '',
             rating: result.rating || '',
             genre: '',
             description: result.description || '',
             director: result.director || '',
             actors: result.actors || '',
-            douban_id: result.douban_id
+            douban_id: result.douban_id,
+            tmdb_id: ''
           };
-
-          // Mobile detail for Chinese title, synopsis, genre
           try {
             const mobileDetail = await getMobileSubjectDetail(result.douban_id);
             if (mobileDetail) {
-              if (mobileDetail.title && /[一-鿿]/.test(mobileDetail.title)) {
-                dbEntry.title = cleanTitle(mobileDetail.title);
-              }
+              if (mobileDetail.title && /[一-鿿]/.test(mobileDetail.title)) dbEntry.title = cleanTitle(mobileDetail.title);
               if (mobileDetail.summary) dbEntry.description = mobileDetail.summary;
               if (mobileDetail.rating && !dbEntry.rating) dbEntry.rating = mobileDetail.rating;
-              if (mobileDetail.genres && mobileDetail.genres.length > 0) {
-                dbEntry.genre = mobileDetail.genres.join(' / ');
-              }
+              if (mobileDetail.genres && mobileDetail.genres.length > 0) dbEntry.genre = mobileDetail.genres.join(' / ');
               if (mobileDetail.duration) dbEntry.duration = mobileDetail.duration;
               if (mobileDetail.director && !dbEntry.director) dbEntry.director = mobileDetail.director;
             }
           } catch {}
-
-          if (!best) {
-            best = dbEntry;
-          } else if (!best.poster && dbEntry.poster) {
+          if (!best) { best = dbEntry; }
+          else if (!best.poster && dbEntry.poster) {
             best.poster = dbEntry.poster;
-            if (!best.year && dbEntry.year) best.year = dbEntry.year;
-            if (!best.rating && dbEntry.rating) best.rating = dbEntry.rating;
-            if (!best.genre && dbEntry.genre) best.genre = dbEntry.genre;
-            if (!best.description && dbEntry.description) best.description = dbEntry.description;
-            if (!best.director && dbEntry.director) best.director = dbEntry.director;
-            if (!best.actors && dbEntry.actors) best.actors = dbEntry.actors;
+            if (!best.year) best.year = dbEntry.year;
+            if (!best.rating) best.rating = dbEntry.rating;
+            if (!best.genre) best.genre = dbEntry.genre;
+            if (!best.description) best.description = dbEntry.description;
           }
-          if (dbEntry.douban_id) best.douban_id = dbEntry.douban_id;
         }
       } catch {}
-
-      // Step 2b: Douban suggest API (lighter, more reliable)
-      if (!best || !best.poster) {
-        try {
-          const doubanCookie = process.env.DOUBAN_COOKIE || '';
-          const suggestHeaders = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Referer': 'https://movie.douban.com/'
-          };
-          if (doubanCookie) suggestHeaders['Cookie'] = doubanCookie;
-          const suggestRes = await axios.get('https://movie.douban.com/j/subject_suggest', {
-            params: { q: title },
-            headers: suggestHeaders,
-            timeout: 8000,
-            maxRedirects: 5
-          });
-
-          // Douban may return HTML login page instead of JSON when IP is blocked
-          if (typeof suggestRes.data === 'string') {
-            if (suggestRes.data.includes('登录跳转') || suggestRes.data.includes('异常请求')) {
-              console.error('[Douban] Suggest API blocked — IP flagged by Douban. Set DOUBAN_COOKIE in .env.');
-            }
-            suggestRes.data = [];
-          }
-
-          if (Array.isArray(suggestRes.data) && suggestRes.data.length > 0) {
-            const items = suggestRes.data.filter(r => r.id && r.img);
-            if (items.length > 0) {
-              const chineseItems = items.filter(r => /[一-鿿]/.test(r.title || ''));
-              const item = chineseItems.length > 0 ? chineseItems[0] : items[0];
-              const suggestEntry = {
-                title: cleanTitle(preferChineseTitle(item.title, title)),
-                poster: (item.img || ''),
-                year: item.year || '',
-                rating: '',
-                genre: '',
-                description: '',
-                director: '',
-                actors: '',
-                douban_id: String(item.id)
-              };
-
-              try {
-                const mobileDetail = await getMobileSubjectDetail(item.id);
-                if (mobileDetail) {
-                  if (mobileDetail.title && /[一-鿿]/.test(mobileDetail.title)) {
-                    suggestEntry.title = cleanTitle(mobileDetail.title);
-                  }
-                  if (mobileDetail.summary) suggestEntry.description = mobileDetail.summary;
-                  if (mobileDetail.rating) suggestEntry.rating = mobileDetail.rating;
-                  if (mobileDetail.genres && mobileDetail.genres.length > 0) {
-                    suggestEntry.genre = mobileDetail.genres.join(' / ');
-                  }
-                  if (mobileDetail.duration) suggestEntry.duration = mobileDetail.duration;
-                  if (mobileDetail.director) suggestEntry.director = mobileDetail.director;
-                }
-              } catch {}
-
-              if (!best) {
-                best = suggestEntry;
-              } else if (!best.poster && suggestEntry.poster) {
-                best.poster = suggestEntry.poster;
-              }
-            }
-          }
-        } catch {}
-      }
     }
 
-    // Fallback backdrop: use poster when no TMDB backdrop available
+    // Step 6: Attach video source URL from AppleCMS/local match
+    if (best && vodMatch && vodMatch.vod_play_url) {
+      best.video_url = vodMatch.vod_play_url;
+      best.video_source = vodMatch.source_name || '';
+    }
+
+    // Fallback backdrop: use poster when no TMDB backdrop
     if (best && !best.backdrop_url) {
       best.backdrop_url = best.poster || '';
-    }
-
-    // Step 3: Search for video source URL — DB first, then live AppleCMS API
-    if (best) {
-      const searchTitle = best.title || title;
-      let foundUrl = false;
-
-      // 3a: Search local VOD database
-      try {
-        let vodRow = null;
-        try {
-          const vodDb = require('../db');
-          const [rows] = await vodDb.query(
-            "SELECT vod_play_url, source_name FROM vods WHERE vod_name LIKE ? AND vod_play_url IS NOT NULL AND vod_play_url != '' LIMIT 1",
-            [`%${searchTitle}%`]
-          );
-          if (rows.length > 0) vodRow = rows[0];
-        } catch {
-          try {
-            vodRow = db.prepare(
-              "SELECT vod_play_url, source_name FROM vods WHERE vod_name LIKE ? AND vod_play_url IS NOT NULL AND vod_play_url != '' LIMIT 1"
-            ).get(`%${searchTitle}%`);
-          } catch {}
-        }
-        if (vodRow && vodRow.vod_play_url) {
-          best.video_url = vodRow.vod_play_url;
-          best.video_source = vodRow.source_name || '';
-          foundUrl = true;
-        }
-      } catch {}
-
-      // 3b: Fallback — search AppleCMS source directly, then fetch detail for play URLs
-      if (!foundUrl) {
-        try {
-          const { searchAcrossSources, enrichWithPlayUrls, fetchAppleCMSDetail } = require('../services/collect');
-          const { results } = await searchAcrossSources(searchTitle);
-          if (results && results.length > 0) {
-            // Score and rank: prefer matching type_name, then matching year
-            const scored = results.map(r => {
-              let score = 0;
-              if (year && r.vod_year === year) score += 100;
-              if (expectedTypes.length > 0 && expectedTypes.some(t => (r.type_name || '').includes(t))) score += 200;
-              if (r.vod_play_url) score += 50; // has play URL already
-              return { ...r, _score: score };
-            }).sort((a, b) => b._score - a._score);
-
-            // Take top candidates that match the category if available
-            let candidates = scored;
-            if (expectedTypes.length > 0) {
-              const matching = scored.filter(r => r._score >= 200);
-              if (matching.length > 0) candidates = matching;
-            }
-            // Year filter as further refinement
-            if (year && candidates.some(r => r.vod_year === year)) {
-              candidates = candidates.filter(r => r.vod_year === year);
-            }
-
-            // Try up to 5 candidates to find one with play URL
-            const batch = candidates.slice(0, 5);
-            const enriched = await enrichWithPlayUrls(batch);
-            const withUrl = enriched.filter(r => r.vod_play_url);
-            if (withUrl.length > 0) {
-              best.video_url = withUrl[0].vod_play_url;
-              best.video_source = withUrl[0].source_name || '';
-            }
-          }
-        } catch {}
-      }
     }
 
     if (best && (best.title || best.poster)) {
@@ -1307,7 +1217,7 @@ router.get('/tmdb-poster', authMiddleware, async (req, res) => {
 router.get('/img-proxy', (req, res) => {
   const imgUrl = req.query.url;
   if (!imgUrl || (!imgUrl.startsWith('http://') && !imgUrl.startsWith('https://'))) {
-    return res.status(400).json({ error: 'Invalid URL' });
+    return sendPlaceholder(res);
   }
 
   const parsed = new URL(imgUrl);
@@ -1324,22 +1234,33 @@ router.get('/img-proxy', (req, res) => {
     timeout: 12000
   }, (imgRes) => {
     if (imgRes.statusCode !== 200) {
-      // Follow redirect once
       if ([301, 302, 303, 307, 308].includes(imgRes.statusCode) && imgRes.headers.location) {
         const redirectUrl = new URL(imgRes.headers.location, imgUrl);
         const rt = redirectUrl.protocol === 'https:' ? require('https') : require('http');
         rt.get(redirectUrl.href, { rejectUnauthorized: false, timeout: 12000, headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': parsed.origin + '/' } }, (r2) => {
-          if (r2.statusCode !== 200) return res.status(r2.statusCode).end();
+          if (r2.statusCode !== 200) return sendPlaceholder(res);
           res.set({ 'Content-Type': r2.headers['content-type'] || 'image/jpeg', 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' });
           r2.pipe(res);
-        }).on('error', () => res.status(502).end());
+        }).on('error', () => sendPlaceholder(res));
         return;
       }
-      return res.status(imgRes.statusCode).end();
+      return sendPlaceholder(res);
     }
     res.set({ 'Content-Type': imgRes.headers['content-type'] || 'image/jpeg', 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' });
     imgRes.pipe(res);
-  }).on('error', () => { if (!res.headersSent) res.status(502).end(); });
+  }).on('error', () => { if (!res.headersSent) sendPlaceholder(res); });
 });
+
+function sendPlaceholder(res) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600">
+    <defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#1a1a2e"/><stop offset="100%" style="stop-color:#16213e"/></linearGradient></defs>
+    <rect width="400" height="600" fill="url(#bg)"/>
+    <rect x="80" y="180" width="240" height="200" rx="8" fill="none" stroke="#333" stroke-width="2"/>
+    <polygon points="175,240 175,320 260,280" fill="#444"/>
+    <text x="200" y="430" text-anchor="middle" fill="#555" font-size="14" font-family="sans-serif">暂无封面</text>
+  </svg>`;
+  res.set({ 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=3600', 'Access-Control-Allow-Origin': '*' });
+  res.send(Buffer.from(svg));
+}
 
 module.exports = router;
