@@ -25,7 +25,7 @@ const SOURCES = [
     type: 'applecms',
     baseUrl: 'https://api.wujinapi.com/api.php/provide/vod/',
     timeout: 15000,
-    enabled: true
+    enabled: false
   },
   {
     name: 'hongniu',
@@ -33,7 +33,7 @@ const SOURCES = [
     type: 'applecms',
     baseUrl: 'https://www.hongniuzy3.com/api.php/provide/vod/',
     timeout: 15000,
-    enabled: true
+    enabled: false
   },
   {
     name: 'yjzy',
@@ -41,7 +41,7 @@ const SOURCES = [
     type: 'applecms',
     baseUrl: 'https://yjzy.me/api.php/provide/vod/',
     timeout: 15000,
-    enabled: true
+    enabled: false
   },
   {
     name: 'mtzy',
@@ -49,7 +49,7 @@ const SOURCES = [
     type: 'applecms',
     baseUrl: 'https://mtzy.me/api.php/provide/vod/',
     timeout: 15000,
-    enabled: true
+    enabled: false
   }
 ];
 

@@ -421,29 +421,6 @@ router.put('/videos/:id', authMiddleware, async (req, res) => {
     values.push(id);
     db.prepare(`UPDATE vods SET ${setClauses} WHERE vod_id=?`).run(...values);
 
-    // Sync a copy to the videos table so admin-specific fields (backdrop_url, duration) persist
-    const existingLocal = db.prepare('SELECT * FROM videos WHERE title = ?').get(existing.vod_name);
-    if (existingLocal) {
-      updateVideosRow(existingLocal);
-    } else {
-      db.prepare(`INSERT INTO videos (title, category, description, poster_url, backdrop_url, video_url, year, duration, genre, rating, badge, is_live, featured, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
-        title !== undefined ? title : existing.vod_name,
-        category !== undefined ? category : existing.type_name,
-        description !== undefined ? description : (existing.vod_content || ''),
-        poster_url !== undefined ? poster_url : (existing.poster || existing.vod_pic || ''),
-        backdrop_url !== undefined ? backdrop_url : '',
-        video_url !== undefined ? video_url : (existing.vod_play_url || ''),
-        year !== undefined ? year : (existing.vod_year || ''),
-        duration !== undefined ? duration : '',
-        genre !== undefined ? genre : (existing.vod_type || ''),
-        rating !== undefined ? rating : (parseFloat(existing.douban_rating || existing.vod_score) || 0),
-        badge !== undefined ? badge : '',
-        is_live !== undefined ? is_live : 0,
-        featured !== undefined ? featured : 0,
-        sort_order !== undefined ? sort_order : 0
-      );
-    }
-
     // Also sync video_url to MySQL
     if (video_url !== undefined) {
       await syncVideoUrlToMySQL(existing.vod_name, video_url);
@@ -471,30 +448,6 @@ router.put('/videos/:id', authMiddleware, async (req, res) => {
       const setClauses = Object.keys(updates).map(k => `${k}=?`).join(', ');
       const values = Object.values(updates);
       await vodDb.query(`UPDATE vods SET ${setClauses} WHERE vod_id=?`, [...values, id]);
-
-      // Also save a copy to SQLite videos table so admin data persists independently
-      // Use INSERT OR REPLACE to ensure the admin's edited version always exists locally
-      const existingLocal = db.prepare('SELECT * FROM videos WHERE title = ?').get(v.vod_name);
-      if (existingLocal) {
-        updateVideosRow(existingLocal);
-      } else {
-        db.prepare(`INSERT INTO videos (title, category, description, poster_url, backdrop_url, video_url, year, duration, genre, rating, badge, is_live, featured, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
-          title !== undefined ? title : v.vod_name,
-          category !== undefined ? category : v.type_name,
-          description !== undefined ? description : (v.vod_content || ''),
-          poster_url !== undefined ? poster_url : (v.poster || v.vod_pic || ''),
-          backdrop_url !== undefined ? backdrop_url : '',
-          video_url !== undefined ? video_url : (v.vod_play_url || ''),
-          year !== undefined ? year : (v.vod_year || ''),
-          duration !== undefined ? duration : '',
-          genre !== undefined ? genre : (v.vod_type || ''),
-          rating !== undefined ? rating : (parseFloat(v.douban_rating || v.vod_score) || 0),
-          badge !== undefined ? badge : '',
-          is_live !== undefined ? is_live : 0,
-          featured !== undefined ? featured : 0,
-          sort_order !== undefined ? sort_order : 0
-        );
-      }
       return res.json({ success: true });
     }
   } catch (err) {
@@ -593,6 +546,22 @@ router.put('/admin/password', authMiddleware, (req, res) => {
   const hash = bcrypt.hashSync(newPassword, 10);
   db.prepare('UPDATE admins SET password_hash = ? WHERE id = ?').run(hash, req.admin.id);
   res.json({ success: true, message: '密码修改成功' });
+});
+
+// Cleanup: remove auto-copied VOD records, keep only seed videos + manually added
+router.post('/admin/cleanup', authMiddleware, (req, res) => {
+  const seedTitles = [
+    '速度与激情 9', '复仇者联盟：终局之战', '巴霍巴利王 2', '蜘蛛侠：英雄无归',
+    '怦然心动', '建国大业', '战狼2', '权力的游戏', '狂飙', '三体',
+    '父母爱情', '人世间', '脱口秀大会', '密室大逃脱', '欢乐喜剧人', '奔跑吧',
+    'CCTV 新闻', 'CGTN 英语新闻'
+  ];
+  const placeholders = seedTitles.map(() => '?').join(',');
+  const vDel = db.prepare(`DELETE FROM videos WHERE title NOT IN (${placeholders})`).run(...seedTitles);
+  const vodCount = db.prepare('SELECT COUNT(*) as c FROM vods').get();
+  db.prepare('DELETE FROM vods').run();
+  db.prepare('DELETE FROM collect_logs').run();
+  res.json({ success: true, videos_deleted: vDel.changes, vods_deleted: vodCount.c });
 });
 
 // Online user count (public)
