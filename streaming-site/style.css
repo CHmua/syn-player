@@ -4570,9 +4570,9 @@ img {
 }
 
 .player-page .player-shell {
-    max-width: 1360px;
+    max-width: 100%;
     margin: 0 auto;
-    padding: 14px 28px 40px;
+    padding: 14px 20px 40px;
 }
 
 .player-page .player-breadcrumb {

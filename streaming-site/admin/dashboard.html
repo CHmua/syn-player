@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -8,122 +8,171 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body class="admin-dashboard">
-<header class="admin-header">
-    <h1><span style="color:#e50914;">SYN</span>PLAYER <span class="tagline">管理后台</span></h1>
-    <div class="header-actions">
-        <a href="/" class="btn-sm" target="_blank">查看网站</a>
-        <button class="btn-sm" id="chPwdBtn">修改密码</button>
-        <button class="btn-sm btn-logout" id="logoutBtn">退出</button>
-    </div>
-</header>
-
-<div class="admin-body">
-    <div class="toolbar">
-        <input type="text" id="searchInput" placeholder="搜索视频...">
-        <select id="categoryFilter">
-            <option value="">所有分类</option>
-        </select>
-        <button class="btn-add" id="addBtn">+ 新增视频</button>
-        <button class="btn-batch" id="batchFillBtn" title="自动为所有缺少信息的视频补充封面、简介、评分等"><i class="fas fa-magic"></i> 批量自动填充</button>
-        <button class="btn-users" id="usersBtn" title="查看注册用户"><i class="fas fa-users"></i> 用户管理</button>
-        <button class="btn-series" id="seriesBtn" title="系列管理（季/部归类）"><i class="fas fa-layer-group"></i> 系列管理</button>
-        <button class="btn-sync" id="syncNowBtn" title="立即从资源站采集最新影片"><i class="fas fa-sync-alt"></i> 立即采集</button>
-        <button class="btn-reset" id="resetCollectBtn" title="删除所有采集影片并重新全量采集（含系列归类）" style="background:#b91c1c;color:#fff;"><i class="fas fa-undo-alt"></i> 重置采集</button>
-        <span id="syncStatus" style="font-size:12px;color:#888;margin-left:8px;"></span>
-        <button class="btn-del-batch" id="batchDelBtn" title="批量删除选中的视频" style="display:none"><i class="fas fa-trash"></i> 批量删除 (<span id="selCount">0</span>)</button>
-    </div>
-
-    <!-- Video management section -->
-    <div id="videoSection">
-        <!-- Section Tabs — matches homepage layout -->
-        <div class="section-tabs" id="sectionTabs">
-            <button class="section-tab active" data-category="">全部</button>
+<div class="admin-layout">
+    <aside class="admin-sidebar">
+        <div class="sidebar-brand">
+            <span class="brand-mark"><i class="fas fa-play"></i></span>
+            <span class="brand-text"><span class="syn">SYN</span> PLAYER</span>
         </div>
-
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" id="selectAll" title="全选"></th>
-                        <th>ID</th>
-                        <th>封面</th>
-                        <th>轮播</th>
-                        <th>标题</th>
-                        <th>系列</th>
-                        <th>分类</th>
-                        <th>来源</th>
-                        <th>角标</th>
-                        <th>评分</th>
-                        <th>年份</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="videoTable"></tbody>
-            </table>
+        <div class="sidebar-group">
+            <div class="sidebar-title">内容管理</div>
+            <button type="button" class="side-link active" id="sideVideosNav"><i class="fas fa-film"></i><span>视频管理</span></button>
+            <button type="button" class="side-link" id="sideSeriesNav"><i class="fas fa-layer-group"></i><span>剧集管理</span></button>
+            <button type="button" class="side-link" id="sideUsersNav"><i class="fas fa-users"></i><span>用户管理</span></button>
         </div>
-
-        <p class="count-info" id="countInfo"></p>
-        <div class="pagination" id="pagination" style="display:flex;justify-content:center;gap:8px;margin-top:12px;"></div>
-    </div>
-
-    <!-- User management section -->
-    <div id="userSection" style="display:none;">
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>用户名</th>
-                        <th>邮箱</th>
-                        <th>注册时间</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="userTable"></tbody>
-            </table>
+        <div class="sidebar-group">
+            <div class="sidebar-title">系统操作</div>
+            <a class="side-link" href="/" target="_blank"><i class="fas fa-arrow-up-right-from-square"></i><span>访问网站</span></a>
         </div>
-        <p class="count-info" id="userCountInfo"></p>
-    </div>
+        <div class="sidebar-footer">SYN PLAYER 管理系统<br>v2.0</div>
+    </aside>
 
-    <!-- Series management section -->
-    <div id="seriesSection" style="display:none;">
-        <div style="margin-bottom:16px;display:flex;gap:12px;align-items:center;">
-            <button class="btn-batch" id="autoDetectSeriesBtn" title="自动扫描所有视频标题，识别季/部模式并自动分组">
-                <i class="fas fa-magic"></i> 自动识别系列
-            </button>
-            <span style="color:#888;font-size:13px;" id="seriesDetectStatus"></span>
-        </div>
+    <main class="admin-main">
+        <header class="admin-header">
+            <div class="header-left">
+                <h1><span style="color:#e50914;">SYN</span>PLAYER <span class="tagline">管理后台</span></h1>
+            </div>
+            <div class="header-actions">
+                <a href="/" class="btn-sm" target="_blank">访问网站</a>
+                <button class="btn-sm" id="chPwdBtn">修改密码</button>
+                <button class="btn-sm btn-logout" id="logoutBtn">退出登录</button>
+            </div>
+        </header>
 
-        <!-- Auto-detect preview -->
-        <div id="seriesPreview" style="display:none;margin-bottom:16px;background:#1a1a2e;border:1px solid #333;border-radius:8px;padding:16px;max-height:400px;overflow-y:auto;">
-            <h3 style="margin:0 0 12px 0;color:#e50914;">检测结果预览</h3>
-            <div id="seriesPreviewContent"></div>
-            <div style="margin-top:12px;display:flex;gap:8px;">
-                <button class="btn-add" id="applySeriesBtn"><i class="fas fa-check"></i> 应用分组</button>
-                <button class="btn-cancel" id="cancelSeriesBtn">取消</button>
+        <div class="admin-body">
+            <section class="stats-grid">
+                <article class="stat-card">
+                    <div class="stat-label">视频总数</div>
+                    <div class="stat-value" id="statTotalVideos">0</div>
+                    <div class="stat-sub">当前可管理资源</div>
+                </article>
+                <article class="stat-card">
+                    <div class="stat-label">当前页条目</div>
+                    <div class="stat-value" id="statCurrentPageCount">0</div>
+                    <div class="stat-sub">本页展示数量</div>
+                </article>
+                <article class="stat-card">
+                    <div class="stat-label">分类总数</div>
+                    <div class="stat-value" id="statCategoryCount">0</div>
+                    <div class="stat-sub">系统分类条目</div>
+                </article>
+                <article class="stat-card">
+                    <div class="stat-label">用户总数</div>
+                    <div class="stat-value" id="statUserCount">0</div>
+                    <div class="stat-sub">注册账号数量</div>
+                </article>
+                <article class="stat-card">
+                    <div class="stat-label">轮播总量</div>
+                    <div class="stat-value" id="statFeaturedCount">0</div>
+                    <div class="stat-sub">已设为首页轮播</div>
+                </article>
+            </section>
+
+            <section class="filter-panel">
+                <div class="toolbar">
+                    <input type="text" id="searchInput" placeholder="搜索视频标题、演员、导演">
+                    <select id="categoryFilter">
+                        <option value="">所有分类</option>
+                    </select>
+                    <button class="btn-add" id="addBtn"><i class="fas fa-plus"></i> 新增视频</button>
+                    <button class="btn-batch" id="batchFillBtn" title="自动为缺少信息的视频补全封面、简介和评分"><i class="fas fa-magic"></i> 批量自动填充</button>
+                    <button class="btn-users" id="usersBtn" title="查看注册用户"><i class="fas fa-users"></i> 用户管理</button>
+                    <button class="btn-series" id="seriesBtn" title="系列管理（季/部归类）"><i class="fas fa-layer-group"></i> 系列管理</button>
+                    <button class="btn-sync" id="syncNowBtn" title="立即从资源站采集最新内容"><i class="fas fa-sync-alt"></i> 立即采集</button>
+                    <button class="btn-reset" id="resetCollectBtn" title="删除采集影片并全量重新采集"><i class="fas fa-undo-alt"></i> 重置采集</button>
+                    <button class="btn-del-batch" id="batchDelBtn" title="批量删除选中视频" style="display:none"><i class="fas fa-trash"></i> 批量删除 (<span id="selCount">0</span>)</button>
+                </div>
+                <div class="status-row">
+                    <span id="syncStatus"></span>
+                </div>
+            </section>
+
+            <div id="videoSection" class="panel-card">
+                <div class="section-tabs" id="sectionTabs">
+                    <button class="section-tab active" data-category="">全部</button>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="selectAll" title="全选"></th>
+                                <th>ID</th>
+                                <th>封面</th>
+                                <th>轮播</th>
+                                <th>标题</th>
+                                <th>系列</th>
+                                <th>分类</th>
+                                <th>来源</th>
+                                <th>标签</th>
+                                <th>评分</th>
+                                <th>年份</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="videoTable"></tbody>
+                    </table>
+                </div>
+
+                <p class="count-info" id="countInfo"></p>
+                <div class="pagination" id="pagination"></div>
+            </div>
+
+            <div id="userSection" class="panel-card" style="display:none;">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>用户名</th>
+                                <th>邮箱</th>
+                                <th>注册时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTable"></tbody>
+                    </table>
+                </div>
+                <p class="count-info" id="userCountInfo"></p>
+            </div>
+
+            <div id="seriesSection" class="panel-card" style="display:none;">
+                <div class="series-toolbar">
+                    <button class="btn-batch" id="autoDetectSeriesBtn" title="自动扫描视频标题并识别季/部模式">
+                        <i class="fas fa-magic"></i> 自动识别系列
+                    </button>
+                    <span id="seriesDetectStatus"></span>
+                </div>
+
+                <div id="seriesPreview" class="series-preview" style="display:none;">
+                    <h3>检测结果预览</h3>
+                    <div id="seriesPreviewContent"></div>
+                    <div class="series-preview-actions">
+                        <button class="btn-add" id="applySeriesBtn"><i class="fas fa-check"></i> 应用分组</button>
+                        <button class="btn-cancel" id="cancelSeriesBtn">取消</button>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>系列名称</th>
+                                <th>视频数</th>
+                                <th>封面</th>
+                                <th>分类</th>
+                                <th>季/部</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="seriesTable"></tbody>
+                    </table>
+                </div>
+                <p class="count-info" id="seriesCountInfo"></p>
             </div>
         </div>
-
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>系列名称</th>
-                        <th>视频数</th>
-                        <th>封面</th>
-                        <th>分类</th>
-                        <th>季/部</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="seriesTable"></tbody>
-            </table>
-        </div>
-        <p class="count-info" id="seriesCountInfo"></p>
-    </div>
-</div>
-
-<!-- Edit / Add Modal -->
+    </main>
+</div><!-- Edit / Add Modal -->
 <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
         <h2 id="modalTitle">新增视频</h2>
@@ -1318,3 +1367,4 @@ loadSyncStatus();
 </script>
 </body>
 </html>
+
