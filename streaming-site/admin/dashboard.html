@@ -469,6 +469,8 @@ async function loadVideos() {
   const videos = result.data || result;
   const hasMore = result.has_more !== undefined ? result.has_more : false;
   const total = result.total || videos.length;
+  setStatValue('statTotalVideos', total);
+  setStatValue('statCurrentPageCount', videos.length);
 
   const tbody = document.getElementById('videoTable');
   tbody.innerHTML = videos.map(v => `
@@ -524,6 +526,7 @@ async function updateFeaturedCount() {
     const videos = await res.json();
     const badge = document.getElementById('featuredCountBadge');
     if (badge) badge.textContent = videos.length;
+    setStatValue('statFeaturedCount', Array.isArray(videos) ? videos.length : 0);
   } catch (e) {}
 }
 
@@ -532,6 +535,7 @@ async function loadCategories() {
   const data = await res.json();
   const homepage = data.homepage || [];
   const all = data.all || [];
+  setStatValue('statCategoryCount', all.length || homepage.length || 0);
 
   // Populate filter dropdown
   const sel = document.getElementById('categoryFilter');
@@ -1071,6 +1075,57 @@ let currentView = 'videos'; // 'videos' | 'users' | 'series'
 let currentPage = 1;
 const PER_PAGE = 50;
 
+function setStatValue(id, value) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const n = Number(value);
+  if (Number.isFinite(n)) {
+    el.textContent = n.toLocaleString('zh-CN');
+  } else {
+    el.textContent = String(value || 0);
+  }
+}
+
+function updateSidebarNav() {
+  const videoNav = document.getElementById('sideVideosNav');
+  const seriesNav = document.getElementById('sideSeriesNav');
+  const usersNav = document.getElementById('sideUsersNav');
+  if (!videoNav || !seriesNav || !usersNav) return;
+
+  videoNav.classList.toggle('active', currentView === 'videos');
+  seriesNav.classList.toggle('active', currentView === 'series');
+  usersNav.classList.toggle('active', currentView === 'users');
+}
+
+function wireSidebarNav() {
+  const videoNav = document.getElementById('sideVideosNav');
+  const seriesNav = document.getElementById('sideSeriesNav');
+  const usersNav = document.getElementById('sideUsersNav');
+  if (!videoNav || !seriesNav || !usersNav) return;
+
+  videoNav.addEventListener('click', () => {
+    if (currentView === 'users') document.getElementById('usersBtn').click();
+    if (currentView === 'series') document.getElementById('seriesBtn').click();
+  });
+
+  usersNav.addEventListener('click', () => {
+    if (currentView !== 'users') document.getElementById('usersBtn').click();
+  });
+
+  seriesNav.addEventListener('click', () => {
+    if (currentView !== 'series') document.getElementById('seriesBtn').click();
+  });
+}
+
+async function loadUserCount() {
+  try {
+    const res = await api('/api/auth/users');
+    if (!res) return;
+    const users = await res.json();
+    setStatValue('statUserCount', Array.isArray(users) ? users.length : 0);
+  } catch (_) {}
+}
+
 function renderPagination(hasMore) {
   const pag = document.getElementById('pagination');
   if (!pag) return;
@@ -1179,6 +1234,7 @@ document.getElementById('usersBtn').addEventListener('click', () => {
     document.getElementById('seriesSection').style.display = 'none';
     loadUsers();
   }
+  updateSidebarNav();
 });
 
 // ===== Series Management =====
@@ -1203,6 +1259,7 @@ document.getElementById('seriesBtn').addEventListener('click', () => {
     }
     loadSeries();
   }
+  updateSidebarNav();
 });
 
 let seriesPreviewData = null;
@@ -1347,6 +1404,7 @@ async function loadUsers() {
     </tr>
   `).join('');
   document.getElementById('userCountInfo').textContent = `共 ${users.length} 位注册用户`;
+  setStatValue('statUserCount', users.length);
 }
 
 async function deleteUser(id, username) {
@@ -1364,6 +1422,9 @@ async function deleteUser(id, username) {
 loadCategories();
 loadVideos();
 loadSyncStatus();
+loadUserCount();
+wireSidebarNav();
+updateSidebarNav();
 </script>
 </body>
 </html>
