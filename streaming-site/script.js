@@ -161,67 +161,96 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 500);
     })();
 
-    // ============ Theme Toggle (Manual override) ============
+    // ============ Theme Toggle (Auto + Manual) ============
     var themeToggle = document.getElementById('themeToggle');
     var htmlEl = document.documentElement;
+    var themeStorageKey = 'syn-player-theme';
+    var systemThemeQuery = window.matchMedia('(prefers-color-scheme: light)');
 
-    // Load saved theme preference
-    var savedTheme = localStorage.getItem('syn-player-theme');
-    if (savedTheme === 'light') {
-        htmlEl.classList.add('light-theme');
-        htmlEl.classList.remove('dark-theme');
-    } else if (savedTheme === 'dark') {
-        htmlEl.classList.add('dark-theme');
-        htmlEl.classList.remove('light-theme');
+    function getSystemTheme() {
+        return systemThemeQuery.matches ? 'light' : 'dark';
     }
 
-    // Update toggle icon based on current effective theme
+    function getThemePreference() {
+        var pref = localStorage.getItem(themeStorageKey);
+        if (pref === 'light' || pref === 'dark' || pref === 'auto') return pref;
+        return 'auto';
+    }
+
+    function getEffectiveTheme(pref) {
+        return pref === 'auto' ? getSystemTheme() : pref;
+    }
+
+    function applyThemePreference(pref, persist) {
+        var effective = getEffectiveTheme(pref);
+        htmlEl.classList.remove('light-theme', 'dark-theme');
+        if (effective === 'light') {
+            htmlEl.classList.add('light-theme');
+        } else {
+            htmlEl.classList.add('dark-theme');
+        }
+        if (persist) {
+            localStorage.setItem(themeStorageKey, pref);
+        }
+        updateThemeIcon();
+    }
+
     function updateThemeIcon() {
         if (!themeToggle) return;
         var icon = themeToggle.querySelector('i');
-        var isLight = htmlEl.classList.contains('light-theme');
-        // If neither class is set, detect from system
-        if (!htmlEl.classList.contains('light-theme') && !htmlEl.classList.contains('dark-theme')) {
-            isLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+        if (!icon) return;
+
+        var pref = getThemePreference();
+        var effective = getEffectiveTheme(pref);
+
+        if (pref === 'auto') {
+            icon.className = 'fas fa-circle-half-stroke';
+            themeToggle.title = '主题: 自动';
+            return;
         }
-        if (isLight) {
+
+        if (effective === 'light') {
             icon.className = 'fas fa-sun';
+            themeToggle.title = '主题: 浅色';
         } else {
             icon.className = 'fas fa-moon';
+            themeToggle.title = '主题: 深色';
         }
     }
 
-    updateThemeIcon();
+    applyThemePreference(getThemePreference(), false);
 
     if (themeToggle) {
         themeToggle.addEventListener('click', function() {
-            var isLight = htmlEl.classList.contains('light-theme');
-            // If neither class is set, detect from system
-            if (!htmlEl.classList.contains('light-theme') && !htmlEl.classList.contains('dark-theme')) {
-                isLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+            var pref = getThemePreference();
+            var effective = getEffectiveTheme(pref);
+            var nextPref;
+
+            if (pref === 'auto') {
+                nextPref = effective === 'light' ? 'dark' : 'light';
+            } else if (pref === 'dark') {
+                nextPref = 'light';
+            } else {
+                nextPref = 'auto';
             }
 
-            if (isLight) {
-                // Switch to dark
-                htmlEl.classList.remove('light-theme');
-                htmlEl.classList.add('dark-theme');
-                localStorage.setItem('syn-player-theme', 'dark');
-            } else {
-                // Switch to light
-                htmlEl.classList.remove('dark-theme');
-                htmlEl.classList.add('light-theme');
-                localStorage.setItem('syn-player-theme', 'light');
-            }
-            updateThemeIcon();
+            applyThemePreference(nextPref, true);
         });
     }
 
-    // Listen for system theme changes (only when no manual preference set)
-    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
-        if (!localStorage.getItem('syn-player-theme')) {
+    function onSystemThemeChange() {
+        if (getThemePreference() === 'auto') {
+            applyThemePreference('auto', false);
+        } else {
             updateThemeIcon();
         }
-    });
+    }
+
+    if (typeof systemThemeQuery.addEventListener === 'function') {
+        systemThemeQuery.addEventListener('change', onSystemThemeChange);
+    } else if (typeof systemThemeQuery.addListener === 'function') {
+        systemThemeQuery.addListener(onSystemThemeChange);
+    }
 
     // ============ Navigation ============
     const navbar = document.getElementById('navbar');
@@ -474,6 +503,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderVideoCard(video, opts) {
         opts = opts || {};
         var useBackdrop = opts.useBackdrop;
+        var rankNumber = opts.rankNumber;
         var cardClass = video.is_live ? 'thumb-card channel' : 'thumb-card';
         var rating = parseFloat(video.rating) || parseFloat(video.douban_rating) || 0;
         var badgeText = '';
@@ -512,6 +542,9 @@ document.addEventListener('DOMContentLoaded', function() {
         html += '<div class="thumb-poster">';
         html += '<img src="' + imgSrc + '" alt="' + video.title + '" loading="lazy" referrerpolicy="no-referrer">';
         html += '<div style="display:none;width:100%;height:100%;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);align-items:center;justify-content:center;font-size:12px;color:#888;text-align:center;padding:10px;">' + video.title + '</div>';
+        if (rankNumber) {
+            html += '<span class="thumb-rank-badge">' + rankNumber + '</span>';
+        }
         if (badgeText) {
             if (rating > 0) {
                 html += '<span class="' + badgeClass + '"><i class="fas fa-star" style="font-size:7px;margin-right:2px;"></i>' + badgeText + '</span>';
@@ -810,14 +843,15 @@ document.addEventListener('DOMContentLoaded', function() {
     var MORE_RECOMMEND_BATCH = 40;
 
     function loadSections() {
-        // Phase 1: Load the 4 main sections in parallel, track shown vod_ids
-        var mainSections = ['trendingMovies', 'trendingTV', 'trendingAnime', 'trendingVariety', 'liveTV'];
+        // Phase 1: Load homepage sections in parallel, track shown vod_ids
+        var mainSections = ['hotRecommend', 'trendingMovies', 'trendingTV', 'trendingAnime', 'trendingVariety', 'liveTV'];
         var shownIds = new Set();
 
         var mainPromises = mainSections.map(function(sectionId) {
             var container = document.getElementById(sectionId);
             if (!container) return Promise.resolve();
-            return fetch('/api/videos?category=' + sectionId).then(function(r) { return r.json(); }).then(function(videos) {
+            var sectionApi = sectionId === 'hotRecommend' ? '/api/videos?featured=1' : '/api/videos?category=' + sectionId;
+            return fetch(sectionApi).then(function(r) { return r.json(); }).then(function(videos) {
                 if (!videos.length) { container.innerHTML = '<p style="color:#999;padding:20px;">暂无内容</p>'; return; }
                 // Store for tab sorting
                 if (sectionId === 'trendingMovies') {
@@ -829,12 +863,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (sectionId === 'trendingVariety') {
                     trendingVarietyData = videos.slice();
                 }
-                var limit = (sectionId === 'liveTV' || sectionId === 'trendingVariety') ? 6 : 12;
-                var useBackdrop = sectionId === 'trendingMovies' || sectionId === 'trendingTV' || sectionId === 'trendingAnime' || sectionId === 'trendingVariety';
+                var limit = 16;
+                var useBackdrop = false;
                 var rendered = videos.slice(0, limit);
                 // Only track actually-rendered IDs so moreRecommend still has items to show
                 rendered.forEach(function(v) { shownIds.add(String(v.vod_id || v.id)); });
-                container.innerHTML = rendered.map(function(v) { return renderVideoCard(v, { useBackdrop: useBackdrop }); }).join('');
+                container.innerHTML = rendered.map(function(v, i) {
+                    return renderVideoCard(v, {
+                        useBackdrop: useBackdrop,
+                        rankNumber: sectionId === 'hotRecommend' ? (i + 1) : null
+                    });
+                }).join('');
             }).catch(function() {
                 container.innerHTML = '<p style="color:#999;padding:20px;">加载失败</p>';
             });
@@ -935,7 +974,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (mode === 'new') {
                     sorted.sort(function(a, b) { return (parseInt(b.year || b.vod_year) || 0) - (parseInt(a.year || a.vod_year) || 0); });
                 }
-                grid.innerHTML = sorted.slice(0, 12).map(function(v) { return renderVideoCard(v, { useBackdrop: true }); }).join('');
+                grid.innerHTML = sorted.slice(0, 16).map(function(v) {
+                    return renderVideoCard(v, {
+                        useBackdrop: false,
+                        rankNumber: null
+                    });
+                }).join('');
             });
         });
     });

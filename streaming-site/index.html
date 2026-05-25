@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -46,11 +46,11 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             <ul class="dropdown">
                 <li><a href="browse.html?section=trendingTV&title=电视剧&genre=国产剧">国产剧</a></li>
                 <li><a href="browse.html?section=trendingTV&title=电视剧&genre=欧美剧">欧美剧</a></li>
-                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=日本剧">日本剧</a></li>
-                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=韩国剧">韩国剧</a></li>
-                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=泰国剧">泰国剧</a></li>
-                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=香港剧">香港剧</a></li>
-                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=台湾剧">台湾剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=日剧">日剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=韩剧">韩剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=泰剧">泰剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=港剧">港剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=台剧">台剧</a></li>
                 <li class="dropdown-divider"></li>
                 <li><a href="browse.html?section=trendingTV&title=电视剧">全部剧集</a></li>
             </ul>
@@ -77,7 +77,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
                 <li><a href="browse.html?section=trendingVariety&title=综艺">全部综艺</a></li>
             </ul>
         </li>
-        <li><a href="browse.html?section=liveTV&title=纪录解说"><i class="fas fa-music"></i> 纪录片</a></li>
+        <li><a href="browse.html?section=liveTV&title=记录解说"><i class="fas fa-music"></i> 记录解说</a></li>
         <li>
             <a href="javascript:;"><i class="fas fa-broadcast-tower"></i> 电视直播 <i class="fas fa-chevron-down"></i></a>
             <ul class="dropdown">
@@ -96,7 +96,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     <div class="nav-right">
         <div class="search-box">
             <i class="fas fa-search search-icon"></i>
-            <input type="text" id="searchInput" placeholder="搜索电影、电视剧...">
+            <input type="text" id="searchInput" placeholder="搜索电影、电视剧、综艺、动漫">
             <button class="search-clear" id="searchClear" style="display:none;">
                 <i class="fas fa-times"></i>
             </button>
@@ -130,9 +130,17 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 
 <!-- ===== Content Sections ===== -->
 <main class="content-sections">
+    <!-- 热门推荐 -->
+    <section class="section section-trending-iqiyi section-home-posters section-hot-recommend">
+        <div class="section-header">
+            <h3>热门推荐</h3>
+            <a href="browse.html?section=moreRecommend&title=热门推荐" class="more-link">更多 <i class="fas fa-chevron-right"></i></a>
+        </div>
+        <div class="thumb-grid" id="hotRecommend"></div>
+    </section>
 
-    <!-- 1. 热门电影 — iQiyi-style 2-row grid (12 cards) -->
-    <section class="section section-trending-iqiyi">
+    <!-- 热门电影 -->
+    <section class="section section-trending-iqiyi section-home-posters section-hot-movies">
         <div class="section-header">
             <h3>热门电影</h3>
             <div class="section-tabs">
@@ -145,8 +153,8 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         <div class="thumb-grid" id="trendingMovies"></div>
     </section>
 
-    <!-- 2. 热门电视剧 — iQiyi-style 2-row grid (12 cards) -->
-    <section class="section section-trending-iqiyi">
+    <!-- 热门电视剧 -->
+    <section class="section section-trending-iqiyi section-home-posters">
         <div class="section-header">
             <h3>热门电视剧</h3>
             <div class="section-tabs">
@@ -159,8 +167,8 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         <div class="thumb-grid" id="trendingTV"></div>
     </section>
 
-    <!-- 3. 热门动漫 — iQiyi-style 2-row grid (12 cards) -->
-    <section class="section section-trending-iqiyi">
+    <!-- 热门动漫 -->
+    <section class="section section-trending-iqiyi section-home-posters">
         <div class="section-header">
             <h3>热门动漫</h3>
             <div class="section-tabs">
@@ -173,8 +181,8 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         <div class="thumb-grid" id="trendingAnime"></div>
     </section>
 
-    <!-- 3. 热门综艺 — iQiyi-style 2-row grid (12 cards) -->
-    <section class="section section-trending-iqiyi">
+    <!-- 热门综艺 -->
+    <section class="section section-trending-iqiyi section-home-posters">
         <div class="section-header">
             <h3>热门综艺</h3>
             <div class="section-tabs">
@@ -187,16 +195,14 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         <div class="thumb-grid" id="trendingVariety"></div>
     </section>
 
-    <!-- 5. 纪录解说 — iQiyi-style grid (6 cards) -->
-    <section class="section section-trending-iqiyi">
+    <!-- 记录解说 -->
+    <section class="section section-trending-iqiyi section-home-posters">
         <div class="section-header">
-            <h3>纪录解说</h3>
-            <a href="browse.html?section=liveTV&title=纪录解说" class="more-link">更多内容 <i class="fas fa-chevron-right"></i></a>
+            <h3>记录解说</h3>
+            <a href="browse.html?section=liveTV&title=记录解说" class="more-link">更多内容 <i class="fas fa-chevron-right"></i></a>
         </div>
         <div class="thumb-grid" id="liveTV"></div>
     </section>
-
-    <!-- 6. 更多推荐 — portrait cards with lazy load -->
     <section class="section section-more-recommend">
         <div class="section-header">
             <h3>更多推荐</h3>
@@ -228,10 +234,10 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             <ul>
                 <li><a href="browse.html?section=trendingTV&title=电视剧&genre=国产剧">国产剧</a></li>
                 <li><a href="browse.html?section=trendingTV&title=电视剧&genre=欧美剧">欧美剧</a></li>
-                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=日本剧">日本剧</a></li>
-                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=韩国剧">韩国剧</a></li>
-                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=泰国剧">泰国剧</a></li>
-                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=香港剧">香港剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=日剧">日剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=韩剧">韩剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=泰剧">泰剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=港剧">港剧</a></li>
                 <li><a href="browse.html?section=trendingTV&title=电视剧">全部剧集</a></li>
             </ul>
         </div>
@@ -258,7 +264,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         <div class="footer-col">
             <h4>更多内容</h4>
             <ul>
-                <li><a href="browse.html?section=liveTV&title=纪录解说">纪录解说</a></li>
+                <li><a href="browse.html?section=liveTV&title=记录解说">记录解说</a></li>
                 <li><a href="live-tv.html">电视直播</a></li>
                 <li><a href="news.html">资讯</a></li>
             </ul>
@@ -268,7 +274,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     <div class="footer-middle">
         <div class="footer-about">
             <span style="font-size:22px;font-weight:800;color:#e50914;">SYN</span><span style="font-size:22px;font-weight:700;color:#fff;">PLAYER</span>
-            <p>Syn Player 是一个视频流媒体平台，提供来自顶级制片人和发行商的数千小时优质、独家原创内容。随时随地，尽享精彩视界。</p>
+            <p>Syn Player 是一个在线视频平台，聚合电影、电视剧、动漫、综艺与解说内容，支持多端流畅观看。</p>
             <a href="javascript:;" class="read-more">了解更多 →</a>
         </div>
         <div class="footer-links">
@@ -279,7 +285,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
                 <li><a href="browse.html?section=trendingTV&title=电视剧">电视剧</a></li>
                 <li><a href="browse.html?section=trendingAnime&title=动漫">动漫</a></li>
                 <li><a href="browse.html?section=trendingVariety&title=综艺">综艺</a></li>
-                <li><a href="browse.html?section=liveTV&title=纪录解说">纪录解说</a></li>
+                <li><a href="browse.html?section=liveTV&title=记录解说">记录解说</a></li>
                 <li><a href="news.html">资讯</a></li>
             </ul>
         </div>
@@ -306,7 +312,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             <div class="footer-support">
                 <h4>支持</h4>
                 <p>邮箱: support@synplayer.com</p>
-                <p>免费热线: 1800-888-888</p>
+                <p>客服热线: 1800-888-888</p>
             </div>
             <div class="app-buttons">
                 <a href="javascript:;"><i class="fab fa-google-play"></i> Google Play</a>
@@ -324,3 +330,4 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 <script src="script.js"></script>
 </body>
 </html>
+

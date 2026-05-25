@@ -1,4 +1,4 @@
-﻿/* ===== CSS Variables & Reset ===== */
+/* ===== CSS Variables & Reset ===== */
 /* HarmonyOS Sans — Huawei's open-source font, free for commercial use */
 @font-face {
     font-family: 'HarmonyOS Sans SC';
@@ -1401,6 +1401,75 @@ img {
 }
 
 /* ===== More Recommend — poster wall with uniform grid, no cropping ===== */
+/* Homepage poster sections: 8 cards per row */
+.section-home-posters .thumb-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.section-home-posters .thumb-grid .thumb-card {
+    min-width: 0;
+}
+
+.section-home-posters .thumb-grid .thumb-poster {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 2/3;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.28);
+}
+
+.section-home-posters .thumb-grid .thumb-poster img {
+    border-radius: 8px;
+}
+
+.section-home-posters .thumb-grid .thumb-info {
+    padding: 10px 2px 0;
+}
+
+.section-home-posters .thumb-grid .thumb-title {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.35;
+    margin-bottom: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.section-home-posters .thumb-grid .thumb-subtitle {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.35;
+}
+
+.section-hot-recommend .thumb-rank-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 6px;
+    background: rgba(24,30,44,0.84);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.16);
+    z-index: 3;
+}
+
+.section-hot-recommend .thumb-grid .thumb-card:nth-child(1) .thumb-rank-badge,
+.section-hot-recommend .thumb-grid .thumb-card:nth-child(2) .thumb-rank-badge,
+.section-hot-recommend .thumb-grid .thumb-card:nth-child(3) .thumb-rank-badge {
+    background: linear-gradient(135deg, #ff4d4f, #ff7a45);
+    border-color: rgba(255,255,255,0.28);
+}
+
 .section-more-recommend .more-recommend-grid {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
@@ -2109,6 +2178,9 @@ img {
     .section-trending-iqiyi .thumb-grid {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
+    .section-home-posters .thumb-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
     .section-trending-iqiyi .section-tabs { display: none; }
     .thumb-scroll-arrow { width: 32px; height: 32px; font-size: 11px; }
     .thumb-badge { font-size: 9px; padding: 2px 6px; }
@@ -2201,6 +2273,16 @@ img {
     }
     .section-trending-iqiyi .thumb-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .section-home-posters .thumb-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+    }
+    .section-home-posters .thumb-grid .thumb-title {
+        font-size: 13px;
+    }
+    .section-home-posters .thumb-grid .thumb-subtitle {
+        font-size: 11px;
     }
     .section-trending-iqiyi .section-header {
         flex-wrap: wrap;
@@ -4407,6 +4489,8 @@ img {
     gap: 8px;
     max-height: 560px;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
     padding: 4px 2px 4px 0;
 }
 
@@ -4493,11 +4577,25 @@ img {
 }
 
 @media (max-width: 900px) {
+    .player-page .player-container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .player-page .video-main {
+        order: 1;
+    }
+    .player-page .related-sidebar {
+        order: 2;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
     .player-page .player-shell {
         padding: 12px 14px 28px;
     }
     .player-page .bottom-related-panel {
-        display: none;
+        display: none !important;
     }
     .player-page .video-info h2 {
         font-size: 30px;
@@ -4517,9 +4615,6 @@ img {
         grid-row: 1 / span 2;
         margin-bottom: 0;
         font-size: 40px;
-    }
-    .player-page .related-sidebar {
-        grid-template-columns: minmax(0, 1fr);
     }
     .player-page .related-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4549,9 +4644,12 @@ img {
     .player-page .related-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+    .player-page .playlist-panel,
+    .player-page .recommend-panel {
+        overflow: hidden;
+    }
     .player-page .recommend-panel .related-item img {
         width: 84px;
         height: 52px;
     }
 }
-

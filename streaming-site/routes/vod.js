@@ -5,6 +5,7 @@ const { searchAcrossSources, getRecentUpdates, parsePlayUrls, checkUrlValid } = 
 const { dedupVods } = require('../utils/dedup');
 const cache = require('../services/cache');
 const { authMiddleware } = require('../middleware/auth');
+const { proxyHandler } = require('../services/m3u8-proxy');
 
 // Wrap external poster URLs through image proxy to bypass hotlink/CORS/SSL issues
 function proxyImageUrl(url) {
@@ -322,6 +323,18 @@ router.get('/parse-sources', (req, res) => {
     total_sources: sources.length,
     total_episodes: sources.reduce((sum, s) => sum + s.episodes.length, 0)
   });
+});
+
+// --------------- m3u8/segment proxy (CORS + referer bypass) ---------------
+router.get('/m3u8-proxy', async (req, res) => {
+  try {
+    await proxyHandler(req, res);
+  } catch (err) {
+    console.error('[VOD] m3u8 proxy error:', err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: 'Proxy failed' });
+    }
+  }
 });
 
 // --------------- Check source line health ---------------

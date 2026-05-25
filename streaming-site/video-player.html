@@ -10,10 +10,14 @@
     <style>
         /* DPlayer theme overrides 鈥?match site dark theme */
         .dplayer { border-radius: 8px; overflow: hidden; }
-        .dplayer-controller { background: rgba(0,0,0,0.85) !important; }
+        .dplayer-controller { background: var(--video-controls-bg) !important; }
         .dplayer-bar-wrap { margin: 0 15px !important; }
         .dplayer-controller .dplayer-bar-wrap .dplayer-bar .dplayer-bar-inner { background: var(--red) !important; }
         .dplayer-controller .dplayer-bar-wrap .dplayer-bar .dplayer-thumb { background: #fff !important; }
+        .dplayer-controller .dplayer-icons .dplayer-icon,
+        .dplayer-controller .dplayer-time {
+            color: var(--text-primary) !important;
+        }
         .dplayer-controller .dplayer-icons .dplayer-icon:hover { color: var(--red) !important; }
         .dplayer-controller .dplayer-icons .dplayer-toggle input:checked + .dplayer-toggle-icon { background: var(--red) !important; }
         .dplayer-controller .dplayer-icons .dplayer-volume .dplayer-volume-bar .dplayer-volume-bar-inner { background: var(--red) !important; }
@@ -22,6 +26,9 @@
         .dplayer-menu .dplayer-menu-item:hover { background-color: rgba(229,9,20,0.1) !important; }
         .dplayer-menu .dplayer-menu-item.dplayer-menu-item-active { color: var(--red) !important; }
         .dplayer-notice { opacity: 0.9; font-size: 13px; }
+        html.light-theme .dplayer-controller {
+            background: rgba(255,255,255,0.92) !important;
+        }
 
         /* Player area */
         #dplayer { aspect-ratio: 16 / 9; width: 100%; max-height: 65vh; background: #000; border-radius: 8px; }
@@ -318,6 +325,8 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     var vodSources = [];
     var currentSourceIdx = 0;
     var currentEpisodeIdx = 0;
+    var episodeUrlCache = Object.create(null);
+    var playRequestNonce = 0;
 
     var savedTime = parseFloat(localStorage.getItem('playTime_' + (videoId || 'default'))) || 0;
     var currentMeta = { title: '', year: '', category: '', genre: '' };
@@ -355,6 +364,97 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         if (u.indexOf('.mp4') > -1) return 'mp4';
         if (u.indexOf('.flv') > -1) return 'flv';
         return 'auto';
+    }
+
+    function normalizeEpisodeUrl(url) {
+        var u = String(url || '').trim();
+        if (!u) return '';
+        if (u.indexOf('//') === 0) return 'https:' + u;
+        if (/^https?:\/\//i.test(u)) return u;
+        if (/^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(u)) return 'https://' + u;
+        return u;
+    }
+
+    function isDirectStreamUrl(url) {
+        return /\.(m3u8|mp4|flv)(?:$|[?#])/i.test(String(url || ''));
+    }
+
+    function shouldUseProxy(url) {
+        var u = String(url || '').trim().toLowerCase();
+        if (!u) return false;
+        if (u.indexOf('/api/vod/m3u8-proxy?') > -1) return false;
+        return u.indexOf('.m3u8') > -1 || u.indexOf('.m3u') > -1;
+    }
+
+    function toPlayableUrl(url) {
+        var normalized = normalizeEpisodeUrl(url);
+        if (!normalized) return '';
+        if (!shouldUseProxy(normalized)) return normalized;
+        return '/api/vod/m3u8-proxy?url=' + encodeURIComponent(normalized);
+    }
+
+    function buildUrlCandidates(url) {
+        var base = normalizeEpisodeUrl(url);
+        if (!base) return [];
+        if (isDirectStreamUrl(base)) return [base];
+
+        var noHash = base.split('#')[0];
+        var noQuery = noHash.split('?')[0];
+        var root = noQuery.replace(/\/+$/, '');
+        var queryPart = '';
+        var qIdx = base.indexOf('?');
+        if (qIdx > -1) queryPart = base.substring(qIdx);
+
+        var candidates = [
+            root + '/index.m3u8' + queryPart,
+            root + '.m3u8' + queryPart,
+            base
+        ];
+
+        var uniq = [];
+        var seen = Object.create(null);
+        for (var i = 0; i < candidates.length; i++) {
+            var c = String(candidates[i] || '').trim();
+            if (!c || seen[c]) continue;
+            seen[c] = true;
+            uniq.push(c);
+        }
+        return uniq;
+    }
+
+    function checkUrlPlayableByServer(url) {
+        return fetch('/api/vod/check-url?url=' + encodeURIComponent(url))
+            .then(function (r) { return r.json(); })
+            .then(function (data) { return !!(data && data.success && data.valid); })
+            .catch(function () { return false; });
+    }
+
+    async function resolvePlayableUrl(rawUrl) {
+        var base = normalizeEpisodeUrl(rawUrl);
+        if (!base) return '';
+        if (episodeUrlCache[base]) return episodeUrlCache[base];
+
+        if (isDirectStreamUrl(base)) {
+            var directPlayable = toPlayableUrl(base);
+            episodeUrlCache[base] = directPlayable;
+            return directPlayable;
+        }
+
+        var candidates = buildUrlCandidates(base);
+        for (var i = 0; i < candidates.length; i++) {
+            var candidate = candidates[i];
+            var ok = await checkUrlPlayableByServer(candidate);
+            if (ok) {
+                var playable = toPlayableUrl(candidate);
+                episodeUrlCache[base] = playable;
+                return playable;
+            }
+        }
+
+        var fallback = candidates[0] || base;
+        var fallbackPlayable = toPlayableUrl(fallback);
+        episodeUrlCache[base] = fallbackPlayable;
+        return fallbackPlayable;
     }
 
     function setPlaylistLoading(text) {
@@ -629,16 +729,21 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
                     var splitAt = part.indexOf('$');
                     var epTitle = part.slice(0, splitAt).trim();
                     var epUrl = part.slice(splitAt + 1).trim();
-                    if (/^https?:\/\//i.test(epUrl)) {
-                        episodes.push({ episode_name: epTitle || ('第' + (i + 1) + '集'), play_url: epUrl });
+                    var normalized = normalizeEpisodeUrl(epUrl);
+                    if (/^https?:\/\//i.test(normalized)) {
+                        episodes.push({ episode_name: epTitle || ('第' + (i + 1) + '集'), play_url: normalized });
                     }
-                } else if (/^https?:\/\//i.test(part)) {
-                    episodes.push({ episode_name: '第' + (i + 1) + '集', play_url: part });
+                } else {
+                    var single = normalizeEpisodeUrl(part);
+                    if (/^https?:\/\//i.test(single)) {
+                        episodes.push({ episode_name: '第' + (i + 1) + '集', play_url: single });
+                    }
                 }
             });
 
-            if (!episodes.length && /^https?:\/\//i.test(group)) {
-                episodes.push({ episode_name: '正片', play_url: group });
+            var groupUrl = normalizeEpisodeUrl(group);
+            if (!episodes.length && /^https?:\/\//i.test(groupUrl)) {
+                episodes.push({ episode_name: '正片', play_url: groupUrl });
             }
 
             if (episodes.length) {
@@ -646,17 +751,18 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             }
         });
 
-        if (!allSources.length && /^https?:\/\//i.test(raw)) {
+        var rawUrl = normalizeEpisodeUrl(raw);
+        if (!allSources.length && /^https?:\/\//i.test(rawUrl)) {
             allSources.push({
                 source_name: '线路1',
-                episodes: [{ episode_name: '正片', play_url: raw }]
+                episodes: [{ episode_name: '正片', play_url: rawUrl }]
             });
         }
 
         return allSources;
     }
 
-    function playCurrentSource() {
+    async function playCurrentSource() {
         var source = vodSources[currentSourceIdx];
         if (!source || !source.episodes || !source.episodes[currentEpisodeIdx]) {
             showError('播放地址不存在', true);
@@ -664,24 +770,35 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         }
 
         var ep = source.episodes[currentEpisodeIdx];
+        var requestId = ++playRequestNonce;
+        var resolvedUrl = await resolvePlayableUrl(ep.play_url);
+        if (requestId !== playRequestNonce) return;
+        if (!resolvedUrl) {
+            showError('播放地址不存在', true);
+            return;
+        }
+
         localStorage.setItem('syn_source_' + (videoId || '0'), String(currentSourceIdx));
         localStorage.setItem('syn_episode_' + (videoId || '0'), String(currentEpisodeIdx));
 
-        initDPlayer(ep.play_url);
+        initDPlayer(resolvedUrl);
         updateBreadcrumb(currentMeta.title, episodeName(ep, currentEpisodeIdx));
 
         stopWatchdog();
         loadWatchdog = setTimeout(function () {
             if (currentSourceIdx < vodSources.length - 1) {
-                tryNextLine();
+                tryNextLine(currentEpisodeIdx);
             }
         }, 18000);
     }
 
-    function tryNextLine() {
+    function tryNextLine(preferredEpisodeIdx) {
         if (currentSourceIdx + 1 < vodSources.length) {
             currentSourceIdx += 1;
-            currentEpisodeIdx = 0;
+            var targetEp = Number.isFinite(preferredEpisodeIdx) ? preferredEpisodeIdx : currentEpisodeIdx;
+            var nextSource = vodSources[currentSourceIdx];
+            var maxEp = (nextSource && nextSource.episodes ? nextSource.episodes.length : 0) - 1;
+            currentEpisodeIdx = Math.max(0, Math.min(targetEp, Math.max(0, maxEp)));
             showError('当前线路异常，已自动切换下一条线路', false);
             renderEpisodeList();
             playCurrentSource();
