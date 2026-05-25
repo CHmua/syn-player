@@ -8,120 +8,103 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dplayer@2/dist/DPlayer.min.css">
     <style>
-        /* DPlayer theme overrides — match site dark theme */
-        .dplayer { border-radius: 8px; overflow: hidden; }
-        .dplayer-controller { background: rgba(0,0,0,0.85) !important; }
+        /* DPlayer theme overrides */
+        .dplayer { border-radius: 10px; overflow: hidden; }
+        .dplayer-controller { background: rgba(0,0,0,0.88) !important; }
         .dplayer-bar-wrap { margin: 0 15px !important; }
         .dplayer-controller .dplayer-bar-wrap .dplayer-bar .dplayer-bar-inner { background: var(--red) !important; }
         .dplayer-controller .dplayer-bar-wrap .dplayer-bar .dplayer-thumb { background: #fff !important; }
         .dplayer-controller .dplayer-icons .dplayer-icon:hover { color: var(--red) !important; }
-        .dplayer-controller .dplayer-icons .dplayer-toggle input:checked + .dplayer-toggle-icon { background: var(--red) !important; }
-        .dplayer-controller .dplayer-icons .dplayer-volume .dplayer-volume-bar .dplayer-volume-bar-inner { background: var(--red) !important; }
-        .dplayer-controller .dplayer-icons .dplayer-setting .dplayer-setting-item input:checked + .dplayer-toggle-icon { background: var(--red) !important; }
-        .dplayer-comment-setting .dplayer-icon-setting:hover { color: var(--red) !important; }
         .dplayer-menu .dplayer-menu-item:hover { background-color: rgba(229,9,20,0.1) !important; }
         .dplayer-menu .dplayer-menu-item.dplayer-menu-item-active { color: var(--red) !important; }
         .dplayer-notice { opacity: 0.9; font-size: 13px; }
 
-        /* Player area */
-        #dplayer { aspect-ratio: 16 / 9; width: 100%; max-height: 60vh; background: #000; border-radius: 8px 8px 0 0; }
-        .dplayer-video-wrap { border-radius: 8px 8px 0 0; }
+        #dplayer { aspect-ratio: 16 / 9; width: 100%; max-height: 55vh; background: #000; border-radius: 10px; }
+        .dplayer-video-wrap { border-radius: 10px; }
 
         /* Error overlay */
         .player-error-wrap { position: relative; }
         .player-error-overlay {
             position: absolute; inset: 0; display: none; flex-direction: column;
             align-items: center; justify-content: center; gap: 12px;
-            background: rgba(0,0,0,0.82); z-index: 10; border-radius: 8px;
+            background: rgba(0,0,0,0.85); z-index: 10; border-radius: 10px;
         }
         .player-error-overlay.show { display: flex; }
         .player-error-overlay i { font-size: 36px; color: var(--red); }
         .player-error-overlay p { color: var(--text-secondary); font-size: 14px; margin: 0; }
         .player-error-overlay button {
-            padding: 8px 20px; border-radius: 4px; font-size: 13px; cursor: pointer;
-            border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.1); color: #fff;
+            padding: 8px 22px; border-radius: 6px; font-size: 13px; cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); color: #fff;
             transition: all 0.2s; margin: 0 4px;
         }
         .player-error-overlay button:hover { background: var(--red); border-color: var(--red); }
 
         /* ===== Player Page Layout ===== */
         .player-page { background: var(--bg-primary); }
-        .player-layout {
-            max-width: 1440px;
+        .player-main-wrap {
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 20px 32px;
-            display: grid;
-            grid-template-columns: 1fr 340px;
-            gap: 20px;
+            padding: 20px 28px;
         }
 
-        /* ===== Main Content ===== */
-        .player-main-col { min-width: 0; }
-
-        /* Player + source panel card */
-        .player-card {
-            background: var(--bg-card);
-            border-radius: 10px;
-            overflow: hidden;
-            border: 1px solid var(--border-light);
-        }
-
-        /* Source tabs — now visible below player */
-        .source-tabs-bar {
+        /* ===== Source + Episode Selector Card ===== */
+        .source-panel {
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 10px 14px;
-            background: var(--bg-secondary);
-            border-top: 1px solid var(--border-light);
+            gap: 12px;
+            padding: 14px 0 6px;
             flex-wrap: wrap;
         }
-        .source-tabs-bar .tabs-label {
+        .source-panel-label {
             color: var(--text-muted);
             font-size: 12px;
+            font-weight: 600;
             white-space: nowrap;
-            margin-right: 4px;
+            letter-spacing: 0.3px;
         }
-        .source-tab-btn {
-            padding: 5px 14px;
-            border-radius: 16px;
-            border: 1px solid transparent;
+        .source-panel-label i { color: var(--red); margin-right: 4px; }
+        .source-tab {
+            padding: 7px 18px;
+            border-radius: 20px;
+            border: 1px solid var(--border-medium);
             background: transparent;
             color: var(--text-secondary);
             font-size: 12px;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
             white-space: nowrap;
             font-family: inherit;
+            letter-spacing: 0.3px;
         }
-        .source-tab-btn:hover { color: var(--text-primary); background: var(--hover-bg); }
-        .source-tab-btn.active {
+        .source-tab:hover { border-color: var(--text-muted); color: var(--text-primary); }
+        .source-tab.active {
             background: var(--red);
-            color: #fff;
             border-color: var(--red);
-            font-weight: 600;
+            color: #fff;
+            font-weight: 700;
         }
 
-        /* Episode grid */
-        .episode-grid-wrap {
-            padding: 10px 14px;
-            background: var(--bg-secondary);
-            border-top: 1px solid var(--border-light);
-            max-height: 200px;
-            overflow-y: auto;
-        }
+        /* ===== Episode Grid ===== */
+        .episode-section { padding: 10px 0 6px; }
         .episode-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
-            gap: 6px;
+            grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+            gap: 8px;
+            max-height: 180px;
+            overflow-y: auto;
+            padding-right: 4px;
         }
+        .episode-grid::-webkit-scrollbar { width: 4px; }
+        .episode-grid::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
         .ep-btn {
-            padding: 7px 4px;
-            border-radius: 6px;
+            padding: 9px 6px;
+            border-radius: 8px;
             border: 1px solid var(--border-light);
             background: var(--bg-card);
             color: var(--text-secondary);
             font-size: 12px;
+            font-weight: 500;
             cursor: pointer;
             text-align: center;
             transition: all 0.2s;
@@ -130,129 +113,168 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .ep-btn:hover { border-color: var(--text-muted); color: var(--text-primary); }
+        .ep-btn:hover { border-color: var(--text-muted); color: var(--text-primary); background: var(--hover-bg); }
         .ep-btn.active {
-            background: var(--red);
-            border-color: var(--red);
+            background: linear-gradient(135deg, #1a6dd4 0%, #2196F3 100%);
+            border-color: #2196F3;
             color: #fff;
-            font-weight: 600;
+            font-weight: 700;
+            box-shadow: 0 2px 10px rgba(33,150,243,0.3);
         }
 
-        /* ===== Video Info Section ===== */
-        .video-info { visibility: hidden; margin-top: 20px; }
+        /* Divider */
+        .player-divider {
+            height: 1px;
+            background: var(--border-light);
+            margin: 16px 0;
+        }
+
+        /* ===== Info Section ===== */
+        .video-info { visibility: hidden; }
         .video-info.loaded { visibility: visible; }
 
         .info-card {
             display: flex;
-            gap: 20px;
+            gap: 24px;
             background: var(--bg-card);
-            border-radius: 10px;
-            padding: 20px;
+            border-radius: 12px;
+            padding: 24px;
             border: 1px solid var(--border-light);
         }
-        .info-poster {
+        .info-poster-wrap {
             flex-shrink: 0;
-            width: 130px;
+            width: 140px;
             border-radius: 8px;
             overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
         }
-        .info-poster img {
+        .info-poster-wrap img {
             width: 100%;
             aspect-ratio: 2/3;
             object-fit: cover;
-            border-radius: 8px;
+            display: block;
         }
         .info-body { flex: 1; min-width: 0; }
 
-        .info-body h2 {
-            font-size: 22px;
-            font-weight: 700;
-            margin-bottom: 8px;
-            color: var(--text-primary);
-        }
-        .info-meta {
+        .info-badges {
             display: flex;
-            gap: 14px;
-            color: var(--text-secondary);
-            font-size: 13px;
-            margin-bottom: 14px;
+            gap: 8px;
+            margin-bottom: 10px;
             flex-wrap: wrap;
+        }
+        .info-badge {
+            display: inline-flex;
             align-items: center;
-        }
-        .info-meta .rating {
-            color: var(--gold);
-            font-weight: 700;
-            font-size: 14px;
-        }
-        .info-meta .tag {
-            background: var(--red);
-            color: #fff;
-            padding: 2px 8px;
-            border-radius: 4px;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 12px;
             font-size: 11px;
             font-weight: 600;
+            letter-spacing: 0.3px;
         }
-        .info-actions {
+        .info-badge.score {
+            background: linear-gradient(135deg, #f5c518, #e6a800);
+            color: #1a1a1a;
+        }
+        .info-badge.quality {
+            background: var(--red);
+            color: #fff;
+        }
+        .info-badge.year {
+            background: rgba(255,255,255,0.08);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-body h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+        .info-genres {
             display: flex;
             gap: 8px;
             margin-bottom: 14px;
             flex-wrap: wrap;
         }
-        .info-actions button {
+        .info-genre-tag {
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            background: rgba(229,9,20,0.08);
+            color: var(--red);
+            border: 1px solid rgba(229,9,20,0.15);
+        }
+
+        .info-actions {
             display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .info-actions button {
+            display: inline-flex;
             align-items: center;
-            gap: 5px;
-            padding: 7px 15px;
-            border-radius: 18px;
+            gap: 6px;
+            padding: 9px 18px;
+            border-radius: 20px;
             border: 1px solid var(--video-action-border);
             background: var(--video-action-bg);
             color: var(--video-action-text);
-            font-size: 12px;
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
             font-family: inherit;
         }
-        .info-actions button:hover { background: var(--video-action-hover); }
-        .info-actions button.liked { color: var(--red); border-color: var(--red); }
+        .info-actions button:hover { background: var(--video-action-hover); border-color: var(--text-muted); }
+        .info-actions button.liked { color: var(--red); border-color: var(--red); background: rgba(229,9,20,0.1); }
+        .info-actions button.primary {
+            background: var(--red);
+            border-color: var(--red);
+            color: #fff;
+            font-weight: 600;
+        }
+        .info-actions button.primary:hover { background: var(--red-hover); }
 
         .info-desc {
             color: var(--text-secondary);
             font-size: 13px;
-            line-height: 1.7;
+            line-height: 1.75;
             display: -webkit-box;
             -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
+            margin-bottom: 12px;
         }
         .info-crew {
-            color: var(--text-muted);
-            font-size: 12px;
-            margin-top: 8px;
-        }
-        .info-crew strong { color: var(--text-secondary); }
-
-        /* ===== Right Sidebar ===== */
-        .player-sidebar {
             display: flex;
-            flex-direction: column;
             gap: 16px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            color: var(--text-muted);
         }
+        .info-crew span { white-space: nowrap; }
+        .info-crew strong { color: var(--text-secondary); font-weight: 600; }
 
-        /* Related videos card */
-        .related-card {
-            background: var(--bg-card);
-            border-radius: 10px;
-            padding: 16px;
-            border: 1px solid var(--border-light);
+        /* ===== Related Videos Section ===== */
+        .related-section { margin-top: 28px; }
+        .related-section .section-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 18px;
         }
-        .related-card h4 {
-            font-size: 15px;
+        .section-head h4 {
+            font-size: 18px;
             font-weight: 700;
-            margin-bottom: 14px;
-            padding-left: 12px;
+            padding-left: 14px;
             position: relative;
         }
-        .related-card h4::before {
+        .section-head h4::before {
             content: '';
             position: absolute;
             left: 0; top: 2px; bottom: 2px;
@@ -262,76 +284,97 @@
         }
         .related-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 14px;
         }
-        .related-thumb {
+        .related-card {
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: transform 0.25s ease;
         }
-        .related-thumb:hover { transform: translateY(-3px); }
-        .related-thumb-img {
+        .related-card:hover { transform: translateY(-4px); }
+        .related-card-img {
             position: relative;
-            border-radius: 6px;
+            border-radius: 8px;
             overflow: hidden;
-            aspect-ratio: 16/10;
-            background: #1a1a1a;
+            aspect-ratio: 2/3;
+            background: #1a1a2e;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.25);
         }
-        .related-thumb-img img {
+        .related-card-img img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
+            transition: transform 0.35s ease;
         }
-        .related-thumb-img .play-icon-overlay {
+        .related-card:hover .related-card-img img { transform: scale(1.06); }
+        .related-card-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: rgba(0,0,0,0.72);
+            backdrop-filter: blur(6px);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 3px 7px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.12);
+            letter-spacing: 0.2px;
+        }
+        .related-card-badge i { color: #f5c518; font-size: 8px; margin-right: 2px; }
+        .related-card-play {
             position: absolute;
             inset: 0;
-            background: rgba(0,0,0,0.4);
+            background: rgba(0,0,0,0.45);
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
-            transition: opacity 0.2s;
+            transition: opacity 0.25s;
         }
-        .related-thumb:hover .play-icon-overlay { opacity: 1; }
-        .play-icon-overlay i { color: #fff; font-size: 20px; }
-        .related-thumb-title {
-            font-size: 12px;
-            font-weight: 500;
-            margin-top: 6px;
+        .related-card:hover .related-card-play { opacity: 1; }
+        .related-card-play i { color: #fff; font-size: 26px; }
+        .related-card-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 8px;
+            color: var(--text-primary);
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
-            color: var(--text-secondary);
-            line-height: 1.3;
+            line-height: 1.35;
         }
-        .related-thumb-meta {
+        .related-card-meta {
             font-size: 11px;
             color: var(--text-muted);
-            margin-top: 2px;
+            margin-top: 4px;
         }
 
         /* ===== Responsive ===== */
         @media (max-width: 1100px) {
-            .player-layout { grid-template-columns: 1fr; padding: 16px; }
             .related-grid { grid-template-columns: repeat(4, 1fr); }
         }
         @media (max-width: 768px) {
-            .player-layout { padding: 10px; gap: 14px; }
-            .related-grid { grid-template-columns: repeat(3, 1fr); }
-            .info-card { flex-direction: column; }
-            .info-poster { width: 90px; }
-            .info-body h2 { font-size: 18px; }
-            .episode-grid { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); }
-            .ep-btn { font-size: 11px; padding: 6px 3px; }
+            .player-main-wrap { padding: 12px 14px; }
+            .related-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+            .info-card { flex-direction: column; padding: 16px; }
+            .info-poster-wrap { width: 100px; }
+            .info-body h2 { font-size: 20px; }
+            .episode-grid { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); }
+            .source-panel { gap: 8px; }
+            .source-tab { padding: 6px 14px; font-size: 11px; }
         }
         @media (max-width: 480px) {
-            .related-grid { grid-template-columns: repeat(2, 1fr); }
-            .player-layout { padding: 6px; gap: 10px; }
-            .source-tabs-bar { padding: 8px 10px; gap: 4px; }
-            .source-tab-btn { padding: 4px 10px; font-size: 11px; }
-            .episode-grid-wrap { padding: 8px 10px; }
+            .player-main-wrap { padding: 8px 8px; }
+            .related-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+            .info-crew { flex-direction: column; gap: 4px; }
+            .info-body h2 { font-size: 17px; }
+            .info-actions button { padding: 7px 12px; font-size: 11px; }
+            .source-panel { gap: 5px; }
+            .source-tab { padding: 5px 11px; font-size: 11px; }
+            .ep-btn { font-size: 11px; padding: 7px 4px; }
         }
     </style>
 </head>
@@ -342,9 +385,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 
 <!-- ===== Navigation ===== -->
 <nav class="navbar" id="navbar">
-    <button class="hamburger" id="hamburgerBtn">
-        <i class="fas fa-bars"></i>
-    </button>
+    <button class="hamburger" id="hamburgerBtn"><i class="fas fa-bars"></i></button>
     <a href="index.html" class="logo">
         <span style="font-size:28px;font-weight:800;color:#e50914;">SYN</span><span style="font-size:28px;font-weight:700;color:#fff;">PLAYER</span>
     </a>
@@ -353,42 +394,30 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         <li>
             <a href="javascript:;"><i class="fas fa-film"></i> 电影 <i class="fas fa-chevron-down"></i></a>
             <ul class="dropdown">
-                <li><a href="javascript:;">英语</a></li>
-                <li><a href="javascript:;">中文</a></li>
-                <li><a href="javascript:;">印地语</a></li>
-                <li><a href="javascript:;">阿拉伯语</a></li>
-                <li><a href="javascript:;">俄语</a></li>
+                <li><a href="javascript:;">英语</a></li><li><a href="javascript:;">中文</a></li>
+                <li><a href="javascript:;">印地语</a></li><li><a href="javascript:;">阿拉伯语</a></li><li><a href="javascript:;">俄语</a></li>
             </ul>
         </li>
         <li>
             <a href="javascript:;"><i class="fas fa-tv"></i> 电视剧 <i class="fas fa-chevron-down"></i></a>
             <ul class="dropdown">
-                <li><a href="javascript:;">真人秀</a></li>
-                <li><a href="javascript:;">喜剧</a></li>
-                <li><a href="javascript:;">剧情</a></li>
-                <li><a href="javascript:;">犯罪</a></li>
-                <li><a href="javascript:;">惊悚</a></li>
+                <li><a href="javascript:;">真人秀</a></li><li><a href="javascript:;">喜剧</a></li>
+                <li><a href="javascript:;">剧情</a></li><li><a href="javascript:;">犯罪</a></li><li><a href="javascript:;">惊悚</a></li>
             </ul>
         </li>
         <li>
             <a href="javascript:;"><i class="fas fa-laptop"></i> 网络节目 <i class="fas fa-chevron-down"></i></a>
             <ul class="dropdown">
-                <li><a href="javascript:;">剧情</a></li>
-                <li><a href="javascript:;">惊悚</a></li>
-                <li><a href="javascript:;">真人秀</a></li>
-                <li><a href="javascript:;">犯罪</a></li>
-                <li><a href="javascript:;">喜剧</a></li>
+                <li><a href="javascript:;">剧情</a></li><li><a href="javascript:;">惊悚</a></li>
+                <li><a href="javascript:;">真人秀</a></li><li><a href="javascript:;">犯罪</a></li><li><a href="javascript:;">喜剧</a></li>
             </ul>
         </li>
         <li><a href="javascript:;"><i class="fas fa-th-large"></i> 频道</a></li>
         <li>
             <a href="javascript:;"><i class="fas fa-music"></i> 音乐 <i class="fas fa-chevron-down"></i></a>
             <ul class="dropdown">
-                <li><a href="javascript:;">中文</a></li>
-                <li><a href="javascript:;">英语</a></li>
-                <li><a href="javascript:;">阿拉伯语</a></li>
-                <li><a href="javascript:;">旁遮普语</a></li>
-                <li><a href="javascript:;">俄语</a></li>
+                <li><a href="javascript:;">中文</a></li><li><a href="javascript:;">英语</a></li>
+                <li><a href="javascript:;">阿拉伯语</a></li><li><a href="javascript:;">旁遮普语</a></li><li><a href="javascript:;">俄语</a></li>
             </ul>
         </li>
         <li>
@@ -410,91 +439,78 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         <div class="search-box">
             <i class="fas fa-search search-icon"></i>
             <input type="text" id="searchInput" placeholder="搜索电影、电视剧...">
-            <button class="search-clear" id="searchClear" style="display:none;">
-                <i class="fas fa-times"></i>
-            </button>
+            <button class="search-clear" id="searchClear" style="display:none;"><i class="fas fa-times"></i></button>
         </div>
-        <a href="javascript:;" class="nav-icon" title="我的列表">
-            <i class="fas fa-bookmark"></i>
-        </a>
-        <button class="nav-icon theme-toggle" id="themeToggle" title="切换主题">
-            <i class="fas fa-moon"></i>
-        </button>
-        <a href="/login" class="nav-icon" title="登录">
-            <i class="fas fa-user-circle"></i>
-        </a>
+        <a href="javascript:;" class="nav-icon" title="我的列表"><i class="fas fa-bookmark"></i></a>
+        <button class="nav-icon theme-toggle" id="themeToggle" title="切换主题"><i class="fas fa-moon"></i></button>
+        <a href="/login" class="nav-icon" title="登录"><i class="fas fa-user-circle"></i></a>
         <button class="nav-icon" id="logoutBtn" title="退出登录" style="background:none;border:none;cursor:pointer;">
             <i class="fas fa-sign-out-alt" style="color:#e50914;"></i>
         </button>
     </div>
 </nav>
 
-<!-- ===== Player Layout ===== -->
-<div class="player-layout">
+<!-- ===== Main Content ===== -->
+<div class="player-main-wrap">
 
-    <!-- Main Column: Player + Source/Episode Selector + Info -->
-    <div class="player-main-col">
-        <div class="player-card">
-            <div class="player-error-wrap">
-                <div id="dplayer"></div>
-                <div class="player-error-overlay" id="playerError">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <p id="playerErrorMsg">播放失败</p>
-                    <div>
-                        <button id="playerRetryBtn">重试</button>
-                        <button id="playerNextLineBtn">切换线路</button>
-                    </div>
-                </div>
+    <!-- Player -->
+    <div class="player-error-wrap">
+        <div id="dplayer"></div>
+        <div class="player-error-overlay" id="playerError">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p id="playerErrorMsg">播放失败</p>
+            <div>
+                <button id="playerRetryBtn">重试</button>
+                <button id="playerNextLineBtn">切换线路</button>
             </div>
-
-            <!-- Source Tabs (visible) -->
-            <div class="source-tabs-bar" id="vodSourceTabs">
-                <span class="tabs-label"><i class="fas fa-server"></i> 播放源:</span>
-            </div>
-
-            <!-- Episode Grid -->
-            <div class="episode-grid-wrap" id="vodEpisodeList"></div>
         </div>
+    </div>
 
-        <!-- Video Info -->
-        <div class="video-info">
-            <div class="info-card">
-                <div class="info-poster">
-                    <img src="" alt="" id="infoPoster" style="display:none;">
+    <!-- Source Tabs -->
+    <div class="source-panel" id="vodSourceTabs">
+        <span class="source-panel-label"><i class="fas fa-server"></i>播放源</span>
+    </div>
+
+    <!-- Episode Grid -->
+    <div class="episode-section" id="vodEpisodeList"></div>
+
+    <div class="player-divider"></div>
+
+    <!-- Info Section -->
+    <div class="video-info">
+        <div class="info-card">
+            <div class="info-poster-wrap">
+                <img src="" alt="" id="infoPoster" style="display:none;">
+            </div>
+            <div class="info-body">
+                <div class="info-badges" id="infoBadges"></div>
+                <h2>速度与激情 9</h2>
+                <div class="info-genres" id="infoGenres"></div>
+                <div class="info-actions">
+                    <button id="likeBtn"><i class="far fa-thumbs-up"></i> 赞 12.5K</button>
+                    <button id="dislikeBtn"><i class="far fa-thumbs-down"></i> 踩</button>
+                    <button class="primary"><i class="fas fa-share"></i> 分享</button>
+                    <button><i class="fas fa-bookmark"></i> 收藏</button>
+                    <button><i class="fas fa-download"></i> 下载</button>
                 </div>
-                <div class="info-body">
-                    <h2>速度与激情 9</h2>
-                    <div class="info-meta">
-                        <span class="rating"><i class="fas fa-star"></i> 8.5 / 10</span>
-                        <span>2021</span>
-                        <span>动作 / 冒险</span>
-                        <span class="tag">HD</span>
-                    </div>
-                    <div class="info-actions">
-                        <button id="likeBtn"><i class="far fa-thumbs-up"></i> 赞 12.5K</button>
-                        <button id="dislikeBtn"><i class="far fa-thumbs-down"></i> 踩</button>
-                        <button><i class="fas fa-share"></i> 分享</button>
-                        <button><i class="fas fa-bookmark"></i> 收藏</button>
-                        <button><i class="fas fa-download"></i> 下载</button>
-                    </div>
-                    <div class="info-desc">
-                        <p>多姆·托雷托与他的家人们面对迄今为止最危险的对手。从伦敦到东京，从中东到爱丁堡，再到阿塞拜疆的秘密基地，他们将不惜一切代价阻止一场惊天阴谋。</p>
-                    </div>
-                    <div class="info-crew">
-                        <strong>导演:</strong> 林诣彬 &nbsp;|&nbsp; <strong>主演:</strong> 范·迪塞尔, 约翰·塞纳, 米歇尔·罗德里格兹
-                    </div>
+                <div class="info-desc">
+                    <p>多姆·托雷托与他的家人们面对迄今为止最危险的对手。从伦敦到东京，从中东到爱丁堡，再到阿塞拜疆的秘密基地，他们将不惜一切代价阻止一场惊天阴谋。</p>
+                </div>
+                <div class="info-crew" id="infoCrew">
+                    <span><strong>导演:</strong> 林诣彬</span>
+                    <span><strong>主演:</strong> 范·迪塞尔, 约翰·塞纳, 米歇尔·罗德里格兹</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Right Sidebar: Related Videos -->
-    <aside class="player-sidebar">
-        <div class="related-card" id="relatedCard">
-            <h4><i class="fas fa-play-circle" style="color:var(--red);margin-right:6px;"></i>相关推荐</h4>
-            <div class="related-grid" id="relatedList"></div>
+    <!-- Related Videos -->
+    <div class="related-section">
+        <div class="section-head">
+            <h4>相关推荐</h4>
         </div>
-    </aside>
+        <div class="related-grid" id="relatedList"></div>
+    </div>
 
 </div>
 
@@ -509,20 +525,15 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         <div class="footer-links">
             <h4>探索</h4>
             <ul>
-                <li><a href="index.html">首页</a></li>
-                <li><a href="javascript:;">网络节目</a></li>
-                <li><a href="javascript:;">电影</a></li>
-                <li><a href="javascript:;">电视剧</a></li>
-                <li><a href="javascript:;">频道</a></li>
+                <li><a href="index.html">首页</a></li><li><a href="javascript:;">网络节目</a></li>
+                <li><a href="javascript:;">电影</a></li><li><a href="javascript:;">电视剧</a></li><li><a href="javascript:;">频道</a></li>
             </ul>
         </div>
         <div class="footer-links">
             <h4>公司</h4>
             <ul>
-                <li><a href="javascript:;">关于我们</a></li>
-                <li><a href="javascript:;">联系我们</a></li>
-                <li><a href="javascript:;">隐私政策</a></li>
-                <li><a href="javascript:;">服务条款</a></li>
+                <li><a href="javascript:;">关于我们</a></li><li><a href="javascript:;">联系我们</a></li>
+                <li><a href="javascript:;">隐私政策</a></li><li><a href="javascript:;">服务条款</a></li>
             </ul>
         </div>
         <div class="footer-links">
@@ -541,7 +552,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-<!-- DPlayer: load from local node_modules -->
 <script src="/node_modules/dplayer/dist/DPlayer.min.js" onerror="
     console.warn('DPlayer unavailable, using native player controls');
     window.DPLoadFailed = true;
@@ -572,7 +582,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     var videoId = new URLSearchParams(window.location.search).get('id');
     var savedTime = parseFloat(localStorage.getItem('playTime_' + (videoId || 'default'))) || 0;
 
-    // ============ DPlayer Init (with HLS.js fallback) ============
+    // ============ DPlayer Init ============
     function getVideoType(url) {
         if (!url) return 'auto';
         var u = url.toLowerCase();
@@ -592,9 +602,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         dplayerRetries = 0;
         currentUrl = url;
 
-        // Fallback to native HLS.js with controls if DPlayer didn't load
         if (typeof DPlayer === 'undefined') {
-            console.warn('DPlayer not available, using native player with controls');
             initNativeHLS(url);
             return;
         }
@@ -623,36 +631,19 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
                 ]
             });
         } catch(e) {
-            console.error('DPlayer init failed, using native HLS:', e.message);
             initNativeHLS(url);
             return;
         }
 
         dp.on('loadedmetadata', function() {
-            if (savedTime > 3) {
-                dp.seek(savedTime);
-                savedTime = 0;
-            }
+            if (savedTime > 3) { dp.seek(savedTime); savedTime = 0; }
             hideError();
         });
-
-        dp.on('canplay', function() {
-            hideError();
-            if (loadWatchdog) clearTimeout(loadWatchdog);
-        });
-
+        dp.on('canplay', function() { hideError(); if (loadWatchdog) clearTimeout(loadWatchdog); });
         dp.on('error', function() {
-            if (dplayerRetries < 1) {
-                dplayerRetries++;
-                console.warn('DPlayer error, retrying current source (' + dplayerRetries + '/1)');
-                try { dp.destroy(); } catch(e) {}
-                dp = null;
-                initDPlayer(currentUrl);
-            } else {
-                tryNextLine();
-            }
+            if (dplayerRetries < 1) { dplayerRetries++; try { dp.destroy(); } catch(e) {} dp = null; initDPlayer(currentUrl); }
+            else tryNextLine();
         });
-
         dp.on('timeupdate', function() {
             if (progressTimer) clearTimeout(progressTimer);
             progressTimer = setTimeout(function() {
@@ -660,35 +651,19 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
                 if (t > 0) localStorage.setItem('playTime_' + (videoId || 'default'), t);
             }, 2000);
         });
-
-        dp.on('volumechange', function() {
-            localStorage.setItem('syn_volume', dp.video.volume);
-        });
+        dp.on('volumechange', function() { localStorage.setItem('syn_volume', dp.video.volume); });
     }
 
     var nativeHls = null;
     function initNativeHLS(url) {
         destroyNativeHLS();
-        dplayerBox.innerHTML = '<video id="nativeVideo" style="width:100%;height:100%;object-fit:contain;background:#000;border-radius:8px;" crossorigin="anonymous" playsinline controls controlslist="nodownload"></video>';
+        dplayerBox.innerHTML = '<video id="nativeVideo" style="width:100%;height:100%;object-fit:contain;background:#000;border-radius:10px;" crossorigin="anonymous" playsinline controls controlslist="nodownload"></video>';
         var videoEl = document.getElementById('nativeVideo');
 
         if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-            nativeHls = new Hls({
-                enableWorker: true,
-                manifestLoadTimeOut: 15000,
-                manifestLoadRetryLimit: 3
-            });
-            nativeHls.on(Hls.Events.MANIFEST_PARSED, function() {
-                videoEl.play().catch(function() {});
-                hideError();
-                if (loadWatchdog) clearTimeout(loadWatchdog);
-            });
-            nativeHls.on(Hls.Events.ERROR, function(event, data) {
-                if (data.fatal) {
-                    if (retryCount < maxRetries) { retryCount++; nativeHls.startLoad(); }
-                    else tryNextLine();
-                }
-            });
+            nativeHls = new Hls({ enableWorker: true, manifestLoadTimeOut: 15000, manifestLoadRetryLimit: 3 });
+            nativeHls.on(Hls.Events.MANIFEST_PARSED, function() { videoEl.play().catch(function() {}); hideError(); if (loadWatchdog) clearTimeout(loadWatchdog); });
+            nativeHls.on(Hls.Events.ERROR, function(event, data) { if (data.fatal) { if (retryCount < maxRetries) { retryCount++; nativeHls.startLoad(); } else tryNextLine(); } });
             nativeHls.loadSource(url);
             nativeHls.attachMedia(videoEl);
         } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
@@ -698,37 +673,18 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             videoEl.src = url;
         }
 
-        videoEl.addEventListener('loadedmetadata', function() {
-            if (savedTime > 3) { videoEl.currentTime = savedTime; savedTime = 0; }
-        });
-
+        videoEl.addEventListener('loadedmetadata', function() { if (savedTime > 3) { videoEl.currentTime = savedTime; savedTime = 0; } });
         videoEl.addEventListener('timeupdate', function() {
             if (progressTimer) clearTimeout(progressTimer);
-            progressTimer = setTimeout(function() {
-                var t = videoEl.currentTime;
-                if (t > 0) localStorage.setItem('playTime_' + (videoId || 'default'), t);
-            }, 2000);
+            progressTimer = setTimeout(function() { var t = videoEl.currentTime; if (t > 0) localStorage.setItem('playTime_' + (videoId || 'default'), t); }, 2000);
         });
-
-        videoEl.addEventListener('volumechange', function() {
-            localStorage.setItem('syn_volume', videoEl.volume);
-        });
+        videoEl.addEventListener('volumechange', function() { localStorage.setItem('syn_volume', videoEl.volume); });
     }
 
-    function destroyNativeHLS() {
-        if (nativeHls) { nativeHls.destroy(); nativeHls = null; }
-        var nv = document.getElementById('nativeVideo');
-        if (nv) nv.remove();
-    }
+    function destroyNativeHLS() { if (nativeHls) { nativeHls.destroy(); nativeHls = null; } var nv = document.getElementById('nativeVideo'); if (nv) nv.remove(); }
+    function stopProgressSave() { if (progressTimer) { clearTimeout(progressTimer); progressTimer = null; } }
 
-    function stopProgressSave() {
-        if (progressTimer) { clearTimeout(progressTimer); progressTimer = null; }
-    }
-
-    // ============ Multi-Source Line Switching ============
-    function getPlayUrl(ep) {
-        return ep.play_url;
-    }
+    function getPlayUrl(ep) { return ep.play_url; }
 
     var loadWatchdog = null;
 
@@ -740,20 +696,14 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         localStorage.setItem('syn_source_' + (videoId || '0'), currentSourceIdx);
         localStorage.setItem('syn_episode_' + (videoId || '0'), currentEpisodeIdx);
         if (loadWatchdog) clearTimeout(loadWatchdog);
-        loadWatchdog = setTimeout(function() {
-            if (currentSourceIdx < vodSources.length - 1) {
-                console.warn('Load timeout, switching source');
-                tryNextLine();
-            }
-        }, 18000);
+        loadWatchdog = setTimeout(function() { if (currentSourceIdx < vodSources.length - 1) { tryNextLine(); } }, 18000);
     }
 
     function tryNextLine() {
         if (currentSourceIdx + 1 < vodSources.length) {
             currentSourceIdx++;
             currentEpisodeIdx = 0;
-            var s = vodSources[currentSourceIdx];
-            showError('自动切换至: ' + s.source_name, false);
+            showError('自动切换至: ' + vodSources[currentSourceIdx].source_name, false);
             playCurrentSource();
             renderAll();
             setTimeout(hideError, 2000);
@@ -762,35 +712,21 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         }
     }
 
-    // ============ Source & Episode UI ============
-    function renderAll() {
-        renderSourceTabs();
-        renderEpisodeList();
-    }
+    function renderAll() { renderSourceTabs(); renderEpisodeList(); }
 
     function renderSourceTabs() {
-        var tabsContainer = vodSourceTabs;
-        // Keep the label span, remove all tab buttons
-        var label = tabsContainer.querySelector('.tabs-label');
-        tabsContainer.innerHTML = '';
-        if (label) tabsContainer.appendChild(label);
-        else {
-            label = document.createElement('span');
-            label.className = 'tabs-label';
-            label.innerHTML = '<i class="fas fa-server"></i> 播放源:';
-            tabsContainer.appendChild(label);
-        }
+        var label = vodSourceTabs.querySelector('.source-panel-label');
+        vodSourceTabs.innerHTML = '';
+        if (label) vodSourceTabs.appendChild(label);
+        else { label = document.createElement('span'); label.className = 'source-panel-label'; label.innerHTML = '<i class="fas fa-server"></i>播放源'; vodSourceTabs.appendChild(label); }
 
-        if (vodSources.length <= 1) {
-            tabsContainer.style.display = 'none';
-            return;
-        }
-        tabsContainer.style.display = 'flex';
+        if (vodSources.length <= 1) { vodSourceTabs.style.display = 'none'; return; }
+        vodSourceTabs.style.display = 'flex';
 
         for (var i = 0; i < vodSources.length; i++) {
             (function(idx) {
                 var btn = document.createElement('button');
-                btn.className = 'source-tab-btn' + (idx === currentSourceIdx ? ' active' : '');
+                btn.className = 'source-tab' + (idx === currentSourceIdx ? ' active' : '');
                 btn.textContent = vodSources[idx].source_name || '源' + (idx + 1);
                 btn.addEventListener('click', function() {
                     if (idx === currentSourceIdx) return;
@@ -799,23 +735,19 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
                     playCurrentSource();
                     renderAll();
                 });
-                tabsContainer.appendChild(btn);
+                vodSourceTabs.appendChild(btn);
             })(i);
         }
     }
 
     function renderEpisodeList() {
         var source = vodSources[currentSourceIdx];
-        if (!source || source.episodes.length <= 1) {
-            vodEpisodeList.style.display = 'none';
-            return;
-        }
+        if (!source || source.episodes.length <= 1) { vodEpisodeList.style.display = 'none'; return; }
         vodEpisodeList.style.display = 'block';
         vodEpisodeList.innerHTML = '<div class="episode-grid">' +
             source.episodes.map(function(ep, i) {
                 return '<button class="ep-btn' + (i === currentEpisodeIdx ? ' active' : '') + '" data-ep="' + i + '">' + (ep.episode_name || '第' + (i+1) + '集') + '</button>';
-            }).join('') +
-            '</div>';
+            }).join('') + '</div>';
 
         vodEpisodeList.querySelectorAll('.ep-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
@@ -828,7 +760,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         });
     }
 
-    // Sort sources & episodes: .m3u8/HLS URLs first (primary source), others as fallback
     function prioritizeSources(sources) {
         return sources.slice().map(function(src) {
             var sortedEps = src.episodes.slice().sort(function(a, b) {
@@ -844,7 +775,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         });
     }
 
-    // ============ Error UI ============
     function showError(msg, showBtns) {
         playerError.classList.add('show');
         playerErrorMsg.textContent = msg;
@@ -852,54 +782,28 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         var hasNext = (vodSources[currentSourceIdx] && currentEpisodeIdx + 1 < vodSources[currentSourceIdx].episodes.length) || (currentSourceIdx + 1 < vodSources.length);
         playerNextLineBtn.style.display = hasNext ? 'inline-block' : 'none';
     }
+    function hideError() { playerError.classList.remove('show'); }
 
-    function hideError() {
-        playerError.classList.remove('show');
-    }
-
-    playerRetryBtn.addEventListener('click', function() {
-        hideError();
-        if (vodSources.length > 0) { playCurrentSource(); } else { initDPlayer(currentUrl); }
-    });
-
-    playerNextLineBtn.addEventListener('click', function() {
-        hideError();
-        tryNextLine();
-    });
+    playerRetryBtn.addEventListener('click', function() { hideError(); if (vodSources.length > 0) { playCurrentSource(); } else { initDPlayer(currentUrl); } });
+    playerNextLineBtn.addEventListener('click', function() { hideError(); tryNextLine(); });
 
     // ============ Load Video Data ============
     function loadFromAPI(vid) {
         fetch('/api/videos/' + vid)
             .then(function(r) { return r.json(); })
             .then(function(v) {
-                if (v.source === 'video' && v.video_url) {
-                    renderLegacy(v);
-                    return;
-                }
+                if (v.source === 'video' && v.video_url) { renderLegacy(v); return; }
                 return fetch('/api/vod/detail/' + vid)
                     .then(function(r) { return r.json(); })
                     .then(function(result) {
-                        if (result.success && result.data) {
-                            renderVOD(result.data);
-                        } else {
-                            if (v.video_url) {
-                                renderLegacy(v);
-                            } else {
-                                showError('暂无播放地址', true);
-                            }
-                        }
+                        if (result.success && result.data) { renderVOD(result.data); }
+                        else { if (v.video_url) renderLegacy(v); else showError('暂无播放地址', true); }
                     });
             })
             .catch(function() {
                 fetch('/api/vod/detail/' + vid)
                     .then(function(r) { return r.json(); })
-                    .then(function(result) {
-                        if (result.success && result.data) {
-                            renderVOD(result.data);
-                        } else {
-                            showError('加载影片信息失败', true);
-                        }
-                    })
+                    .then(function(result) { if (result.success && result.data) renderVOD(result.data); else showError('加载影片信息失败', true); })
                     .catch(function() { showError('加载影片信息失败', true); });
             });
     }
@@ -907,7 +811,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     function renderVOD(v) {
         document.title = (v.vod_name || '播放') + ' - Syn Player';
         vodSources = [];
-
         var savedSource = parseInt(localStorage.getItem('syn_source_' + (videoId || '0'))) || 0;
         var savedEpisode = parseInt(localStorage.getItem('syn_episode_' + (videoId || '0'))) || 0;
 
@@ -928,14 +831,10 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
                         if (vodSources[currentSourceIdx] && savedEpisode < vodSources[currentSourceIdx].episodes.length) currentEpisodeIdx = savedEpisode;
                         renderAll();
                         playCurrentSource();
-                    } else {
-                        fallbackLegacyPlay(v);
-                    }
+                    } else { fallbackLegacyPlay(v); }
                 })
                 .catch(function() { fallbackLegacyPlay(v); });
-        } else {
-            fallbackLegacyPlay(v);
-        }
+        } else { fallbackLegacyPlay(v); }
 
         updateInfoSection(v);
         loadRelated(v);
@@ -944,55 +843,28 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     function fallbackLegacyPlay(v) {
         var raw = String(v.video_url || v.vod_play_url || '').trim();
         if (!raw) { showError('暂无播放地址', true); return; }
-
         var sourceGroups = raw.split('$$$').filter(Boolean);
         var allSources = [];
-
         for (var s = 0; s < sourceGroups.length; s++) {
             var group = sourceGroups[s].trim();
             var episodes = [];
-
             if (group.indexOf('$') > -1 || group.indexOf('#') > -1) {
                 var parts = group.split('#').filter(Boolean);
                 for (var i = 0; i < parts.length; i++) {
                     var dollarIdx = parts[i].indexOf('$');
                     if (dollarIdx >= 0) {
                         var epUrl = parts[i].substring(dollarIdx + 1).trim();
-                        if (epUrl.indexOf('http') === 0) {
-                            episodes.push({
-                                episode_name: parts[i].substring(0, dollarIdx).trim(),
-                                play_url: epUrl
-                            });
-                        }
+                        if (epUrl.indexOf('http') === 0) episodes.push({ episode_name: parts[i].substring(0, dollarIdx).trim(), play_url: epUrl });
                     } else if (parts[i].indexOf('http') === 0) {
-                        episodes.push({
-                            episode_name: '第' + String(i + 1).padStart(2, '0') + '集',
-                            play_url: parts[i].trim()
-                        });
+                        episodes.push({ episode_name: '第' + String(i + 1).padStart(2, '0') + '集', play_url: parts[i].trim() });
                     }
                 }
             }
-
-            if (episodes.length === 0 && group.indexOf('http') === 0) {
-                episodes = [{ episode_name: '默认', play_url: group, type: 'm3u8' }];
-            }
-
-            if (episodes.length > 0) {
-                allSources.push({ source_name: '默认', episodes: episodes });
-            }
+            if (episodes.length === 0 && group.indexOf('http') === 0) episodes = [{ episode_name: '默认', play_url: group }];
+            if (episodes.length > 0) allSources.push({ source_name: '默认', episodes: episodes });
         }
-
-        if (allSources.length > 0) {
-            vodSources = allSources;
-            renderAll();
-            playCurrentSource();
-            return;
-        }
-
-        vodSources = [{
-            source_name: '默认',
-            episodes: [{ episode_name: '默认', play_url: raw, type: 'm3u8' }]
-        }];
+        if (allSources.length > 0) { vodSources = allSources; renderAll(); playCurrentSource(); return; }
+        vodSources = [{ source_name: '默认', episodes: [{ episode_name: '默认', play_url: raw }] }];
         renderAll();
         playCurrentSource();
     }
@@ -1000,64 +872,29 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     function renderLegacy(v) {
         document.title = (v.title || '播放') + ' - Syn Player';
         if (!v.video_url) { showError('暂无播放地址', true); return; }
-
         var raw = String(v.video_url).trim();
         var sourceGroups = raw.split('$$$').filter(Boolean);
         var allSources = [];
-
         for (var s = 0; s < sourceGroups.length; s++) {
             var group = sourceGroups[s].trim();
-            var sourceName = '默认';
             var episodes = [];
-
             if (group.indexOf('$') > -1 || group.indexOf('#') > -1) {
                 var parts = group.split('#').filter(Boolean);
                 for (var i = 0; i < parts.length; i++) {
                     var dollarIdx = parts[i].indexOf('$');
                     if (dollarIdx >= 0) {
                         var epUrl = parts[i].substring(dollarIdx + 1).trim();
-                        if (epUrl.indexOf('http') === 0) {
-                            episodes.push({
-                                episode_name: parts[i].substring(0, dollarIdx).trim(),
-                                play_url: epUrl
-                            });
-                        }
+                        if (epUrl.indexOf('http') === 0) episodes.push({ episode_name: parts[i].substring(0, dollarIdx).trim(), play_url: epUrl });
                     } else if (parts[i].indexOf('http') === 0) {
-                        episodes.push({
-                            episode_name: '第' + String(i + 1).padStart(2, '0') + '集',
-                            play_url: parts[i].trim()
-                        });
+                        episodes.push({ episode_name: '第' + String(i + 1).padStart(2, '0') + '集', play_url: parts[i].trim() });
                     }
                 }
-                if (episodes.length > 0 && episodes[0].episode_name) {
-                    sourceName = episodes[0].episode_name;
-                }
             }
-
-            if (episodes.length === 0 && group.indexOf('http') === 0) {
-                episodes = [{ episode_name: '默认', play_url: group, type: 'm3u8' }];
-            }
-
-            if (episodes.length > 0) {
-                if (sourceGroups.length > 1 && episodes[0].episode_name && episodes[0].episode_name !== '默认') {
-                    sourceName = episodes[0].episode_name;
-                }
-                allSources.push({ source_name: sourceName, episodes: episodes });
-            }
+            if (episodes.length === 0 && group.indexOf('http') === 0) episodes = [{ episode_name: '默认', play_url: group }];
+            if (episodes.length > 0) allSources.push({ source_name: '默认', episodes: episodes });
         }
-
-        if (allSources.length > 0) {
-            vodSources = allSources;
-            renderAll();
-            playCurrentSource();
-            updateInfoSection(v);
-            return;
-        }
-
-        vodSources = [{
-            source_name: '默认',
-            episodes: [{ episode_name: '默认', play_url: raw, type: 'm3u8' }]
-        }];
+        if (allSources.length > 0) { vodSources = allSources; renderAll(); playCurrentSource(); updateInfoSection(v); return; }
+        vodSources = [{ source_name: '默认', episodes: [{ episode_name: '默认', play_url: raw }] }];
         renderAll();
         playCurrentSource();
         updateInfoSection(v);
@@ -1082,74 +919,63 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         var pic = v.poster_url || v.vod_pic || v.pic || v.image || '';
 
         var posterImg = document.getElementById('infoPoster');
-        if (posterImg && pic) {
-            posterImg.src = pic;
-            posterImg.style.display = '';
-        }
+        if (posterImg && pic) { posterImg.src = pic; posterImg.style.display = ''; }
 
         var h2 = document.querySelector('.info-body h2');
         if (h2 && title) h2.textContent = title;
 
-        var metaDiv = document.querySelector('.info-meta');
-        if (metaDiv) {
-            var html = '';
-            if (rating && rating !== '0.0') html += '<span class="rating"><i class="fas fa-star"></i> ' + rating + ' / 10</span>';
-            if (year) html += '<span>' + year + '</span>';
-            if (genre) html += '<span>' + genre + '</span>';
-            if (remarks) html += '<span class="tag">' + remarks + '</span>';
-            else html += '<span class="tag">HD</span>';
-            metaDiv.innerHTML = html;
+        // Badges
+        var badgesEl = document.getElementById('infoBadges');
+        if (badgesEl) {
+            var badgHtml = '';
+            if (rating && rating !== '0.0') badgHtml += '<span class="info-badge score"><i class="fas fa-star"></i> ' + rating + '</span>';
+            if (remarks) badgHtml += '<span class="info-badge quality">' + remarks + '</span>';
+            else badgHtml += '<span class="info-badge quality">HD</span>';
+            if (year) badgHtml += '<span class="info-badge year">' + year + '</span>';
+            badgesEl.innerHTML = badgHtml;
         }
+
+        // Genre tags
+        var genresEl = document.getElementById('infoGenres');
+        if (genresEl && genre) {
+            var genreList = genre.split(/[,，/、\s]+/).filter(Boolean).slice(0, 4);
+            genresEl.innerHTML = genreList.map(function(g) { return '<span class="info-genre-tag">' + g + '</span>'; }).join('');
+        } else if (genresEl) { genresEl.innerHTML = ''; }
 
         var descP = document.querySelector('.info-desc p');
-        if (descP) {
-            descP.textContent = description || descP.textContent;
-        }
+        if (descP) descP.textContent = description || descP.textContent;
 
-        var crewDiv = document.querySelector('.info-crew');
-        if (crewDiv) {
+        var crewEl = document.getElementById('infoCrew');
+        if (crewEl) {
             var text = '';
-            if (director) text += '<strong>导演:</strong> ' + director;
-            if (director && actor) text += ' &nbsp;|&nbsp; ';
-            if (actor) text += '<strong>主演:</strong> ' + actor;
-            if (text) crewDiv.innerHTML = text;
+            if (director) text += '<span><strong>导演:</strong> ' + director + '</span>';
+            if (actor) text += '<span><strong>主演:</strong> ' + actor + '</span>';
+            if (text) crewEl.innerHTML = text;
         }
     }
 
-    // ============ Load Related Videos ============
+    // ============ Related Videos ============
     function loadRelated(v) {
         var relatedList = document.getElementById('relatedList');
         if (!relatedList) return;
-
-        var typeId = v.type_id || v.vod_type || '';
         var currentId = v.vod_id || v.id || videoId;
+        var typeId = v.type_id || v.vod_type || '';
 
-        // Fetch related from API
-        fetch('/api/vod/related/' + encodeURIComponent(currentId) + '?type=' + encodeURIComponent(typeId || ''))
+        fetch('/api/vod/related/' + encodeURIComponent(currentId) + '?type=' + encodeURIComponent(typeId || '') + '&limit=12')
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (data.success && data.data && data.data.length > 0) {
-                    renderRelated(data.data);
-                } else {
-                    // Fallback: fetch from index
+                if (data.success && data.data && data.data.length > 0) { renderRelated(data.data); }
+                else {
                     fetch('/api/vod/index?page=1&limit=12')
                         .then(function(r) { return r.json(); })
-                        .then(function(idx) {
-                            if (idx.success && idx.data && idx.data.length > 0) {
-                                renderRelated(idx.data.slice(0, 8));
-                            }
-                        })
+                        .then(function(idx) { if (idx.success && idx.data && idx.data.length > 0) renderRelated(idx.data.slice(0, 12)); })
                         .catch(function() {});
                 }
             })
             .catch(function() {
-                fetch('/api/vod/index?page=1&limit=8')
+                fetch('/api/vod/index?page=1&limit=12')
                     .then(function(r) { return r.json(); })
-                    .then(function(idx) {
-                        if (idx.success && idx.data && idx.data.length > 0) {
-                            renderRelated(idx.data);
-                        }
-                    })
+                    .then(function(idx) { if (idx.success && idx.data && idx.data.length > 0) renderRelated(idx.data); })
                     .catch(function() {});
             });
     }
@@ -1157,29 +983,26 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     function renderRelated(items) {
         var relatedList = document.getElementById('relatedList');
         if (!relatedList) return;
-
         relatedList.innerHTML = items.map(function(item) {
             var title = item.vod_name || item.title || '';
             var pic = item.vod_pic || item.pic || item.poster_url || '';
             var remarks = item.vod_remarks || '';
+            var score = item.vod_score || '';
             var id = item.vod_id || item.id || '';
-            return '<div class="related-thumb" onclick="window.location.href=\'video-player.html?id=' + id + '\'">' +
-                '<div class="related-thumb-img">' +
-                    (pic ? '<img src="' + pic + '" alt="' + title + '" loading="lazy">' : '<div style="background:#1a1a2e;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:24px;"><i class="fas fa-film"></i></div>') +
-                    '<div class="play-icon-overlay"><i class="fas fa-play-circle"></i></div>' +
+            return '<div class="related-card" onclick="window.location.href=\'video-player.html?id=' + id + '\'">' +
+                '<div class="related-card-img">' +
+                    (pic ? '<img src="' + pic + '" alt="' + title + '" loading="lazy">' : '<div style="background:#1a1a2e;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:28px;"><i class="fas fa-film"></i></div>') +
+                    (remarks ? '<div class="related-card-badge">' + (score && score !== '0.0' ? '<i class="fas fa-star"></i>' + score + ' ' : '') + remarks + '</div>' : (score && score !== '0.0' ? '<div class="related-card-badge"><i class="fas fa-star"></i>' + score + '</div>' : '')) +
+                    '<div class="related-card-play"><i class="fas fa-play-circle"></i></div>' +
                 '</div>' +
-                '<div class="related-thumb-title">' + title + '</div>' +
-                (remarks ? '<div class="related-thumb-meta">' + remarks + '</div>' : '') +
+                '<div class="related-card-title">' + title + '</div>' +
             '</div>';
         }).join('');
     }
 
     // ============ Init ============
-    if (videoId) {
-        loadFromAPI(videoId);
-    } else {
-        showNoVideoMessage();
-    }
+    if (videoId) { loadFromAPI(videoId); }
+    else { showNoVideoMessage(); }
 
     window.addEventListener('beforeunload', function() {
         if (dp) { try { dp.destroy(); } catch(e) {} dp = null; }
@@ -1187,11 +1010,8 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         stopProgressSave();
     });
 
-    // Security
     document.oncontextmenu = function() { return false; };
-    document.addEventListener('keydown', function(e) {
-        if ([123, 116, 85, 83].indexOf(e.keyCode) > -1) e.preventDefault();
-    });
+    document.addEventListener('keydown', function(e) { if ([123, 116, 85, 83].indexOf(e.keyCode) > -1) e.preventDefault(); });
 })();
 </script>
 </body>
