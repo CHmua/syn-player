@@ -24,16 +24,10 @@
         .dplayer-notice { opacity: 0.9; font-size: 13px; }
 
         /* Player area */
-        #dplayer { aspect-ratio: 16 / 9; width: 100%; max-height: 65vh; background: #000; border-radius: 8px; }
-        .dplayer-video-wrap { border-radius: 8px; }
+        #dplayer { aspect-ratio: 16 / 9; width: 100%; max-height: 60vh; background: #000; border-radius: 8px 8px 0 0; }
+        .dplayer-video-wrap { border-radius: 8px 8px 0 0; }
 
-        /* Poster + info layout */
-        @media (max-width: 600px) {
-            .video-info-layout { flex-direction: column; }
-            .video-info-poster { width: 80px; }
-        }
-
-        /* Error overlay — sits on top of DPlayer */
+        /* Error overlay */
         .player-error-wrap { position: relative; }
         .player-error-overlay {
             position: absolute; inset: 0; display: none; flex-direction: column;
@@ -50,18 +44,301 @@
         }
         .player-error-overlay button:hover { background: var(--red); border-color: var(--red); }
 
-        /* Video info spacing */
-        .vod-lines { margin: 12px 0; }
-        /* Hide info section until data loads — prevent flash of hardcoded content */
-        .video-info { visibility: hidden; }
+        /* ===== Player Page Layout ===== */
+        .player-page { background: var(--bg-primary); }
+        .player-layout {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 20px 32px;
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+        }
+
+        /* ===== Main Content ===== */
+        .player-main-col { min-width: 0; }
+
+        /* Player + source panel card */
+        .player-card {
+            background: var(--bg-card);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        /* Source tabs — now visible below player */
+        .source-tabs-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 14px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-light);
+            flex-wrap: wrap;
+        }
+        .source-tabs-bar .tabs-label {
+            color: var(--text-muted);
+            font-size: 12px;
+            white-space: nowrap;
+            margin-right: 4px;
+        }
+        .source-tab-btn {
+            padding: 5px 14px;
+            border-radius: 16px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+        .source-tab-btn:hover { color: var(--text-primary); background: var(--hover-bg); }
+        .source-tab-btn.active {
+            background: var(--red);
+            color: #fff;
+            border-color: var(--red);
+            font-weight: 600;
+        }
+
+        /* Episode grid */
+        .episode-grid-wrap {
+            padding: 10px 14px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-light);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .episode-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+            gap: 6px;
+        }
+        .ep-btn {
+            padding: 7px 4px;
+            border-radius: 6px;
+            border: 1px solid var(--border-light);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            font-family: inherit;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ep-btn:hover { border-color: var(--text-muted); color: var(--text-primary); }
+        .ep-btn.active {
+            background: var(--red);
+            border-color: var(--red);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        /* ===== Video Info Section ===== */
+        .video-info { visibility: hidden; margin-top: 20px; }
         .video-info.loaded { visibility: visible; }
+
+        .info-card {
+            display: flex;
+            gap: 20px;
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid var(--border-light);
+        }
+        .info-poster {
+            flex-shrink: 0;
+            width: 130px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .info-poster img {
+            width: 100%;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        .info-body { flex: 1; min-width: 0; }
+
+        .info-body h2 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+        .info-meta {
+            display: flex;
+            gap: 14px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .info-meta .rating {
+            color: var(--gold);
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .info-meta .tag {
+            background: var(--red);
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .info-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .info-actions button {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 7px 15px;
+            border-radius: 18px;
+            border: 1px solid var(--video-action-border);
+            background: var(--video-action-bg);
+            color: var(--video-action-text);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .info-actions button:hover { background: var(--video-action-hover); }
+        .info-actions button.liked { color: var(--red); border-color: var(--red); }
+
+        .info-desc {
+            color: var(--text-secondary);
+            font-size: 13px;
+            line-height: 1.7;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .info-crew {
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        .info-crew strong { color: var(--text-secondary); }
+
+        /* ===== Right Sidebar ===== */
+        .player-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Related videos card */
+        .related-card {
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid var(--border-light);
+        }
+        .related-card h4 {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 14px;
+            padding-left: 12px;
+            position: relative;
+        }
+        .related-card h4::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 2px; bottom: 2px;
+            width: 3px;
+            background: var(--red);
+            border-radius: 2px;
+        }
+        .related-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .related-thumb {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .related-thumb:hover { transform: translateY(-3px); }
+        .related-thumb-img {
+            position: relative;
+            border-radius: 6px;
+            overflow: hidden;
+            aspect-ratio: 16/10;
+            background: #1a1a1a;
+        }
+        .related-thumb-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .related-thumb-img .play-icon-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .related-thumb:hover .play-icon-overlay { opacity: 1; }
+        .play-icon-overlay i { color: #fff; font-size: 20px; }
+        .related-thumb-title {
+            font-size: 12px;
+            font-weight: 500;
+            margin-top: 6px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            color: var(--text-secondary);
+            line-height: 1.3;
+        }
+        .related-thumb-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 1100px) {
+            .player-layout { grid-template-columns: 1fr; padding: 16px; }
+            .related-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .player-layout { padding: 10px; gap: 14px; }
+            .related-grid { grid-template-columns: repeat(3, 1fr); }
+            .info-card { flex-direction: column; }
+            .info-poster { width: 90px; }
+            .info-body h2 { font-size: 18px; }
+            .episode-grid { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); }
+            .ep-btn { font-size: 11px; padding: 6px 3px; }
+        }
+        @media (max-width: 480px) {
+            .related-grid { grid-template-columns: repeat(2, 1fr); }
+            .player-layout { padding: 6px; gap: 10px; }
+            .source-tabs-bar { padding: 8px 10px; gap: 4px; }
+            .source-tab-btn { padding: 4px 10px; font-size: 11px; }
+            .episode-grid-wrap { padding: 8px 10px; }
+        }
     </style>
 </head>
 <body class="player-page">
 <script>
 if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 </script>
-
 
 <!-- ===== Navigation ===== -->
 <nav class="navbar" id="navbar">
@@ -152,64 +429,71 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     </div>
 </nav>
 
-<!-- ===== Player Container ===== -->
-<div class="player-container">
+<!-- ===== Player Layout ===== -->
+<div class="player-layout">
 
-    <!-- Main Video Area -->
-    <div class="video-main">
-        <div class="player-error-wrap">
-            <div id="dplayer"></div>
-            <div class="player-error-overlay" id="playerError">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p id="playerErrorMsg">播放失败</p>
-                <div>
-                    <button id="playerRetryBtn">重试</button>
-                    <button id="playerNextLineBtn">切换线路</button>
+    <!-- Main Column: Player + Source/Episode Selector + Info -->
+    <div class="player-main-col">
+        <div class="player-card">
+            <div class="player-error-wrap">
+                <div id="dplayer"></div>
+                <div class="player-error-overlay" id="playerError">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p id="playerErrorMsg">播放失败</p>
+                    <div>
+                        <button id="playerRetryBtn">重试</button>
+                        <button id="playerNextLineBtn">切换线路</button>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Multi-Source Line Switcher -->
-        <div class="vod-lines" id="vodLines" style="display:none;">
-            <div class="vod-source-tabs" id="vodSourceTabs"></div>
-            <div class="vod-episode-list" id="vodEpisodeList"></div>
+            <!-- Source Tabs (visible) -->
+            <div class="source-tabs-bar" id="vodSourceTabs">
+                <span class="tabs-label"><i class="fas fa-server"></i> 播放源:</span>
+            </div>
+
+            <!-- Episode Grid -->
+            <div class="episode-grid-wrap" id="vodEpisodeList"></div>
         </div>
 
         <!-- Video Info -->
         <div class="video-info">
-            <div class="video-info-layout">
-                <div class="video-info-poster">
+            <div class="info-card">
+                <div class="info-poster">
                     <img src="" alt="" id="infoPoster" style="display:none;">
                 </div>
-                <div class="video-info-content">
+                <div class="info-body">
                     <h2>速度与激情 9</h2>
-                    <div class="video-meta">
-                        <span class="rating-badge"><i class="fas fa-star"></i> 8.5 / 10</span>
+                    <div class="info-meta">
+                        <span class="rating"><i class="fas fa-star"></i> 8.5 / 10</span>
                         <span>2021</span>
-                        <span>2h 23m</span>
                         <span>动作 / 冒险</span>
-                        <span>HD</span>
+                        <span class="tag">HD</span>
                     </div>
-                    <div class="video-actions">
+                    <div class="info-actions">
                         <button id="likeBtn"><i class="far fa-thumbs-up"></i> 赞 12.5K</button>
                         <button id="dislikeBtn"><i class="far fa-thumbs-down"></i> 踩</button>
                         <button><i class="fas fa-share"></i> 分享</button>
                         <button><i class="fas fa-bookmark"></i> 收藏</button>
                         <button><i class="fas fa-download"></i> 下载</button>
                     </div>
-                    <div class="video-description">
+                    <div class="info-desc">
                         <p>多姆·托雷托与他的家人们面对迄今为止最危险的对手。从伦敦到东京，从中东到爱丁堡，再到阿塞拜疆的秘密基地，他们将不惜一切代价阻止一场惊天阴谋。</p>
-                        <p style="margin-top:8px;"><strong>导演:</strong> 林诣彬 &nbsp;|&nbsp; <strong>主演:</strong> 范·迪塞尔, 约翰·塞纳, 米歇尔·罗德里格兹</p>
+                    </div>
+                    <div class="info-crew">
+                        <strong>导演:</strong> 林诣彬 &nbsp;|&nbsp; <strong>主演:</strong> 范·迪塞尔, 约翰·塞纳, 米歇尔·罗德里格兹
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Related Videos Sidebar -->
-    <aside class="related-sidebar" id="relatedSidebar">
-        <h4>相关推荐</h4>
-        <div class="related-list" id="relatedList"></div>
+    <!-- Right Sidebar: Related Videos -->
+    <aside class="player-sidebar">
+        <div class="related-card" id="relatedCard">
+            <h4><i class="fas fa-play-circle" style="color:var(--red);margin-right:6px;"></i>相关推荐</h4>
+            <div class="related-grid" id="relatedList"></div>
+        </div>
     </aside>
 
 </div>
@@ -281,7 +565,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     var playerErrorMsg = document.getElementById('playerErrorMsg');
     var playerRetryBtn = document.getElementById('playerRetryBtn');
     var playerNextLineBtn = document.getElementById('playerNextLineBtn');
-    var vodLines = document.getElementById('vodLines');
     var vodSourceTabs = document.getElementById('vodSourceTabs');
     var vodEpisodeList = document.getElementById('vodEpisodeList');
     var dplayerBox = document.getElementById('dplayer');
@@ -345,7 +628,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             return;
         }
 
-        // Seek to saved position
         dp.on('loadedmetadata', function() {
             if (savedTime > 3) {
                 dp.seek(savedTime);
@@ -359,7 +641,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             if (loadWatchdog) clearTimeout(loadWatchdog);
         });
 
-        // Error handling — retry current source once before switching
         dp.on('error', function() {
             if (dplayerRetries < 1) {
                 dplayerRetries++;
@@ -372,7 +653,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             }
         });
 
-        // Save progress
         dp.on('timeupdate', function() {
             if (progressTimer) clearTimeout(progressTimer);
             progressTimer = setTimeout(function() {
@@ -381,13 +661,11 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             }, 2000);
         });
 
-        // Save volume
         dp.on('volumechange', function() {
             localStorage.setItem('syn_volume', dp.video.volume);
         });
     }
 
-    // Native HLS.js fallback when DPlayer is unavailable
     var nativeHls = null;
     function initNativeHLS(url) {
         destroyNativeHLS();
@@ -420,12 +698,10 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             videoEl.src = url;
         }
 
-        // Seek to saved position
         videoEl.addEventListener('loadedmetadata', function() {
             if (savedTime > 3) { videoEl.currentTime = savedTime; savedTime = 0; }
         });
 
-        // Save progress
         videoEl.addEventListener('timeupdate', function() {
             if (progressTimer) clearTimeout(progressTimer);
             progressTimer = setTimeout(function() {
@@ -451,7 +727,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 
     // ============ Multi-Source Line Switching ============
     function getPlayUrl(ep) {
-        // Direct connection — client fetches m3u8/mp4 from source CDN
         return ep.play_url;
     }
 
@@ -462,10 +737,8 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         if (!source || !source.episodes[currentEpisodeIdx]) return;
         var ep = source.episodes[currentEpisodeIdx];
         initDPlayer(getPlayUrl(ep));
-        // Save source/episode indices for page refresh persistence
         localStorage.setItem('syn_source_' + (videoId || '0'), currentSourceIdx);
         localStorage.setItem('syn_episode_' + (videoId || '0'), currentEpisodeIdx);
-        // Watchdog: if video doesn't start within 18s, switch source
         if (loadWatchdog) clearTimeout(loadWatchdog);
         loadWatchdog = setTimeout(function() {
             if (currentSourceIdx < vodSources.length - 1) {
@@ -476,7 +749,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     }
 
     function tryNextLine() {
-        // Skip to next SOURCE immediately (don't waste time on other episodes of a broken source)
         if (currentSourceIdx + 1 < vodSources.length) {
             currentSourceIdx++;
             currentEpisodeIdx = 0;
@@ -491,33 +763,61 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     }
 
     // ============ Source & Episode UI ============
-    // Source tabs are hidden — auto-switch to first working source
-    // Only episode list is shown for multi-episode sources
     function renderAll() {
         renderSourceTabs();
         renderEpisodeList();
     }
 
     function renderSourceTabs() {
-        // Hide source tabs — auto-switch handles source selection
-        vodSourceTabs.style.display = 'none';
+        var tabsContainer = vodSourceTabs;
+        // Keep the label span, remove all tab buttons
+        var label = tabsContainer.querySelector('.tabs-label');
+        tabsContainer.innerHTML = '';
+        if (label) tabsContainer.appendChild(label);
+        else {
+            label = document.createElement('span');
+            label.className = 'tabs-label';
+            label.innerHTML = '<i class="fas fa-server"></i> 播放源:';
+            tabsContainer.appendChild(label);
+        }
+
+        if (vodSources.length <= 1) {
+            tabsContainer.style.display = 'none';
+            return;
+        }
+        tabsContainer.style.display = 'flex';
+
+        for (var i = 0; i < vodSources.length; i++) {
+            (function(idx) {
+                var btn = document.createElement('button');
+                btn.className = 'source-tab-btn' + (idx === currentSourceIdx ? ' active' : '');
+                btn.textContent = vodSources[idx].source_name || '源' + (idx + 1);
+                btn.addEventListener('click', function() {
+                    if (idx === currentSourceIdx) return;
+                    currentSourceIdx = idx;
+                    currentEpisodeIdx = 0;
+                    playCurrentSource();
+                    renderAll();
+                });
+                tabsContainer.appendChild(btn);
+            })(i);
+        }
     }
 
     function renderEpisodeList() {
         var source = vodSources[currentSourceIdx];
         if (!source || source.episodes.length <= 1) {
             vodEpisodeList.style.display = 'none';
-            vodLines.style.display = 'none';
             return;
         }
-        vodLines.style.display = 'block';
-        vodEpisodeList.style.display = 'flex';
-        vodEpisodeList.innerHTML = '<span class="vod-lines-label"><i class="fas fa-list"></i> 集数:</span>' +
+        vodEpisodeList.style.display = 'block';
+        vodEpisodeList.innerHTML = '<div class="episode-grid">' +
             source.episodes.map(function(ep, i) {
-                return '<button class="vod-line-btn' + (i === currentEpisodeIdx ? ' active' : '') + '" data-ep="' + i + '">' + (ep.episode_name || '第' + (i+1) + '集') + '</button>';
-            }).join('');
+                return '<button class="ep-btn' + (i === currentEpisodeIdx ? ' active' : '') + '" data-ep="' + i + '">' + (ep.episode_name || '第' + (i+1) + '集') + '</button>';
+            }).join('') +
+            '</div>';
 
-        vodEpisodeList.querySelectorAll('.vod-line-btn').forEach(function(btn) {
+        vodEpisodeList.querySelectorAll('.ep-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var idx = parseInt(this.dataset.ep);
                 if (idx === currentEpisodeIdx) return;
@@ -531,7 +831,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     // Sort sources & episodes: .m3u8/HLS URLs first (primary source), others as fallback
     function prioritizeSources(sources) {
         return sources.slice().map(function(src) {
-            // Sort episodes within source: .m3u8 first
             var sortedEps = src.episodes.slice().sort(function(a, b) {
                 var aIsM3u8 = (a.play_url && a.play_url.indexOf('.m3u8') > -1) ? 1 : 0;
                 var bIsM3u8 = (b.play_url && b.play_url.indexOf('.m3u8') > -1) ? 1 : 0;
@@ -569,25 +868,20 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     });
 
     // ============ Load Video Data ============
-    // Priority: Admin-managed videos (SQLite) first, then VOD detail
     function loadFromAPI(vid) {
-        // Try admin-managed videos first (they take priority over VODs)
         fetch('/api/videos/' + vid)
             .then(function(r) { return r.json(); })
             .then(function(v) {
-                // If it has video_url and is an admin-managed video, render directly
                 if (v.source === 'video' && v.video_url) {
                     renderLegacy(v);
                     return;
                 }
-                // If it's a VOD or missing video_url, try VOD detail endpoint
                 return fetch('/api/vod/detail/' + vid)
                     .then(function(r) { return r.json(); })
                     .then(function(result) {
                         if (result.success && result.data) {
                             renderVOD(result.data);
                         } else {
-                            // Fall back to the original response
                             if (v.video_url) {
                                 renderLegacy(v);
                             } else {
@@ -597,7 +891,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
                     });
             })
             .catch(function() {
-                // If /api/videos/:id fails, try VOD detail
                 fetch('/api/vod/detail/' + vid)
                     .then(function(r) { return r.json(); })
                     .then(function(result) {
@@ -615,13 +908,11 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         document.title = (v.vod_name || '播放') + ' - Syn Player';
         vodSources = [];
 
-        // Restore saved source/episode from previous session
         var savedSource = parseInt(localStorage.getItem('syn_source_' + (videoId || '0'))) || 0;
         var savedEpisode = parseInt(localStorage.getItem('syn_episode_' + (videoId || '0'))) || 0;
 
         if (v.sources && v.sources.length > 0) {
             vodSources = prioritizeSources(v.sources);
-            // Restore saved indices if still valid
             if (savedSource < vodSources.length) currentSourceIdx = savedSource;
             if (vodSources[currentSourceIdx] && savedEpisode < vodSources[currentSourceIdx].episodes.length) currentEpisodeIdx = savedEpisode;
             renderAll();
@@ -647,13 +938,13 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         }
 
         updateInfoSection(v);
+        loadRelated(v);
     }
 
     function fallbackLegacyPlay(v) {
         var raw = String(v.video_url || v.vod_play_url || '').trim();
         if (!raw) { showError('暂无播放地址', true); return; }
 
-        // Parse multi-source format: source1$$$source2$$$...
         var sourceGroups = raw.split('$$$').filter(Boolean);
         var allSources = [];
 
@@ -698,7 +989,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             return;
         }
 
-        // Plain single URL
         vodSources = [{
             source_name: '默认',
             episodes: [{ episode_name: '默认', play_url: raw, type: 'm3u8' }]
@@ -712,9 +1002,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         if (!v.video_url) { showError('暂无播放地址', true); return; }
 
         var raw = String(v.video_url).trim();
-
-        // Parse multi-source format: source1$$$source2$$$...
-        // Each source can have multi-episode format: name1$url1#name2$url2#...
         var sourceGroups = raw.split('$$$').filter(Boolean);
         var allSources = [];
 
@@ -767,7 +1054,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             return;
         }
 
-        // Plain single URL (fallback)
         vodSources = [{
             source_name: '默认',
             episodes: [{ episode_name: '默认', play_url: raw, type: 'm3u8' }]
@@ -801,33 +1087,91 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             posterImg.style.display = '';
         }
 
-        var h2 = document.querySelector('.video-info h2');
+        var h2 = document.querySelector('.info-body h2');
         if (h2 && title) h2.textContent = title;
 
-        var metaDiv = document.querySelector('.video-meta');
+        var metaDiv = document.querySelector('.info-meta');
         if (metaDiv) {
             var html = '';
-            if (rating && rating !== '0.0') html += '<span class="rating-badge"><i class="fas fa-star"></i> ' + rating + ' / 10</span>';
+            if (rating && rating !== '0.0') html += '<span class="rating"><i class="fas fa-star"></i> ' + rating + ' / 10</span>';
             if (year) html += '<span>' + year + '</span>';
             if (genre) html += '<span>' + genre + '</span>';
-            if (remarks) html += '<span style="color:var(--red);">' + remarks + '</span>';
-            html += '<span>HD</span>';
+            if (remarks) html += '<span class="tag">' + remarks + '</span>';
+            else html += '<span class="tag">HD</span>';
             metaDiv.innerHTML = html;
         }
 
-        var descP = document.querySelector('.video-description p');
+        var descP = document.querySelector('.info-desc p');
         if (descP) {
             descP.textContent = description || descP.textContent;
         }
 
-        var directorP = document.querySelector('.video-description p:last-child');
-        if (directorP) {
+        var crewDiv = document.querySelector('.info-crew');
+        if (crewDiv) {
             var text = '';
             if (director) text += '<strong>导演:</strong> ' + director;
             if (director && actor) text += ' &nbsp;|&nbsp; ';
             if (actor) text += '<strong>主演:</strong> ' + actor;
-            if (text) directorP.innerHTML = text;
+            if (text) crewDiv.innerHTML = text;
         }
+    }
+
+    // ============ Load Related Videos ============
+    function loadRelated(v) {
+        var relatedList = document.getElementById('relatedList');
+        if (!relatedList) return;
+
+        var typeId = v.type_id || v.vod_type || '';
+        var currentId = v.vod_id || v.id || videoId;
+
+        // Fetch related from API
+        fetch('/api/vod/related/' + encodeURIComponent(currentId) + '?type=' + encodeURIComponent(typeId || ''))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.data && data.data.length > 0) {
+                    renderRelated(data.data);
+                } else {
+                    // Fallback: fetch from index
+                    fetch('/api/vod/index?page=1&limit=12')
+                        .then(function(r) { return r.json(); })
+                        .then(function(idx) {
+                            if (idx.success && idx.data && idx.data.length > 0) {
+                                renderRelated(idx.data.slice(0, 8));
+                            }
+                        })
+                        .catch(function() {});
+                }
+            })
+            .catch(function() {
+                fetch('/api/vod/index?page=1&limit=8')
+                    .then(function(r) { return r.json(); })
+                    .then(function(idx) {
+                        if (idx.success && idx.data && idx.data.length > 0) {
+                            renderRelated(idx.data);
+                        }
+                    })
+                    .catch(function() {});
+            });
+    }
+
+    function renderRelated(items) {
+        var relatedList = document.getElementById('relatedList');
+        if (!relatedList) return;
+
+        relatedList.innerHTML = items.map(function(item) {
+            var title = item.vod_name || item.title || '';
+            var pic = item.vod_pic || item.pic || item.poster_url || '';
+            var remarks = item.vod_remarks || '';
+            var id = item.vod_id || item.id || '';
+            return '<div class="related-thumb" onclick="window.location.href=\'video-player.html?id=' + id + '\'">' +
+                '<div class="related-thumb-img">' +
+                    (pic ? '<img src="' + pic + '" alt="' + title + '" loading="lazy">' : '<div style="background:#1a1a2e;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:24px;"><i class="fas fa-film"></i></div>') +
+                    '<div class="play-icon-overlay"><i class="fas fa-play-circle"></i></div>' +
+                '</div>' +
+                '<div class="related-thumb-title">' + title + '</div>' +
+                (remarks ? '<div class="related-thumb-meta">' + remarks + '</div>' : '') +
+            '</div>';
+        }).join('');
     }
 
     // ============ Init ============
@@ -837,7 +1181,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         showNoVideoMessage();
     }
 
-    // Cleanup
     window.addEventListener('beforeunload', function() {
         if (dp) { try { dp.destroy(); } catch(e) {} dp = null; }
         destroyNativeHLS();

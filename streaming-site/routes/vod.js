@@ -670,4 +670,62 @@ async function enrichVodsWithTMDB(vods) {
   } catch {}
 }
 
+// Related videos by type/genre for player page sidebar
+router.get('/related/:vodId', async (req, res) => {
+  try {
+    const { vodId } = req.params;
+    const limit = Math.min(parseInt(req.query.limit) || 8, 20);
+    const vdb = await getVODDB();
+
+    let rows;
+    if (vdb.type === 'mysql') {
+      // Get the type of the current VOD, then find others of the same type
+      const [current] = await vdb.pool.query('SELECT type_name, vod_type FROM vods WHERE vod_id = ?', [vodId]);
+      if (current && current.length > 0) {
+        const typeName = current[0].type_name || current[0].vod_type || '';
+        if (typeName) {
+          [rows] = await vdb.pool.query(
+            'SELECT vod_id, vod_name, vod_pic, vod_remarks, vod_score FROM vods WHERE vod_id != ? AND (type_name = ? OR vod_type = ?) ORDER BY updated_at DESC LIMIT ?',
+            [vodId, typeName, typeName, limit]
+          );
+        }
+      }
+      if (!rows || rows.length === 0) {
+        [rows] = await vdb.pool.query(
+          'SELECT vod_id, vod_name, vod_pic, vod_remarks, vod_score FROM vods WHERE vod_id != ? ORDER BY updated_at DESC LIMIT ?',
+          [vodId, limit]
+        );
+      }
+    } else {
+      const current = vdb.sqlite.prepare('SELECT type_name, vod_type FROM vods WHERE vod_id = ?').get(vodId);
+      if (current) {
+        const typeName = current.type_name || current.vod_type || '';
+        if (typeName) {
+          rows = vdb.sqlite.prepare(
+            'SELECT vod_id, vod_name, vod_pic, vod_remarks, vod_score FROM vods WHERE vod_id != ? AND (type_name = ? OR vod_type = ?) ORDER BY updated_at DESC LIMIT ?'
+          ).all(vodId, typeName, typeName, limit);
+        }
+      }
+      if (!rows || rows.length === 0) {
+        rows = vdb.sqlite.prepare(
+          'SELECT vod_id, vod_name, vod_pic, vod_remarks, vod_score FROM vods WHERE vod_id != ? ORDER BY updated_at DESC LIMIT ?'
+        ).all(vodId, limit);
+      }
+    }
+
+    const result = (rows || []).map(r => ({
+      vod_id: r.vod_id,
+      vod_name: r.vod_name,
+      vod_pic: proxyImageUrl(r.vod_pic),
+      vod_remarks: r.vod_remarks || '',
+      vod_score: r.vod_score || ''
+    }));
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('Related VODs error:', err);
+    res.json({ success: true, data: [] });
+  }
+});
+
 module.exports = router;
