@@ -488,7 +488,7 @@ img {
     color: var(--text-primary);
 }
 
-/* ===== Account Dropdown ===== */
+/* ===== Account Dropdown (B站-style) ===== */
 .account-dropdown {
     position: relative;
 }
@@ -520,13 +520,13 @@ img {
     position: absolute;
     top: calc(100% + 12px);
     right: -10px;
-    width: 340px;
-    background: var(--dropdown-bg);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid var(--dropdown-border);
-    border-radius: 14px;
-    box-shadow: var(--dropdown-shadow);
+    width: 360px;
+    background: var(--bg-card);
+    backdrop-filter: blur(28px) saturate(200%);
+    -webkit-backdrop-filter: blur(28px) saturate(200%);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.35);
     z-index: 1001;
     display: none;
     flex-direction: column;
@@ -535,66 +535,119 @@ img {
 }
 
 @keyframes accountPanelIn {
-    from { opacity: 0; transform: translateY(-8px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .account-panel.show {
     display: flex;
 }
 
-/* Panel header — user info when logged in */
-.account-panel-header {
-    padding: 20px 22px 14px;
-    border-bottom: 1px solid var(--border-light);
+/* ===== Logged-in Header — B站-style ===== */
+.account-header-bili {
     display: flex;
     align-items: center;
     gap: 14px;
+    padding: 20px 20px 16px;
 }
 
-.account-avatar {
-    width: 44px;
-    height: 44px;
+.account-avatar-bili {
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
-    background: var(--red);
+    background: linear-gradient(135deg, #ff6b9d, #ff4272);
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
-    font-size: 20px;
+    font-size: 22px;
+    font-weight: 700;
     flex-shrink: 0;
+    box-shadow: 0 3px 12px rgba(255,66,114,0.3);
 }
 
-.account-user-info {
+.account-user-bili {
     min-width: 0;
+    flex: 1;
 }
 
-.account-user-info .username {
-    font-size: 15px;
+.account-user-bili .username-bili {
+    font-size: 16px;
     font-weight: 700;
     color: var(--text-primary);
-    line-height: 1.2;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.account-user-info .email {
+.account-user-bili .email-bili {
     font-size: 12px;
     color: var(--text-muted);
     line-height: 1.4;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    margin-top: 1px;
 }
 
-/* Panel menu items */
-.account-menu {
-    padding: 8px;
+/* ===== Stats Row — B站-style ===== */
+.account-stats {
+    display: flex;
+    padding: 0 20px 16px;
+    gap: 0;
 }
 
-.account-menu-item {
+.stat-item {
+    flex: 1;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.15s;
+    padding: 8px 0;
+    border-radius: 6px;
+}
+
+.stat-item:hover {
+    background: var(--hover-bg);
+}
+
+.stat-item + .stat-item {
+    border-left: 1px solid var(--border-light);
+}
+
+.stat-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* ===== Thin Divider ===== */
+.account-menu-divider {
+    height: 1px;
+    background: var(--border-light);
+    margin: 0 16px;
+}
+
+/* ===== Menu Grid — B站-style ===== */
+.account-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+    padding: 12px 16px;
+}
+
+.menu-grid-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
+    gap: 8px;
+    padding: 10px 12px;
     border-radius: 8px;
     cursor: pointer;
     color: var(--text-secondary);
@@ -603,41 +656,58 @@ img {
     transition: all 0.15s;
     border: none;
     background: none;
-    width: 100%;
-    text-align: left;
     font-family: inherit;
+    white-space: nowrap;
 }
 
-.account-menu-item:hover {
+.menu-grid-item:hover {
     background: var(--hover-bg);
     color: var(--text-primary);
 }
 
-.account-menu-item i {
-    width: 18px;
+.menu-grid-item i {
+    width: 16px;
     text-align: center;
-    font-size: 14px;
+    font-size: 13px;
+    opacity: 0.7;
 }
 
-.account-menu-item.danger {
+/* ===== Logout Button — B站-style ===== */
+.account-logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px;
+    margin: 4px 16px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.15s;
+    border: none;
+    background: var(--hover-bg);
+    font-family: inherit;
+}
+
+.account-logout-btn:hover {
     color: var(--red);
+    background: rgba(229,9,20,0.06);
 }
 
-.account-menu-item.danger:hover {
-    background: rgba(229,9,20,0.08);
-}
-
-/* Panel — logged out tabs */
+/* ===== Logged-out Tabs — B站-style ===== */
 .account-tabs {
     display: flex;
     border-bottom: 1px solid var(--border-light);
+    padding: 0 20px;
 }
 
 .account-tab {
     flex: 1;
-    padding: 14px;
+    padding: 16px 0 13px;
     text-align: center;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--text-muted);
     cursor: pointer;
@@ -659,31 +729,27 @@ img {
 .account-tab.active::after {
     content: '';
     position: absolute;
-    bottom: 0;
+    bottom: -1px;
     left: 50%;
     transform: translateX(-50%);
-    width: 32px;
+    width: 28px;
     height: 3px;
     background: var(--red);
     border-radius: 2px;
 }
 
-/* Panel — form */
+/* ===== Form — B站-style ===== */
 .account-form {
-    padding: 18px 22px 22px;
+    padding: 20px 20px 22px;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-.account-form .field {
-    position: relative;
-}
-
 .account-form .field input {
     width: 100%;
-    height: 44px;
-    padding: 0 14px;
+    height: 42px;
+    padding: 0 12px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
     background: var(--bg-input);
@@ -699,21 +765,15 @@ img {
 }
 
 .account-form .field input:focus {
-    border-color: var(--text-muted);
-}
-
-.account-form .field label {
-    display: block;
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-bottom: 5px;
-    font-weight: 500;
+    border-color: var(--red);
+    box-shadow: 0 0 0 2px rgba(229,9,20,0.1);
 }
 
 .account-form .form-msg {
     font-size: 12px;
-    padding: 4px 0;
+    padding: 2px 0;
     min-height: 20px;
+    line-height: 1.4;
 }
 
 .account-form .form-msg.error {
@@ -729,11 +789,12 @@ img {
     border-radius: 8px;
     border: none;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 600;
     cursor: pointer;
     font-family: inherit;
     transition: all 0.2s;
     width: 100%;
+    letter-spacing: 2px;
 }
 
 .account-btn.primary {
@@ -743,24 +804,11 @@ img {
 
 .account-btn.primary:hover {
     background: var(--red-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(229,9,20,0.35);
 }
 
-.account-form-footer {
-    font-size: 12px;
-    color: var(--text-muted);
-    text-align: center;
-}
-
-.account-form-footer a {
-    color: var(--text-secondary);
-    cursor: pointer;
-}
-
-.account-form-footer a:hover {
-    color: var(--red);
-}
-
-/* Account panel backdrop */
+/* Panel backdrop */
 .account-backdrop {
     position: fixed;
     inset: 0;
@@ -2507,9 +2555,14 @@ img {
         display: none;
     }
     .account-panel {
-        width: 300px;
-        right: -60px;
+        width: 310px;
+        right: -50px;
     }
+    .account-header-bili { padding: 16px 14px 14px; }
+    .account-avatar-bili { width: 44px; height: 44px; font-size: 18px; }
+    .account-stats { padding: 0 14px 14px; }
+    .account-menu-grid { padding: 10px 12px; gap: 2px; }
+    .menu-grid-item { padding: 8px 10px; font-size: 12px; }
 }
 
 @media (max-width: 576px) {
@@ -2541,11 +2594,22 @@ img {
     }
     .account-panel {
         width: 280px;
-        right: -80px;
+        right: -76px;
     }
     .account-trigger .nav-user-name {
         display: none;
     }
+    .account-header-bili { padding: 14px 12px 12px; }
+    .account-avatar-bili { width: 40px; height: 40px; font-size: 16px; }
+    .account-user-bili .username-bili { font-size: 14px; }
+    .account-stats { padding: 0 12px 12px; }
+    .stat-value { font-size: 14px; }
+    .account-menu-grid { padding: 8px 10px; gap: 2px; }
+    .menu-grid-item { padding: 8px 10px; font-size: 12px; }
+    .account-logout-btn { margin: 2px 12px 12px; padding: 10px; }
+    .account-tabs { padding: 0 16px; }
+    .account-tab { font-size: 13px; padding: 14px 0 11px; }
+    .account-form { padding: 16px 16px 18px; }
     .hamburger {
         width: 40px;
         height: 40px;

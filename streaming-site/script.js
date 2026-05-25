@@ -57,19 +57,36 @@ document.addEventListener('DOMContentLoaded', function() {
         function buildLoggedInPanel() {
             var initial = (userData.username || 'User').charAt(0).toUpperCase();
             var html = '' +
-            '<div class="account-panel-header">' +
-            '  <div class="account-avatar">' + initial + '</div>' +
-            '  <div class="account-user-info">' +
-            '    <div class="username">' + (userData.username || 'User') + '</div>' +
-            '    <div class="email">' + (userData.email || '') + '</div>' +
+            '<div class="account-header-bili">' +
+            '  <div class="account-avatar-bili">' + initial + '</div>' +
+            '  <div class="account-user-bili">' +
+            '    <div class="username-bili">' + (userData.username || 'User') + '</div>' +
+            '    <div class="email-bili">' + (userData.email || '') + '</div>' +
             '  </div>' +
             '</div>' +
-            '<div class="account-menu">' +
-            '  <button class="account-menu-item" id="menuChangePwd"><i class="fas fa-key"></i> 修改密码</button>' +
-            '  <button class="account-menu-item" id="menuBookmarks"><i class="fas fa-bookmark"></i> 我的收藏</button>' +
-            '  <button class="account-menu-item" id="menuHistory"><i class="fas fa-history"></i> 观看记录</button>' +
-            '  <button class="account-menu-item danger" id="menuLogout"><i class="fas fa-sign-out-alt"></i> 退出登录</button>' +
-            '</div>';
+            '<div class="account-stats">' +
+            '  <div class="stat-item" data-action="bookmarks">' +
+            '    <div class="stat-value" id="statBookmarks">0</div>' +
+            '    <div class="stat-label">收藏</div>' +
+            '  </div>' +
+            '  <div class="stat-item" data-action="history">' +
+            '    <div class="stat-value" id="statHistory">0</div>' +
+            '    <div class="stat-label">历史</div>' +
+            '  </div>' +
+            '  <div class="stat-item" data-action="following">' +
+            '    <div class="stat-value">0</div>' +
+            '    <div class="stat-label">关注</div>' +
+            '  </div>' +
+            '</div>' +
+            '<div class="account-menu-divider"></div>' +
+            '<div class="account-menu-grid">' +
+            '  <button class="menu-grid-item" data-action="profile"><i class="fas fa-user"></i> 个人中心</button>' +
+            '  <button class="menu-grid-item" data-action="bookmarks"><i class="fas fa-bookmark"></i> 我的收藏</button>' +
+            '  <button class="menu-grid-item" data-action="history"><i class="fas fa-history"></i> 观看记录</button>' +
+            '  <button class="menu-grid-item" data-action="changePwd"><i class="fas fa-key"></i> 修改密码</button>' +
+            '</div>' +
+            '<div class="account-menu-divider"></div>' +
+            '<button class="account-logout-btn" id="menuLogout"><i class="fas fa-sign-out-alt"></i> 退出登录</button>';
             return html;
         }
 
@@ -297,7 +314,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
 
-            // Logged-in menu items
+            // Logged-in: grid menu & stat click handlers
+            var gridItems = accountPanel.querySelectorAll('.menu-grid-item[data-action], .stat-item[data-action]');
+            gridItems.forEach(function(item) {
+                item.addEventListener('click', function() {
+                    var action = item.getAttribute('data-action');
+                    if (action === 'bookmarks') {
+                        closePanel();
+                        window.location.href = '/home#bookmarks';
+                    } else if (action === 'history') {
+                        closePanel();
+                        window.location.href = '/home#history';
+                    } else if (action === 'profile') {
+                        closePanel();
+                        window.location.href = '/home#profile';
+                    } else if (action === 'following') {
+                        closePanel();
+                        window.location.href = '/home#following';
+                    } else if (action === 'changePwd') {
+                        closePanel();
+                        setTimeout(function() {
+                            var pwModal = document.getElementById('passwordModal');
+                            if (pwModal) { pwModal.style.display = 'flex'; }
+                        }, 200);
+                    }
+                });
+            });
+
+            // Logout button
             var menuLogout = document.getElementById('menuLogout');
             if (menuLogout) {
                 menuLogout.addEventListener('click', function() {
@@ -305,18 +349,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     localStorage.removeItem('syn_user');
                     document.cookie = 'syn_user_token=; path=/; max-age=0';
                     window.location.href = '/';
-                });
-            }
-
-            var menuChangePwd = document.getElementById('menuChangePwd');
-            if (menuChangePwd) {
-                menuChangePwd.addEventListener('click', function() {
-                    closePanel();
-                    // Trigger existing password modal
-                    setTimeout(function() {
-                        var pwModal = document.getElementById('passwordModal');
-                        if (pwModal) pwModal.style.display = 'flex';
-                    }, 200);
                 });
             }
         }
