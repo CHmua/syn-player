@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -8,385 +8,53 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dplayer@2/dist/DPlayer.min.css">
     <style>
-        :root {
-            --player-bg: #1a1a1a;
-            --player-card-bg: #1e1e1e;
-            --player-border: #2a2a2a;
-            --player-text: #e0e0e0;
-            --player-text-secondary: #999;
-            --player-text-muted: #777;
-            --player-accent: #d4422c;
-            --player-accent-hover: #e8553f;
-            --player-amber: #d4873a;
-            --player-amber-hover: #e89845;
-            --player-gold: #c9a445;
-        }
-
-        .dplayer { border-radius: 12px; overflow: hidden; }
-        .dplayer-controller { background: rgba(0,0,0,0.9) !important; }
+        /* DPlayer theme overrides 鈥?match site dark theme */
+        .dplayer { border-radius: 8px; overflow: hidden; }
+        .dplayer-controller { background: rgba(0,0,0,0.85) !important; }
         .dplayer-bar-wrap { margin: 0 15px !important; }
-        .dplayer-controller .dplayer-bar-wrap .dplayer-bar .dplayer-bar-inner { background: var(--player-accent) !important; }
+        .dplayer-controller .dplayer-bar-wrap .dplayer-bar .dplayer-bar-inner { background: var(--red) !important; }
         .dplayer-controller .dplayer-bar-wrap .dplayer-bar .dplayer-thumb { background: #fff !important; }
-        .dplayer-controller .dplayer-icons .dplayer-icon:hover { color: var(--player-accent) !important; }
-        .dplayer-menu .dplayer-menu-item:hover { background-color: rgba(212,66,44,0.1) !important; }
-        .dplayer-menu .dplayer-menu-item.dplayer-menu-item-active { color: var(--player-accent) !important; }
+        .dplayer-controller .dplayer-icons .dplayer-icon:hover { color: var(--red) !important; }
+        .dplayer-controller .dplayer-icons .dplayer-toggle input:checked + .dplayer-toggle-icon { background: var(--red) !important; }
+        .dplayer-controller .dplayer-icons .dplayer-volume .dplayer-volume-bar .dplayer-volume-bar-inner { background: var(--red) !important; }
+        .dplayer-controller .dplayer-icons .dplayer-setting .dplayer-setting-item input:checked + .dplayer-toggle-icon { background: var(--red) !important; }
+        .dplayer-comment-setting .dplayer-icon-setting:hover { color: var(--red) !important; }
+        .dplayer-menu .dplayer-menu-item:hover { background-color: rgba(229,9,20,0.1) !important; }
+        .dplayer-menu .dplayer-menu-item.dplayer-menu-item-active { color: var(--red) !important; }
         .dplayer-notice { opacity: 0.9; font-size: 13px; }
 
-        #dplayer { aspect-ratio: 16 / 9; width: 100%; max-height: 58vh; background: #000; border-radius: 12px; }
-        .dplayer-video-wrap { border-radius: 12px; }
+        /* Player area */
+        #dplayer { aspect-ratio: 16 / 9; width: 100%; max-height: 65vh; background: #000; border-radius: 8px; }
+        .dplayer-video-wrap { border-radius: 8px; }
 
-        /* Error overlay */
+        /* Poster + info layout */
+        @media (max-width: 600px) {
+            .video-info-layout { flex-direction: column; }
+            .video-info-poster { width: 80px; }
+        }
+
+        /* Error overlay 鈥?sits on top of DPlayer */
         .player-error-wrap { position: relative; }
         .player-error-overlay {
             position: absolute; inset: 0; display: none; flex-direction: column;
             align-items: center; justify-content: center; gap: 12px;
-            background: rgba(0,0,0,0.9); z-index: 10; border-radius: 12px;
+            background: rgba(0,0,0,0.82); z-index: 10; border-radius: 8px;
         }
         .player-error-overlay.show { display: flex; }
-        .player-error-overlay i { font-size: 36px; color: var(--player-accent); }
-        .player-error-overlay p { color: var(--player-text-secondary); font-size: 14px; margin: 0; }
+        .player-error-overlay i { font-size: 36px; color: var(--red); }
+        .player-error-overlay p { color: var(--text-secondary); font-size: 14px; margin: 0; }
         .player-error-overlay button {
-            padding: 8px 22px; border-radius: 6px; font-size: 13px; cursor: pointer;
-            border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); color: #fff;
+            padding: 8px 20px; border-radius: 4px; font-size: 13px; cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.1); color: #fff;
             transition: all 0.2s; margin: 0 4px;
         }
-        .player-error-overlay button:hover { background: var(--player-accent); border-color: var(--player-accent); }
+        .player-error-overlay button:hover { background: var(--red); border-color: var(--red); }
 
-        /* ===== Player Page ===== */
-        .player-page { background: var(--player-bg); }
-        .player-main-wrap {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 18px 24px 32px;
-        }
-
-        /* ===== Source Panel ===== */
-        .source-panel {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 14px 0 8px;
-            flex-wrap: wrap;
-        }
-        .source-panel-label {
-            color: var(--player-text-muted);
-            font-size: 13px;
-            font-weight: 600;
-            white-space: nowrap;
-            letter-spacing: 0.2px;
-        }
-        .source-panel-label i { color: var(--player-accent); margin-right: 4px; }
-        .source-tab {
-            padding: 7px 20px;
-            border-radius: 20px;
-            border: 1px solid var(--player-border);
-            background: transparent;
-            color: var(--player-text-secondary);
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
-            font-family: inherit;
-        }
-        .source-tab:hover { border-color: var(--player-text-muted); color: var(--player-text); }
-        .source-tab.active {
-            background: var(--player-accent);
-            border-color: var(--player-accent);
-            color: #fff;
-            font-weight: 700;
-        }
-
-        /* ===== Episode Grid ===== */
-        .episode-section { padding: 8px 0 4px; }
-        .episode-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
-            gap: 7px;
-            max-height: 172px;
-            overflow-y: auto;
-            padding-right: 4px;
-        }
-        .episode-grid::-webkit-scrollbar { width: 4px; }
-        .episode-grid::-webkit-scrollbar-thumb { background: var(--player-border); border-radius: 2px; }
-        .ep-btn {
-            padding: 8px 5px;
-            border-radius: 6px;
-            border: 1px solid var(--player-border);
-            background: var(--player-card-bg);
-            color: var(--player-text-secondary);
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s;
-            font-family: inherit;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .ep-btn:hover {
-            border-color: var(--player-amber);
-            color: var(--player-text);
-            background: rgba(212,135,58,0.08);
-        }
-        .ep-btn.active {
-            background: linear-gradient(135deg, #c8712e 0%, #d4873a 60%, #e89845 100%);
-            border-color: #d4873a;
-            color: #fff;
-            font-weight: 700;
-            box-shadow: 0 2px 8px rgba(212,135,58,0.3);
-        }
-
-        /* ===== Info Section ===== */
-        .video-info { visibility: hidden; margin-top: 18px; }
+        /* Video info spacing */
+        .vod-lines { margin: 12px 0; }
+        /* Hide info section until data loads 鈥?prevent flash of hardcoded content */
+        .video-info { visibility: hidden; }
         .video-info.loaded { visibility: visible; }
-
-        .info-card {
-            display: flex;
-            gap: 22px;
-            background: var(--player-card-bg);
-            border-radius: 12px;
-            padding: 22px;
-            border: 1px solid var(--player-border);
-        }
-        .info-poster-wrap {
-            flex-shrink: 0;
-            width: 130px;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 3px 14px rgba(0,0,0,0.35);
-        }
-        .info-poster-wrap img {
-            width: 100%;
-            aspect-ratio: 2/3;
-            object-fit: cover;
-            display: block;
-        }
-        .info-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-
-        .info-badges {
-            display: flex;
-            gap: 7px;
-            flex-wrap: wrap;
-        }
-        .info-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 3px;
-            padding: 3px 9px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.2px;
-        }
-        .info-badge.score {
-            background: #3d2e0a;
-            color: var(--player-gold);
-            border: 1px solid rgba(201,164,69,0.25);
-        }
-        .info-badge.quality {
-            background: rgba(212,66,44,0.15);
-            color: var(--player-accent);
-            border: 1px solid rgba(212,66,44,0.25);
-        }
-        .info-badge.year {
-            background: rgba(255,255,255,0.04);
-            color: var(--player-text-secondary);
-            border: 1px solid var(--player-border);
-        }
-
-        .info-body h2 {
-            font-size: 22px;
-            font-weight: 700;
-            color: var(--player-text);
-            line-height: 1.25;
-            margin: 0;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .info-genres {
-            display: flex;
-            gap: 7px;
-            flex-wrap: wrap;
-        }
-        .info-genre-tag {
-            padding: 3px 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 500;
-            background: rgba(212,66,44,0.08);
-            color: var(--player-accent);
-            border: 1px solid rgba(212,66,44,0.15);
-        }
-
-        .info-actions {
-            display: flex;
-            gap: 7px;
-            flex-wrap: wrap;
-        }
-        .info-actions button {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 7px 15px;
-            border-radius: 6px;
-            border: 1px solid var(--player-border);
-            background: rgba(255,255,255,0.03);
-            color: var(--player-text-secondary);
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: inherit;
-        }
-        .info-actions button:hover { background: rgba(255,255,255,0.06); border-color: var(--player-text-muted); color: var(--player-text); }
-        .info-actions button.liked { color: var(--player-accent); border-color: var(--player-accent); background: rgba(212,66,44,0.1); }
-        .info-actions button.primary {
-            background: var(--player-accent);
-            border-color: var(--player-accent);
-            color: #fff;
-            font-weight: 600;
-        }
-        .info-actions button.primary:hover { background: var(--player-accent-hover); }
-
-        .info-desc {
-            color: var(--player-text-secondary);
-            font-size: 13px;
-            line-height: 1.65;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .info-crew {
-            display: flex;
-            gap: 14px;
-            flex-wrap: wrap;
-            font-size: 12px;
-            color: var(--player-text-muted);
-        }
-        .info-crew span { white-space: nowrap; }
-        .info-crew strong { color: var(--player-text-secondary); font-weight: 600; }
-
-        /* ===== Related Section ===== */
-        .related-section { margin-top: 32px; }
-        .related-section .section-head {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-        .section-head h4 {
-            font-size: 17px;
-            font-weight: 700;
-            color: var(--player-text);
-            padding-left: 12px;
-            position: relative;
-            margin: 0;
-        }
-        .section-head h4::before {
-            content: '';
-            position: absolute;
-            left: 0; top: 3px; bottom: 3px;
-            width: 3px;
-            background: var(--player-accent);
-            border-radius: 2px;
-        }
-        .related-grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 12px;
-        }
-        .related-card {
-            cursor: pointer;
-            transition: transform 0.2s ease;
-        }
-        .related-card:hover { transform: translateY(-4px); }
-        .related-card-img {
-            position: relative;
-            border-radius: 6px;
-            overflow: hidden;
-            aspect-ratio: 2/3;
-            background: #14141e;
-            box-shadow: 0 1px 8px rgba(0,0,0,0.3);
-        }
-        .related-card-img img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-            transition: transform 0.3s ease;
-        }
-        .related-card:hover .related-card-img img { transform: scale(1.05); }
-        .related-card-badge {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(0,0,0,0.7);
-            color: #fff;
-            font-size: 10px;
-            font-weight: 600;
-            padding: 2px 6px;
-            border-radius: 3px;
-            letter-spacing: 0.1px;
-        }
-        .related-card-badge i { color: var(--player-gold); font-size: 8px; margin-right: 2px; }
-        .related-card-play {
-            position: absolute;
-            inset: 0;
-            background: rgba(0,0,0,0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        .related-card:hover .related-card-play { opacity: 1; }
-        .related-card-play i { color: #fff; font-size: 24px; }
-        .related-card-title {
-            font-size: 12px;
-            font-weight: 600;
-            margin-top: 7px;
-            color: var(--player-text);
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            line-height: 1.35;
-        }
-        .related-card-meta {
-            font-size: 11px;
-            color: var(--player-text-muted);
-            margin-top: 3px;
-        }
-
-        /* ===== Responsive ===== */
-        @media (max-width: 1100px) {
-            .related-grid { grid-template-columns: repeat(4, 1fr); }
-        }
-        @media (max-width: 768px) {
-            .player-main-wrap { padding: 10px 12px; }
-            .related-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
-            .info-card { flex-direction: column; padding: 16px; }
-            .info-poster-wrap { width: 90px; }
-            .info-body h2 { font-size: 19px; }
-            .episode-grid { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); }
-            .source-panel { gap: 7px; }
-            .source-tab { padding: 5px 12px; font-size: 11px; }
-        }
-        @media (max-width: 480px) {
-            .player-main-wrap { padding: 6px 6px; }
-            .related-grid { grid-template-columns: repeat(2, 1fr); gap: 7px; }
-            .info-crew { flex-direction: column; gap: 3px; }
-            .info-body h2 { font-size: 16px; }
-            .info-actions button { padding: 6px 10px; font-size: 11px; }
-            .source-panel { gap: 5px; }
-            .source-tab { padding: 4px 10px; font-size: 10px; }
-            .ep-btn { font-size: 10px; padding: 6px 3px; }
-        }
     </style>
 </head>
 <body class="player-page">
@@ -394,155 +62,199 @@
 if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 </script>
 
+
 <!-- ===== Navigation ===== -->
 <nav class="navbar" id="navbar">
-    <button class="hamburger" id="hamburgerBtn"><i class="fas fa-bars"></i></button>
+    <button class="hamburger" id="hamburgerBtn">
+        <i class="fas fa-bars"></i>
+    </button>
     <a href="index.html" class="logo">
         <span style="font-size:28px;font-weight:800;color:#e50914;">SYN</span><span style="font-size:28px;font-weight:700;color:#fff;">PLAYER</span>
     </a>
     <ul class="nav-menu" id="navMenu">
         <li><a href="index.html"><i class="fas fa-home"></i> 首页</a></li>
         <li>
-            <a href="javascript:;"><i class="fas fa-film"></i> 电影 <i class="fas fa-chevron-down"></i></a>
+            <a href="browse.html?section=trendingMovies&title=电影"><i class="fas fa-film"></i> 电影 <i class="fas fa-chevron-down"></i></a>
             <ul class="dropdown">
-                <li><a href="javascript:;">英语</a></li><li><a href="javascript:;">中文</a></li>
-                <li><a href="javascript:;">印地语</a></li><li><a href="javascript:;">阿拉伯语</a></li><li><a href="javascript:;">俄语</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=动作片">动作片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=喜剧片">喜剧片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=剧情片">剧情片</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影&genre=科幻片">科幻片</a></li>
+                <li class="dropdown-divider"></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影">全部电影</a></li>
             </ul>
         </li>
         <li>
-            <a href="javascript:;"><i class="fas fa-tv"></i> 电视剧 <i class="fas fa-chevron-down"></i></a>
+            <a href="browse.html?section=trendingTV&title=电视剧" class="active"><i class="fas fa-tv"></i> 电视剧<i class="fas fa-chevron-down"></i></a>
             <ul class="dropdown">
-                <li><a href="javascript:;">真人秀</a></li><li><a href="javascript:;">喜剧</a></li>
-                <li><a href="javascript:;">剧情</a></li><li><a href="javascript:;">犯罪</a></li><li><a href="javascript:;">惊悚</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=国产剧">国产剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=欧美剧">欧美剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=日剧">日剧</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧&genre=韩剧">韩剧</a></li>
+                <li class="dropdown-divider"></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧">全部剧集</a></li>
             </ul>
         </li>
         <li>
-            <a href="javascript:;"><i class="fas fa-laptop"></i> 网络节目 <i class="fas fa-chevron-down"></i></a>
+            <a href="browse.html?section=trendingAnime&title=动漫"><i class="fas fa-laptop"></i> 动漫 <i class="fas fa-chevron-down"></i></a>
             <ul class="dropdown">
-                <li><a href="javascript:;">剧情</a></li><li><a href="javascript:;">惊悚</a></li>
-                <li><a href="javascript:;">真人秀</a></li><li><a href="javascript:;">犯罪</a></li><li><a href="javascript:;">喜剧</a></li>
-            </ul>
-        </li>
-        <li><a href="javascript:;"><i class="fas fa-th-large"></i> 频道</a></li>
-        <li>
-            <a href="javascript:;"><i class="fas fa-music"></i> 音乐 <i class="fas fa-chevron-down"></i></a>
-            <ul class="dropdown">
-                <li><a href="javascript:;">中文</a></li><li><a href="javascript:;">英语</a></li>
-                <li><a href="javascript:;">阿拉伯语</a></li><li><a href="javascript:;">旁遮普语</a></li><li><a href="javascript:;">俄语</a></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫&genre=国产动漫">国产动漫</a></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫&genre=日韩动漫">日韩动漫</a></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫&genre=动漫电影">动漫电影</a></li>
+                <li class="dropdown-divider"></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫">全部动漫</a></li>
             </ul>
         </li>
         <li>
-            <a href="live-tv.html"><i class="fas fa-broadcast-tower"></i> 电视直播 <i class="fas fa-chevron-down"></i></a>
+            <a href="browse.html?section=trendingVariety&title=综艺"><i class="fas fa-th-large"></i> 综艺 <i class="fas fa-chevron-down"></i></a>
             <ul class="dropdown">
-                <li><a href="live-tv.html#cctv1">央视综合 CCTV-1</a></li>
-                <li><a href="live-tv.html#cctv13">央视新闻 CCTV-13</a></li>
-                <li><a href="live-tv.html#hunan">湖南卫视</a></li>
-                <li><a href="live-tv.html#zhejiang">浙江卫视</a></li>
-                <li><a href="live-tv.html#dongfang">东方卫视</a></li>
-                <li><a href="live-tv.html#jiangsu">江苏卫视</a></li>
-                <li><a href="live-tv.html#beijing">北京卫视</a></li>
-                <li><a href="live-tv.html#cctv5">体育频道 CCTV-5</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺&genre=大陆综艺">大陆综艺</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺&genre=日韩综艺">日韩综艺</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺&genre=港台综艺">港台综艺</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺&genre=欧美综艺">欧美综艺</a></li>
+                <li class="dropdown-divider"></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺">全部综艺</a></li>
             </ul>
         </li>
+        <li><a href="browse.html?section=liveTV&title=记录解说"><i class="fas fa-music"></i> 记录解说</a></li>
+        <li><a href="browse.html?section=moreRecommend&title=排行榜"><i class="fas fa-trophy"></i> 排行榜</a></li>
         <li><a href="news.html"><i class="fas fa-newspaper"></i> 资讯</a></li>
     </ul>
     <div class="nav-right">
         <div class="search-box">
             <i class="fas fa-search search-icon"></i>
-            <input type="text" id="searchInput" placeholder="搜索电影、电视剧...">
-            <button class="search-clear" id="searchClear" style="display:none;"><i class="fas fa-times"></i></button>
+            <input type="text" id="searchInput" placeholder="搜索电影、电视剧、综艺">
+            <button class="search-clear" id="searchClear" style="display:none;">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
-        <a href="javascript:;" class="nav-icon" title="我的列表"><i class="fas fa-bookmark"></i></a>
-        <button class="nav-icon theme-toggle" id="themeToggle" title="切换主题"><i class="fas fa-moon"></i></button>
-        <a href="/login" class="nav-icon" title="登录"><i class="fas fa-user-circle"></i></a>
+        <a href="javascript:;" class="nav-icon" title="我的列表">
+            <i class="fas fa-bookmark"></i>
+        </a>
+        <button class="nav-icon theme-toggle" id="themeToggle" title="切换主题">
+            <i class="fas fa-moon"></i>
+        </button>
+        <a href="/login" class="nav-icon" title="登录">
+            <i class="fas fa-user-circle"></i>
+        </a>
         <button class="nav-icon" id="logoutBtn" title="退出登录" style="background:none;border:none;cursor:pointer;">
             <i class="fas fa-sign-out-alt" style="color:#e50914;"></i>
         </button>
     </div>
 </nav>
 
-<!-- ===== Main Content ===== -->
-<div class="player-main-wrap">
-
-    <!-- Player -->
-    <div class="player-error-wrap">
-        <div id="dplayer"></div>
-        <div class="player-error-overlay" id="playerError">
-            <i class="fas fa-exclamation-triangle"></i>
-            <p id="playerErrorMsg">播放失败</p>
-            <div>
-                <button id="playerRetryBtn">重试</button>
-                <button id="playerNextLineBtn">切换线路</button>
-            </div>
-        </div>
+<div class="player-shell">
+    <div class="player-breadcrumb" id="playerBreadcrumb">
+        <a href="index.html">首页</a>
+        <i class="fas fa-chevron-right"></i>
+        <a href="browse.html?section=trendingTV&title=电视剧">电视剧</a>
+        <i class="fas fa-chevron-right"></i>
+        <span id="crumbTitle">正在加载...</span>
+        <span class="crumb-episode" id="crumbEpisode"></span>
     </div>
 
-    <!-- Source Tabs -->
-    <div class="source-panel" id="vodSourceTabs">
-        <span class="source-panel-label"><i class="fas fa-server"></i>播放源</span>
-    </div>
-
-    <!-- Episode Grid -->
-    <div class="episode-section" id="vodEpisodeList"></div>
-
-    <!-- Info Section -->
-    <div class="video-info">
-        <div class="info-card">
-            <div class="info-poster-wrap">
-                <img src="" alt="" id="infoPoster" style="display:none;">
-            </div>
-            <div class="info-body">
-                <div class="info-badges" id="infoBadges"></div>
-                <h2>速度与激情 9</h2>
-                <div class="info-genres" id="infoGenres"></div>
-                <div class="info-actions">
-                    <button id="likeBtn"><i class="far fa-thumbs-up"></i> 赞 12.5K</button>
-                    <button id="dislikeBtn"><i class="far fa-thumbs-down"></i> 踩</button>
-                    <button class="primary"><i class="fas fa-share"></i> 分享</button>
-                    <button><i class="fas fa-bookmark"></i> 收藏</button>
-                    <button><i class="fas fa-download"></i> 下载</button>
-                </div>
-                <div class="info-desc">
-                    <p>多姆·托雷托与他的家人们面对迄今为止最危险的对手。从伦敦到东京，从中东到爱丁堡，再到阿塞拜疆的秘密基地，他们将不惜一切代价阻止一场惊天阴谋。</p>
-                </div>
-                <div class="info-crew" id="infoCrew">
-                    <span><strong>导演:</strong> 林诣彬</span>
-                    <span><strong>主演:</strong> 范·迪塞尔, 约翰·塞纳, 米歇尔·罗德里格兹</span>
+    <!-- ===== Player Container ===== -->
+    <div class="player-container">
+        <!-- Main Video Area -->
+        <div class="video-main">
+            <div class="player-panel">
+                <div class="player-error-wrap">
+                    <div id="dplayer"></div>
+                    <div class="player-error-overlay" id="playerError">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p id="playerErrorMsg">播放失败</p>
+                        <div>
+                            <button id="playerRetryBtn">重试</button>
+                            <button id="playerNextLineBtn">切换线路</button>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Related Videos -->
-    <div class="related-section">
-        <div class="section-head">
-            <h4>相关推荐</h4>
-        </div>
-        <div class="related-grid" id="relatedList"></div>
-    </div>
+            <!-- Video Info -->
+            <div class="video-info">
+                <div class="video-info-layout">
+                    <div class="video-info-content">
+                        <img src="" alt="" id="infoPoster" style="display:none;">
+                        <h2>影片加载中</h2>
+                        <div class="video-meta">
+                            <span>--</span>
+                            <span>--</span>
+                            <span>--</span>
+                        </div>
+                        <div class="video-actions">
+                            <button id="likeBtn"><i class="far fa-star"></i> 收藏</button>
+                            <button id="dislikeBtn"><i class="far fa-heart"></i> 追剧</button>
+                            <button><i class="fas fa-download"></i> 下载</button>
+                            <button><i class="fas fa-flag"></i> 举报</button>
+                        </div>
+                        <div class="video-description">
+                            <p>正在读取影片简介...</p>
+                            <p style="margin-top:8px;">导演 / 主演信息读取中...</p>
+                        </div>
+                    </div>
+                    <div class="video-score-card">
+                        <div class="score-main" id="scoreValue">--</div>
+                        <div class="score-stars" id="scoreStars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+                        <div class="score-votes" id="scoreVotes">暂无评分数据</div>
+                    </div>
+                </div>
+            </div>
 
+            <section class="bottom-related-panel">
+                <h4>相关推荐</h4>
+                <div class="related-grid" id="relatedGrid"></div>
+            </section>
+        </div>
+
+        <!-- Right Sidebar -->
+        <aside class="related-sidebar" id="relatedSidebar">
+            <section class="playlist-panel">
+                <div class="playlist-head">
+                    <h4>播放列表</h4>
+                    <span class="playlist-subtitle">选集</span>
+                </div>
+                <!-- Multi-Source Line Switcher -->
+                <div class="vod-lines" id="vodLines" style="display:none;">
+                    <div class="vod-source-tabs" id="vodSourceTabs"></div>
+                    <div class="vod-episode-list" id="vodEpisodeList"></div>
+                </div>
+                <div class="playlist-empty" id="playlistEmpty">正在加载选集...</div>
+            </section>
+
+            <section class="recommend-panel">
+                <h4>为你推荐</h4>
+                <div class="related-list" id="relatedList"></div>
+            </section>
+        </aside>
+    </div>
 </div>
-
 <!-- ===== Footer ===== -->
 <footer class="footer">
     <div class="footer-middle">
         <div class="footer-about">
             <span style="font-size:22px;font-weight:800;color:#e50914;">SYN</span><span style="font-size:22px;font-weight:700;color:#fff;">PLAYER</span>
-            <p>Syn Player 是一个视频流媒体平台，提供来自顶级制片人和发行商的数千小时优质、独家原创内容。</p>
-            <a href="javascript:;" class="read-more">了解更多 &rarr;</a>
+            <p>Syn Player 是一个在线视频平台，聚合电影、电视剧、动漫、综艺与解说内容，支持多端流畅观看。</p>
+            <a href="javascript:;" class="read-more">了解更多 →</a>
         </div>
         <div class="footer-links">
             <h4>探索</h4>
             <ul>
-                <li><a href="index.html">首页</a></li><li><a href="javascript:;">网络节目</a></li>
-                <li><a href="javascript:;">电影</a></li><li><a href="javascript:;">电视剧</a></li><li><a href="javascript:;">频道</a></li>
+                <li><a href="index.html">首页</a></li>
+                <li><a href="browse.html?section=trendingMovies&title=电影">电影</a></li>
+                <li><a href="browse.html?section=trendingTV&title=电视剧">电视剧</a></li>
+                <li><a href="browse.html?section=trendingAnime&title=动漫">动漫</a></li>
+                <li><a href="browse.html?section=trendingVariety&title=综艺">综艺</a></li>
+                <li><a href="browse.html?section=liveTV&title=记录解说">记录解说</a></li>
             </ul>
         </div>
         <div class="footer-links">
             <h4>公司</h4>
             <ul>
-                <li><a href="javascript:;">关于我们</a></li><li><a href="javascript:;">联系我们</a></li>
-                <li><a href="javascript:;">隐私政策</a></li><li><a href="javascript:;">服务条款</a></li>
+                <li><a href="javascript:;">关于我们</a></li>
+                <li><a href="javascript:;">联系我们</a></li>
+                <li><a href="javascript:;">隐私政策</a></li>
+                <li><a href="javascript:;">服务条款</a></li>
             </ul>
         </div>
         <div class="footer-links">
@@ -561,6 +273,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<!-- DPlayer: load from local node_modules -->
 <script src="/node_modules/dplayer/dist/DPlayer.min.js" onerror="
     console.warn('DPlayer unavailable, using native player controls');
     window.DPLoadFailed = true;
@@ -568,51 +281,216 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 <script src="script.js"></script>
 <script>
 // ============================================================
-//  Syn Player — DPlayer + HLS.js + Multi-Source VOD
+// Syn Player - DPlayer + HLS + multi-source episodes
 // ============================================================
-(function() {
-    var dp = null;
-    var vodSources = [];
-    var currentSourceIdx = 0;
-    var currentEpisodeIdx = 0;
-    var currentUrl = '';
-    var retryCount = 0;
-    var maxRetries = 2;
-    var progressTimer = null;
+(function () {
+    'use strict';
 
+    var videoId = new URLSearchParams(window.location.search).get('id');
+
+    var dplayerBox = document.getElementById('dplayer');
     var playerError = document.getElementById('playerError');
     var playerErrorMsg = document.getElementById('playerErrorMsg');
     var playerRetryBtn = document.getElementById('playerRetryBtn');
     var playerNextLineBtn = document.getElementById('playerNextLineBtn');
+
+    var playlistEmpty = document.getElementById('playlistEmpty');
+    var vodLines = document.getElementById('vodLines');
     var vodSourceTabs = document.getElementById('vodSourceTabs');
     var vodEpisodeList = document.getElementById('vodEpisodeList');
-    var dplayerBox = document.getElementById('dplayer');
 
-    var videoId = new URLSearchParams(window.location.search).get('id');
+    var crumbTitle = document.getElementById('crumbTitle');
+    var crumbEpisode = document.getElementById('crumbEpisode');
+    var relatedList = document.getElementById('relatedList');
+    var relatedGrid = document.getElementById('relatedGrid');
+
+    var dp = null;
+    var nativeHls = null;
+    var progressTimer = null;
+    var loadWatchdog = null;
+    var currentUrl = '';
+
+    var dplayerRetries = 0;
+    var nativeRetries = 0;
+    var maxDplayerRetries = 1;
+    var maxNativeRetries = 2;
+
+    var vodSources = [];
+    var currentSourceIdx = 0;
+    var currentEpisodeIdx = 0;
+
     var savedTime = parseFloat(localStorage.getItem('playTime_' + (videoId || 'default'))) || 0;
+    var currentMeta = { title: '', year: '', category: '', genre: '' };
 
-    // ============ DPlayer Init ============
+    function escapeHtml(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function toScoreNumber(value) {
+        var n = parseFloat(value);
+        return Number.isFinite(n) ? n : 0;
+    }
+
+    function buildStarHtml(score) {
+        var s = Math.max(0, Math.min(10, toScoreNumber(score)));
+        var five = s / 2;
+        var full = Math.floor(five);
+        var half = five - full >= 0.5 ? 1 : 0;
+        var empty = 5 - full - half;
+        var html = '';
+        for (var i = 0; i < full; i++) html += '<i class="fas fa-star"></i>';
+        if (half) html += '<i class="fas fa-star-half-alt"></i>';
+        for (var j = 0; j < empty; j++) html += '<i class="far fa-star"></i>';
+        return html;
+    }
+
     function getVideoType(url) {
-        if (!url) return 'auto';
-        var u = url.toLowerCase();
+        var u = String(url || '').toLowerCase();
         if (u.indexOf('.m3u8') > -1) return 'hls';
         if (u.indexOf('.mp4') > -1) return 'mp4';
         if (u.indexOf('.flv') > -1) return 'flv';
-        if (u.indexOf('.webm') > -1) return 'auto';
         return 'auto';
     }
 
-    var dplayerRetries = 0;
+    function setPlaylistLoading(text) {
+        if (playlistEmpty) {
+            playlistEmpty.textContent = text || '正在加载选集...';
+            playlistEmpty.style.display = '';
+        }
+    }
+
+    function hidePlaylistLoading() {
+        if (playlistEmpty) playlistEmpty.style.display = 'none';
+    }
+
+    function showError(msg, showButtons) {
+        if (!playerError) return;
+        playerError.classList.add('show');
+        if (playerErrorMsg) playerErrorMsg.textContent = msg || '播放失败';
+        if (playerRetryBtn) playerRetryBtn.style.display = showButtons ? 'inline-block' : 'none';
+        if (playerNextLineBtn) {
+            var hasNextLine = currentSourceIdx + 1 < vodSources.length;
+            playerNextLineBtn.style.display = hasNextLine ? 'inline-block' : 'none';
+        }
+    }
+
+    function hideError() {
+        if (playerError) playerError.classList.remove('show');
+    }
+
+    function clearProgressTimer() {
+        if (progressTimer) {
+            clearTimeout(progressTimer);
+            progressTimer = null;
+        }
+    }
+
+    function stopWatchdog() {
+        if (loadWatchdog) {
+            clearTimeout(loadWatchdog);
+            loadWatchdog = null;
+        }
+    }
+
+    function destroyPlayer() {
+        clearProgressTimer();
+        stopWatchdog();
+        if (dp) {
+            try { dp.destroy(); } catch (_) {}
+            dp = null;
+        }
+        if (nativeHls) {
+            try { nativeHls.destroy(); } catch (_) {}
+            nativeHls = null;
+        }
+        var nativeVideo = document.getElementById('nativeVideo');
+        if (nativeVideo) nativeVideo.remove();
+    }
+
+    function scheduleProgressSave(current) {
+        clearProgressTimer();
+        progressTimer = setTimeout(function () {
+            if (current > 0) {
+                localStorage.setItem('playTime_' + (videoId || 'default'), String(current));
+            }
+        }, 1200);
+    }
+
+    function initNativePlayer(url) {
+        destroyPlayer();
+        currentUrl = url;
+        nativeRetries = 0;
+
+        dplayerBox.innerHTML = '<video id="nativeVideo" style="width:100%;height:100%;object-fit:contain;background:#000;border-radius:8px;" controls playsinline controlslist="nodownload"></video>';
+        var videoEl = document.getElementById('nativeVideo');
+        if (!videoEl) return;
+
+        videoEl.volume = parseFloat(localStorage.getItem('syn_volume') || '0.7');
+
+        videoEl.addEventListener('loadedmetadata', function () {
+            hideError();
+            if (savedTime > 3) {
+                try { videoEl.currentTime = savedTime; } catch (_) {}
+                savedTime = 0;
+            }
+        });
+
+        videoEl.addEventListener('canplay', function () {
+            hideError();
+            stopWatchdog();
+        });
+
+        videoEl.addEventListener('timeupdate', function () {
+            scheduleProgressSave(videoEl.currentTime || 0);
+        });
+
+        videoEl.addEventListener('volumechange', function () {
+            localStorage.setItem('syn_volume', String(videoEl.volume || 0.7));
+        });
+
+        videoEl.addEventListener('error', function () {
+            if (nativeRetries < maxNativeRetries) {
+                nativeRetries += 1;
+                videoEl.load();
+            } else {
+                tryNextLine();
+            }
+        });
+
+        if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+            nativeHls = new Hls({ enableWorker: true, manifestLoadTimeOut: 15000 });
+            nativeHls.on(Hls.Events.MANIFEST_PARSED, function () {
+                videoEl.play().catch(function () {});
+            });
+            nativeHls.on(Hls.Events.ERROR, function (_, data) {
+                if (data && data.fatal) {
+                    if (nativeRetries < maxNativeRetries) {
+                        nativeRetries += 1;
+                        nativeHls.startLoad();
+                    } else {
+                        tryNextLine();
+                    }
+                }
+            });
+            nativeHls.loadSource(url);
+            nativeHls.attachMedia(videoEl);
+        } else {
+            videoEl.src = url;
+        }
+    }
 
     function initDPlayer(url) {
-        if (dp) { try { dp.destroy(); } catch(e) {} dp = null; }
-        stopProgressSave();
-        retryCount = 0;
-        dplayerRetries = 0;
+        destroyPlayer();
         currentUrl = url;
+        dplayerRetries = 0;
 
         if (typeof DPlayer === 'undefined') {
-            initNativeHLS(url);
+            initNativePlayer(url);
             return;
         }
 
@@ -621,407 +499,468 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
                 container: dplayerBox,
                 live: false,
                 autoplay: false,
-                theme: '#d4422c',
+                theme: '#e50914',
                 loop: false,
                 lang: 'zh-cn',
-                screenshot: false,
-                hotkey: true,
                 preload: 'auto',
+                hotkey: true,
                 airplay: true,
                 volume: parseFloat(localStorage.getItem('syn_volume') || '0.7'),
-                video: {
-                    url: url,
-                    type: getVideoType(url),
-                    pic: ''
-                },
-                contextmenu: [
-                    { text: 'Syn Player', link: '/' },
-                    { text: '反馈问题', link: 'javascript:;' }
-                ]
+                video: { url: url, type: getVideoType(url), pic: '' }
             });
-        } catch(e) {
-            initNativeHLS(url);
+        } catch (_) {
+            initNativePlayer(url);
             return;
         }
 
-        dp.on('loadedmetadata', function() {
-            if (savedTime > 3) { dp.seek(savedTime); savedTime = 0; }
+        dp.on('loadedmetadata', function () {
             hideError();
+            if (savedTime > 3) {
+                try { dp.seek(savedTime); } catch (_) {}
+                savedTime = 0;
+            }
         });
-        dp.on('canplay', function() { hideError(); if (loadWatchdog) clearTimeout(loadWatchdog); });
-        dp.on('error', function() {
-            if (dplayerRetries < 1) { dplayerRetries++; try { dp.destroy(); } catch(e) {} dp = null; initDPlayer(currentUrl); }
-            else tryNextLine();
+
+        dp.on('canplay', function () {
+            hideError();
+            stopWatchdog();
         });
-        dp.on('timeupdate', function() {
-            if (progressTimer) clearTimeout(progressTimer);
-            progressTimer = setTimeout(function() {
-                var t = dp.video.currentTime;
-                if (t > 0) localStorage.setItem('playTime_' + (videoId || 'default'), t);
-            }, 2000);
+
+        dp.on('timeupdate', function () {
+            var t = dp.video && dp.video.currentTime ? dp.video.currentTime : 0;
+            scheduleProgressSave(t);
         });
-        dp.on('volumechange', function() { localStorage.setItem('syn_volume', dp.video.volume); });
+
+        dp.on('volumechange', function () {
+            if (dp.video) localStorage.setItem('syn_volume', String(dp.video.volume || 0.7));
+        });
+
+        dp.on('error', function () {
+            if (dplayerRetries < maxDplayerRetries) {
+                dplayerRetries += 1;
+                initDPlayer(currentUrl);
+            } else {
+                tryNextLine();
+            }
+        });
     }
 
-    var nativeHls = null;
-    function initNativeHLS(url) {
-        destroyNativeHLS();
-        dplayerBox.innerHTML = '<video id="nativeVideo" style="width:100%;height:100%;object-fit:contain;background:#000;border-radius:12px;" crossorigin="anonymous" playsinline controls controlslist="nodownload"></video>';
-        var videoEl = document.getElementById('nativeVideo');
-
-        if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-            nativeHls = new Hls({ enableWorker: true, manifestLoadTimeOut: 15000, manifestLoadRetryLimit: 3 });
-            nativeHls.on(Hls.Events.MANIFEST_PARSED, function() { videoEl.play().catch(function() {}); hideError(); if (loadWatchdog) clearTimeout(loadWatchdog); });
-            nativeHls.on(Hls.Events.ERROR, function(event, data) { if (data.fatal) { if (retryCount < maxRetries) { retryCount++; nativeHls.startLoad(); } else tryNextLine(); } });
-            nativeHls.loadSource(url);
-            nativeHls.attachMedia(videoEl);
-        } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-            videoEl.src = url;
-            videoEl.addEventListener('loadedmetadata', function() { hideError(); });
-        } else {
-            videoEl.src = url;
-        }
-
-        videoEl.addEventListener('loadedmetadata', function() { if (savedTime > 3) { videoEl.currentTime = savedTime; savedTime = 0; } });
-        videoEl.addEventListener('timeupdate', function() {
-            if (progressTimer) clearTimeout(progressTimer);
-            progressTimer = setTimeout(function() { var t = videoEl.currentTime; if (t > 0) localStorage.setItem('playTime_' + (videoId || 'default'), t); }, 2000);
-        });
-        videoEl.addEventListener('volumechange', function() { localStorage.setItem('syn_volume', videoEl.volume); });
+    function episodeName(ep, idx) {
+        var n = String(ep && ep.episode_name ? ep.episode_name : '').trim();
+        return n || ('第' + (idx + 1) + '集');
     }
 
-    function destroyNativeHLS() { if (nativeHls) { nativeHls.destroy(); nativeHls = null; } var nv = document.getElementById('nativeVideo'); if (nv) nv.remove(); }
-    function stopProgressSave() { if (progressTimer) { clearTimeout(progressTimer); progressTimer = null; } }
-
-    function getPlayUrl(ep) { return ep.play_url; }
-
-    var loadWatchdog = null;
-
-    function playCurrentSource() {
-        var source = vodSources[currentSourceIdx];
-        if (!source || !source.episodes[currentEpisodeIdx]) return;
-        var ep = source.episodes[currentEpisodeIdx];
-        initDPlayer(getPlayUrl(ep));
-        localStorage.setItem('syn_source_' + (videoId || '0'), currentSourceIdx);
-        localStorage.setItem('syn_episode_' + (videoId || '0'), currentEpisodeIdx);
-        if (loadWatchdog) clearTimeout(loadWatchdog);
-        loadWatchdog = setTimeout(function() { if (currentSourceIdx < vodSources.length - 1) { tryNextLine(); } }, 18000);
-    }
-
-    function tryNextLine() {
-        if (currentSourceIdx + 1 < vodSources.length) {
-            currentSourceIdx++;
-            currentEpisodeIdx = 0;
-            showError('自动切换至: ' + vodSources[currentSourceIdx].source_name, false);
-            playCurrentSource();
-            renderAll();
-            setTimeout(hideError, 2000);
-        } else {
-            showError('所有线路均播放失败，请稍后再试', true);
-        }
-    }
-
-    function renderAll() { renderSourceTabs(); renderEpisodeList(); }
-
-    function renderSourceTabs() {
-        var label = vodSourceTabs.querySelector('.source-panel-label');
-        vodSourceTabs.innerHTML = '';
-        if (label) vodSourceTabs.appendChild(label);
-        else { label = document.createElement('span'); label.className = 'source-panel-label'; label.innerHTML = '<i class="fas fa-server"></i>播放源'; vodSourceTabs.appendChild(label); }
-
-        if (vodSources.length <= 1) { vodSourceTabs.style.display = 'none'; return; }
-        vodSourceTabs.style.display = 'flex';
-
-        for (var i = 0; i < vodSources.length; i++) {
-            (function(idx) {
-                var btn = document.createElement('button');
-                btn.className = 'source-tab' + (idx === currentSourceIdx ? ' active' : '');
-                btn.textContent = vodSources[idx].source_name || '源' + (idx + 1);
-                btn.addEventListener('click', function() {
-                    if (idx === currentSourceIdx) return;
-                    currentSourceIdx = idx;
-                    currentEpisodeIdx = 0;
-                    playCurrentSource();
-                    renderAll();
-                });
-                vodSourceTabs.appendChild(btn);
-            })(i);
+    function updateBreadcrumb(title, epName) {
+        if (crumbTitle) crumbTitle.textContent = title || '正在加载...';
+        if (crumbEpisode) {
+            crumbEpisode.textContent = epName || '';
+            crumbEpisode.style.display = epName ? '' : 'none';
         }
     }
 
     function renderEpisodeList() {
-        var source = vodSources[currentSourceIdx];
-        if (!source || source.episodes.length <= 1) { vodEpisodeList.style.display = 'none'; return; }
-        vodEpisodeList.style.display = 'block';
-        vodEpisodeList.innerHTML = '<div class="episode-grid">' +
-            source.episodes.map(function(ep, i) {
-                return '<button class="ep-btn' + (i === currentEpisodeIdx ? ' active' : '') + '" data-ep="' + i + '">' + (ep.episode_name || '第' + (i+1) + '集') + '</button>';
-            }).join('') + '</div>';
+        if (!vodLines || !vodEpisodeList) return;
+        if (!vodSources.length || !vodSources[currentSourceIdx]) {
+            vodLines.style.display = 'none';
+            setPlaylistLoading('暂无选集');
+            return;
+        }
 
-        vodEpisodeList.querySelectorAll('.ep-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var idx = parseInt(this.dataset.ep);
-                if (idx === currentEpisodeIdx) return;
+        var source = vodSources[currentSourceIdx];
+        var lines = '<span class="vod-lines-label"><i class="fas fa-list"></i> 线路' + (currentSourceIdx + 1) + ' · 共' + source.episodes.length + '集</span>';
+        for (var i = 0; i < source.episodes.length; i++) {
+            var ep = source.episodes[i];
+            lines += '<button class="vod-line-btn' + (i === currentEpisodeIdx ? ' active' : '') + '" data-ep="' + i + '">' + escapeHtml(episodeName(ep, i)) + '</button>';
+        }
+
+        vodLines.style.display = 'block';
+        vodEpisodeList.style.display = 'flex';
+        vodEpisodeList.innerHTML = lines;
+        hidePlaylistLoading();
+
+        var epButtons = vodEpisodeList.querySelectorAll('.vod-line-btn');
+        epButtons.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var idx = parseInt(btn.getAttribute('data-ep'), 10);
+                if (!Number.isFinite(idx) || idx === currentEpisodeIdx) return;
                 currentEpisodeIdx = idx;
-                playCurrentSource();
                 renderEpisodeList();
+                playCurrentSource();
             });
         });
+
+        var activeEp = source.episodes[currentEpisodeIdx];
+        updateBreadcrumb(currentMeta.title, episodeName(activeEp, currentEpisodeIdx));
     }
 
     function prioritizeSources(sources) {
-        return sources.slice().map(function(src) {
-            var sortedEps = src.episodes.slice().sort(function(a, b) {
-                var aIsM3u8 = (a.play_url && a.play_url.indexOf('.m3u8') > -1) ? 1 : 0;
-                var bIsM3u8 = (b.play_url && b.play_url.indexOf('.m3u8') > -1) ? 1 : 0;
-                return bIsM3u8 - aIsM3u8;
+        function isM3u8(url) {
+            return String(url || '').toLowerCase().indexOf('.m3u8') > -1 ? 1 : 0;
+        }
+
+        return (sources || []).map(function (src, idx) {
+            var episodes = (src.episodes || []).slice().sort(function (a, b) {
+                return isM3u8(b.play_url) - isM3u8(a.play_url);
             });
-            return { source_name: src.source_name, episodes: sortedEps };
-        }).sort(function(a, b) {
-            var aIsM3u8 = (a.episodes[0] && a.episodes[0].play_url && a.episodes[0].play_url.indexOf('.m3u8') > -1) ? 1 : 0;
-            var bIsM3u8 = (b.episodes[0] && b.episodes[0].play_url && b.episodes[0].play_url.indexOf('.m3u8') > -1) ? 1 : 0;
-            return bIsM3u8 - aIsM3u8;
+            return {
+                source_name: src.source_name || ('线路' + (idx + 1)),
+                episodes: episodes
+            };
+        }).sort(function (a, b) {
+            var aFlag = a.episodes[0] ? isM3u8(a.episodes[0].play_url) : 0;
+            var bFlag = b.episodes[0] ? isM3u8(b.episodes[0].play_url) : 0;
+            return bFlag - aFlag;
         });
     }
 
-    function showError(msg, showBtns) {
-        playerError.classList.add('show');
-        playerErrorMsg.textContent = msg;
-        playerRetryBtn.style.display = showBtns ? 'inline-block' : 'none';
-        var hasNext = (vodSources[currentSourceIdx] && currentEpisodeIdx + 1 < vodSources[currentSourceIdx].episodes.length) || (currentSourceIdx + 1 < vodSources.length);
-        playerNextLineBtn.style.display = hasNext ? 'inline-block' : 'none';
+    function parseSourcesFromRaw(rawInput) {
+        var raw = String(rawInput || '').trim();
+        if (!raw) return [];
+
+        var groups = raw.split('$$$').map(function (g) { return g.trim(); }).filter(Boolean);
+        var allSources = [];
+
+        groups.forEach(function (group, sourceIdx) {
+            var episodes = [];
+            var parts = group.split('#').map(function (p) { return p.trim(); }).filter(Boolean);
+
+            parts.forEach(function (part, i) {
+                if (part.indexOf('$') > -1) {
+                    var splitAt = part.indexOf('$');
+                    var epTitle = part.slice(0, splitAt).trim();
+                    var epUrl = part.slice(splitAt + 1).trim();
+                    if (/^https?:\/\//i.test(epUrl)) {
+                        episodes.push({ episode_name: epTitle || ('第' + (i + 1) + '集'), play_url: epUrl });
+                    }
+                } else if (/^https?:\/\//i.test(part)) {
+                    episodes.push({ episode_name: '第' + (i + 1) + '集', play_url: part });
+                }
+            });
+
+            if (!episodes.length && /^https?:\/\//i.test(group)) {
+                episodes.push({ episode_name: '正片', play_url: group });
+            }
+
+            if (episodes.length) {
+                allSources.push({ source_name: '线路' + (sourceIdx + 1), episodes: episodes });
+            }
+        });
+
+        if (!allSources.length && /^https?:\/\//i.test(raw)) {
+            allSources.push({
+                source_name: '线路1',
+                episodes: [{ episode_name: '正片', play_url: raw }]
+            });
+        }
+
+        return allSources;
     }
-    function hideError() { playerError.classList.remove('show'); }
 
-    playerRetryBtn.addEventListener('click', function() { hideError(); if (vodSources.length > 0) { playCurrentSource(); } else { initDPlayer(currentUrl); } });
-    playerNextLineBtn.addEventListener('click', function() { hideError(); tryNextLine(); });
+    function playCurrentSource() {
+        var source = vodSources[currentSourceIdx];
+        if (!source || !source.episodes || !source.episodes[currentEpisodeIdx]) {
+            showError('播放地址不存在', true);
+            return;
+        }
 
-    // ============ Load Video Data ============
-    function loadFromAPI(vid) {
-        fetch('/api/videos/' + vid)
-            .then(function(r) { return r.json(); })
-            .then(function(v) {
-                if (v.source === 'video' && v.video_url) { renderLegacy(v); return; }
-                return fetch('/api/vod/detail/' + vid)
-                    .then(function(r) { return r.json(); })
-                    .then(function(result) {
-                        if (result.success && result.data) { renderVOD(result.data); }
-                        else { if (v.video_url) renderLegacy(v); else showError('暂无播放地址', true); }
-                    });
+        var ep = source.episodes[currentEpisodeIdx];
+        localStorage.setItem('syn_source_' + (videoId || '0'), String(currentSourceIdx));
+        localStorage.setItem('syn_episode_' + (videoId || '0'), String(currentEpisodeIdx));
+
+        initDPlayer(ep.play_url);
+        updateBreadcrumb(currentMeta.title, episodeName(ep, currentEpisodeIdx));
+
+        stopWatchdog();
+        loadWatchdog = setTimeout(function () {
+            if (currentSourceIdx < vodSources.length - 1) {
+                tryNextLine();
+            }
+        }, 18000);
+    }
+
+    function tryNextLine() {
+        if (currentSourceIdx + 1 < vodSources.length) {
+            currentSourceIdx += 1;
+            currentEpisodeIdx = 0;
+            showError('当前线路异常，已自动切换下一条线路', false);
+            renderEpisodeList();
+            playCurrentSource();
+            setTimeout(hideError, 1800);
+        } else {
+            showError('所有线路都无法播放，请稍后重试', true);
+        }
+    }
+
+    function applySourcesAndPlay(sources) {
+        vodSources = prioritizeSources(sources || []);
+        if (!vodSources.length) {
+            setPlaylistLoading('暂无选集');
+            showError('暂无播放地址', true);
+            return;
+        }
+
+        var savedSource = parseInt(localStorage.getItem('syn_source_' + (videoId || '0')), 10);
+        var savedEpisode = parseInt(localStorage.getItem('syn_episode_' + (videoId || '0')), 10);
+
+        currentSourceIdx = Number.isFinite(savedSource) ? Math.min(Math.max(savedSource, 0), vodSources.length - 1) : 0;
+        currentEpisodeIdx = Number.isFinite(savedEpisode) ? Math.max(savedEpisode, 0) : 0;
+        if (currentEpisodeIdx >= vodSources[currentSourceIdx].episodes.length) currentEpisodeIdx = 0;
+
+        renderEpisodeList();
+        playCurrentSource();
+    }
+
+    function updateInfoSection(v) {
+        var section = document.querySelector('.video-info');
+        if (section) section.classList.add('loaded');
+
+        var title = v.vod_name || v.title || '未知影片';
+        var rating = toScoreNumber(v.vod_score || v.douban_rating || v.rating);
+        var ratingText = rating > 0 ? rating.toFixed(1) : '--';
+        var year = v.vod_year || v.year || '';
+        var area = v.vod_area || '';
+        var genre = v.vod_type || v.type_name || v.genre || '';
+        var remarks = v.vod_remarks || '';
+        var description = v.vod_content || v.description || '暂无剧情简介';
+        var director = v.vod_director || v.director || '';
+        var actor = v.vod_actor || v.actor || '';
+
+        currentMeta.title = title;
+        currentMeta.year = year;
+        currentMeta.category = v.type_name || v.category || '';
+        currentMeta.genre = genre;
+
+        document.title = title + ' - Syn Player';
+        updateBreadcrumb(title, '');
+
+        var h2 = document.querySelector('.video-info h2');
+        if (h2) h2.textContent = title;
+
+        var metaDiv = document.querySelector('.video-meta');
+        if (metaDiv) {
+            var meta = '';
+            if (year) meta += '<span>' + escapeHtml(year) + '</span>';
+            if (area) meta += '<span>' + escapeHtml(area) + '</span>';
+            if (genre) meta += '<span>' + escapeHtml(genre) + '</span>';
+            if (remarks) meta += '<span style="color:var(--text-secondary)">' + escapeHtml(remarks) + '</span>';
+            if (!meta) meta = '<span>暂无年份</span><span>暂无地区</span><span>暂无类型</span>';
+            metaDiv.innerHTML = meta;
+        }
+
+        var descP = document.querySelector('.video-description p:first-child');
+        var creditP = document.querySelector('.video-description p:last-child');
+        if (descP) descP.textContent = description;
+        if (creditP) {
+            var credit = '';
+            if (director) credit += '<strong>导演:</strong> ' + escapeHtml(director);
+            if (director && actor) credit += '  |  ';
+            if (actor) credit += '<strong>主演:</strong> ' + escapeHtml(actor);
+            creditP.innerHTML = credit || '导演 / 主演信息暂未提供';
+        }
+
+        var scoreValue = document.getElementById('scoreValue');
+        var scoreStars = document.getElementById('scoreStars');
+        var scoreVotes = document.getElementById('scoreVotes');
+        if (scoreValue) scoreValue.textContent = ratingText;
+        if (scoreStars) scoreStars.innerHTML = buildStarHtml(rating);
+        if (scoreVotes) {
+            var voteCount = parseInt(v.vod_hits, 10);
+            scoreVotes.textContent = Number.isFinite(voteCount) && voteCount > 0 ? (voteCount + '人评分') : '暂无评分数据';
+        }
+    }
+
+    function renderRelated(videos) {
+        if (!videos || !videos.length) {
+            if (relatedList) relatedList.innerHTML = '<p style="color:var(--text-secondary);padding:10px;">暂无推荐</p>';
+            if (relatedGrid) relatedGrid.innerHTML = '<p style="color:var(--text-secondary);padding:10px;">暂无相关推荐</p>';
+            return;
+        }
+
+        if (relatedList) {
+            var sideItems = videos.slice(0, 10);
+            relatedList.innerHTML = sideItems.map(function (v) {
+                var vid = v.id || v.vod_id || '';
+                var title = escapeHtml(v.title || v.vod_name || '未知影片');
+                var poster = escapeHtml(v.poster_url || '/api/vod/image-proxy?fallback=1');
+                var meta = escapeHtml(v.duration || v.year || v.type_name || '更新中');
+                var score = toScoreNumber(v.rating || v.douban_rating || v.vod_score);
+                var scoreText = score > 0 ? score.toFixed(1) : '';
+                return '<div class="related-item" onclick="location.href=\'video-player.html?id=' + vid + '\'">' +
+                    '<img src="' + poster + '" alt="' + title + '" loading="lazy" onerror="this.onerror=null;this.src=\'/api/vod/image-proxy?fallback=1\';">' +
+                    '<div class="related-item-info"><h5>' + title + '</h5><span>' + meta + '</span></div>' +
+                    (scoreText ? '<span class="related-item-score">' + scoreText + '</span>' : '') +
+                    '</div>';
+            }).join('');
+        }
+
+        if (relatedGrid) {
+            var bottomItems = videos.slice(0, 6);
+            relatedGrid.innerHTML = bottomItems.map(function (v) {
+                var vid = v.id || v.vod_id || '';
+                var title = escapeHtml(v.title || v.vod_name || '未知影片');
+                var poster = escapeHtml(v.poster_url || '/api/vod/image-proxy?fallback=1');
+                var year = escapeHtml(v.year || v.vod_year || '');
+                var genre = escapeHtml(v.genre || v.type_name || v.vod_type || '');
+                var score = toScoreNumber(v.rating || v.douban_rating || v.vod_score);
+                var scoreText = score > 0 ? score.toFixed(1) : '--';
+                return '<div class="related-card" onclick="location.href=\'video-player.html?id=' + vid + '\'">' +
+                    '<img src="' + poster + '" alt="' + title + '" loading="lazy" onerror="this.onerror=null;this.src=\'/api/vod/image-proxy?fallback=1\';">' +
+                    '<div class="related-card-info">' +
+                    '<div class="related-card-title">' + title + '</div>' +
+                    '<div class="related-card-meta"><span>' + (year || genre || '更新中') + '</span><span>' + scoreText + '</span></div>' +
+                    '</div></div>';
+            }).join('');
+        }
+    }
+
+    function loadRelatedContent() {
+        fetch('/api/videos')
+            .then(function (r) { return r.json(); })
+            .then(function (videos) {
+                var list = Array.isArray(videos) ? videos.slice() : [];
+                list = list.filter(function (v) { return String(v.id || v.vod_id) !== String(videoId); });
+                list.sort(function (a, b) {
+                    var aScore = toScoreNumber(a.rating || a.douban_rating || a.vod_score);
+                    var bScore = toScoreNumber(b.rating || b.douban_rating || b.vod_score);
+                    return bScore - aScore;
+                });
+                renderRelated(list);
             })
-            .catch(function() {
-                fetch('/api/vod/detail/' + vid)
-                    .then(function(r) { return r.json(); })
-                    .then(function(result) { if (result.success && result.data) renderVOD(result.data); else showError('加载影片信息失败', true); })
-                    .catch(function() { showError('加载影片信息失败', true); });
+            .catch(function () {
+                renderRelated([]);
             });
     }
 
     function renderVOD(v) {
-        document.title = (v.vod_name || '播放') + ' - Syn Player';
-        vodSources = [];
-        var savedSource = parseInt(localStorage.getItem('syn_source_' + (videoId || '0'))) || 0;
-        var savedEpisode = parseInt(localStorage.getItem('syn_episode_' + (videoId || '0'))) || 0;
-
-        if (v.sources && v.sources.length > 0) {
-            vodSources = prioritizeSources(v.sources);
-            if (savedSource < vodSources.length) currentSourceIdx = savedSource;
-            if (vodSources[currentSourceIdx] && savedEpisode < vodSources[currentSourceIdx].episodes.length) currentEpisodeIdx = savedEpisode;
-            renderAll();
-            playCurrentSource();
-        } else if (v.vod_play_url) {
-            var fromParam = v.vod_play_from ? '&from=' + encodeURIComponent(v.vod_play_from) : '';
-            fetch('/api/vod/parse-sources?url=' + encodeURIComponent(v.vod_play_url) + fromParam)
-                .then(function(r) { return r.json(); })
-                .then(function(result) {
-                    if (result.success && result.sources.length > 0) {
-                        vodSources = prioritizeSources(result.sources);
-                        if (savedSource < vodSources.length) currentSourceIdx = savedSource;
-                        if (vodSources[currentSourceIdx] && savedEpisode < vodSources[currentSourceIdx].episodes.length) currentEpisodeIdx = savedEpisode;
-                        renderAll();
-                        playCurrentSource();
-                    } else { fallbackLegacyPlay(v); }
-                })
-                .catch(function() { fallbackLegacyPlay(v); });
-        } else { fallbackLegacyPlay(v); }
-
         updateInfoSection(v);
-        loadRelated(v);
-    }
+        loadRelatedContent();
 
-    function fallbackLegacyPlay(v) {
-        var raw = String(v.video_url || v.vod_play_url || '').trim();
-        if (!raw) { showError('暂无播放地址', true); return; }
-        var sourceGroups = raw.split('$$$').filter(Boolean);
-        var allSources = [];
-        for (var s = 0; s < sourceGroups.length; s++) {
-            var group = sourceGroups[s].trim();
-            var episodes = [];
-            if (group.indexOf('$') > -1 || group.indexOf('#') > -1) {
-                var parts = group.split('#').filter(Boolean);
-                for (var i = 0; i < parts.length; i++) {
-                    var dollarIdx = parts[i].indexOf('$');
-                    if (dollarIdx >= 0) {
-                        var epUrl = parts[i].substring(dollarIdx + 1).trim();
-                        if (epUrl.indexOf('http') === 0) episodes.push({ episode_name: parts[i].substring(0, dollarIdx).trim(), play_url: epUrl });
-                    } else if (parts[i].indexOf('http') === 0) {
-                        episodes.push({ episode_name: '第' + String(i + 1).padStart(2, '0') + '集', play_url: parts[i].trim() });
-                    }
-                }
-            }
-            if (episodes.length === 0 && group.indexOf('http') === 0) episodes = [{ episode_name: '默认', play_url: group }];
-            if (episodes.length > 0) allSources.push({ source_name: '默认', episodes: episodes });
+        if (Array.isArray(v.sources) && v.sources.length) {
+            applySourcesAndPlay(v.sources);
+            return;
         }
-        if (allSources.length > 0) { vodSources = allSources; renderAll(); playCurrentSource(); return; }
-        vodSources = [{ source_name: '默认', episodes: [{ episode_name: '默认', play_url: raw }] }];
-        renderAll();
-        playCurrentSource();
+
+        var playRaw = v.vod_play_url || v.video_url || '';
+        if (!playRaw) {
+            setPlaylistLoading('暂无选集');
+            showError('暂无播放地址', true);
+            return;
+        }
+
+        var fromParam = v.vod_play_from ? '&from=' + encodeURIComponent(v.vod_play_from) : '';
+        fetch('/api/vod/parse-sources?url=' + encodeURIComponent(playRaw) + fromParam)
+            .then(function (r) { return r.json(); })
+            .then(function (result) {
+                if (result && result.success && Array.isArray(result.sources) && result.sources.length) {
+                    applySourcesAndPlay(result.sources);
+                } else {
+                    applySourcesAndPlay(parseSourcesFromRaw(playRaw));
+                }
+            })
+            .catch(function () {
+                applySourcesAndPlay(parseSourcesFromRaw(playRaw));
+            });
     }
 
     function renderLegacy(v) {
-        document.title = (v.title || '播放') + ' - Syn Player';
-        if (!v.video_url) { showError('暂无播放地址', true); return; }
-        var raw = String(v.video_url).trim();
-        var sourceGroups = raw.split('$$$').filter(Boolean);
-        var allSources = [];
-        for (var s = 0; s < sourceGroups.length; s++) {
-            var group = sourceGroups[s].trim();
-            var episodes = [];
-            if (group.indexOf('$') > -1 || group.indexOf('#') > -1) {
-                var parts = group.split('#').filter(Boolean);
-                for (var i = 0; i < parts.length; i++) {
-                    var dollarIdx = parts[i].indexOf('$');
-                    if (dollarIdx >= 0) {
-                        var epUrl = parts[i].substring(dollarIdx + 1).trim();
-                        if (epUrl.indexOf('http') === 0) episodes.push({ episode_name: parts[i].substring(0, dollarIdx).trim(), play_url: epUrl });
-                    } else if (parts[i].indexOf('http') === 0) {
-                        episodes.push({ episode_name: '第' + String(i + 1).padStart(2, '0') + '集', play_url: parts[i].trim() });
-                    }
-                }
-            }
-            if (episodes.length === 0 && group.indexOf('http') === 0) episodes = [{ episode_name: '默认', play_url: group }];
-            if (episodes.length > 0) allSources.push({ source_name: '默认', episodes: episodes });
-        }
-        if (allSources.length > 0) { vodSources = allSources; renderAll(); playCurrentSource(); updateInfoSection(v); return; }
-        vodSources = [{ source_name: '默认', episodes: [{ episode_name: '默认', play_url: raw }] }];
-        renderAll();
-        playCurrentSource();
         updateInfoSection(v);
+        loadRelatedContent();
+        var raw = v.video_url || v.vod_play_url || '';
+        applySourcesAndPlay(parseSourcesFromRaw(raw));
     }
 
     function showNoVideoMessage() {
         document.title = '高清播放 - Syn Player';
-        dplayerBox.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:360px;color:var(--player-text-muted);font-size:16px;">请从首页选择影片播放</div>';
+        setPlaylistLoading('请先选择影片');
+        dplayerBox.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:360px;color:var(--text-muted);font-size:16px;">请从首页选择影片播放</div>';
+        var section = document.querySelector('.video-info');
+        if (section) section.classList.add('loaded');
+        updateBreadcrumb('未选择影片', '');
     }
 
-    // ============ Info Section ============
-    function updateInfoSection(v) {
-        document.querySelector('.video-info').classList.add('loaded');
-        var title = v.vod_name || v.title || '';
-        var rating = v.vod_score || v.douban_rating || v.rating || '';
-        var year = v.vod_year || v.year || '';
-        var genre = v.vod_type || v.type_name || v.genre || '';
-        var description = v.vod_content || v.description || '';
-        var director = v.vod_director || v.director || '';
-        var actor = v.vod_actor || v.actor || '';
-        var remarks = v.vod_remarks || '';
-        var pic = v.poster_url || v.vod_pic || v.pic || v.image || '';
+    function loadFromAPI(vid) {
+        setPlaylistLoading('正在加载选集...');
 
-        var posterImg = document.getElementById('infoPoster');
-        if (posterImg && pic) { posterImg.src = pic; posterImg.style.display = ''; }
-
-        var h2 = document.querySelector('.info-body h2');
-        if (h2 && title) h2.textContent = title;
-
-        // Badges
-        var badgesEl = document.getElementById('infoBadges');
-        if (badgesEl) {
-            var badgHtml = '';
-            if (rating && rating !== '0.0') badgHtml += '<span class="info-badge score"><i class="fas fa-star"></i> ' + rating + '</span>';
-            if (remarks) badgHtml += '<span class="info-badge quality">' + remarks + '</span>';
-            else badgHtml += '<span class="info-badge quality">HD</span>';
-            if (year) badgHtml += '<span class="info-badge year">' + year + '</span>';
-            badgesEl.innerHTML = badgHtml;
-        }
-
-        // Genre tags
-        var genresEl = document.getElementById('infoGenres');
-        if (genresEl && genre) {
-            var genreList = genre.split(/[,，/、\s]+/).filter(Boolean).slice(0, 4);
-            genresEl.innerHTML = genreList.map(function(g) { return '<span class="info-genre-tag">' + g + '</span>'; }).join('');
-        } else if (genresEl) { genresEl.innerHTML = ''; }
-
-        var descP = document.querySelector('.info-desc p');
-        if (descP) descP.textContent = description || descP.textContent;
-
-        var crewEl = document.getElementById('infoCrew');
-        if (crewEl) {
-            var text = '';
-            if (director) text += '<span><strong>导演:</strong> ' + director + '</span>';
-            if (actor) text += '<span><strong>主演:</strong> ' + actor + '</span>';
-            if (text) crewEl.innerHTML = text;
-        }
-    }
-
-    // ============ Related Videos ============
-    function loadRelated(v) {
-        var relatedList = document.getElementById('relatedList');
-        if (!relatedList) return;
-        var currentId = v.vod_id || v.id || videoId;
-        var typeId = v.type_id || v.vod_type || '';
-
-        fetch('/api/vod/related/' + encodeURIComponent(currentId) + '?type=' + encodeURIComponent(typeId || '') + '&limit=12')
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.success && data.data && data.data.length > 0) { renderRelated(data.data); }
-                else {
-                    fetch('/api/vod/index?page=1&limit=12')
-                        .then(function(r) { return r.json(); })
-                        .then(function(idx) { if (idx.success && idx.data && idx.data.length > 0) renderRelated(idx.data.slice(0, 12)); })
-                        .catch(function() {});
-                }
+        fetch('/api/videos/' + vid)
+            .then(function (r) {
+                if (!r.ok) throw new Error('video api failed');
+                return r.json();
             })
-            .catch(function() {
-                fetch('/api/vod/index?page=1&limit=12')
-                    .then(function(r) { return r.json(); })
-                    .then(function(idx) { if (idx.success && idx.data && idx.data.length > 0) renderRelated(idx.data); })
-                    .catch(function() {});
+            .then(function (v) {
+                if (v && v.source === 'video' && v.video_url) {
+                    renderLegacy(v);
+                    return;
+                }
+
+                fetch('/api/vod/detail/' + vid)
+                    .then(function (r) { return r.json(); })
+                    .then(function (result) {
+                        if (result && result.success && result.data) {
+                            renderVOD(result.data);
+                        } else if (v && (v.video_url || v.vod_play_url)) {
+                            renderLegacy(v);
+                        } else {
+                            showError('未找到可播放资源', true);
+                            setPlaylistLoading('暂无选集');
+                        }
+                    })
+                    .catch(function () {
+                        if (v && (v.video_url || v.vod_play_url)) {
+                            renderLegacy(v);
+                        } else {
+                            showError('加载影片信息失败', true);
+                            setPlaylistLoading('暂无选集');
+                        }
+                    });
+            })
+            .catch(function () {
+                fetch('/api/vod/detail/' + vid)
+                    .then(function (r) { return r.json(); })
+                    .then(function (result) {
+                        if (result && result.success && result.data) {
+                            renderVOD(result.data);
+                        } else {
+                            showError('加载影片信息失败', true);
+                            setPlaylistLoading('暂无选集');
+                            loadRelatedContent();
+                        }
+                    })
+                    .catch(function () {
+                        showError('加载影片信息失败', true);
+                        setPlaylistLoading('暂无选集');
+                        loadRelatedContent();
+                    });
             });
     }
 
-    function renderRelated(items) {
-        var relatedList = document.getElementById('relatedList');
-        if (!relatedList) return;
-        relatedList.innerHTML = items.map(function(item) {
-            var title = item.vod_name || item.title || '';
-            var pic = item.vod_pic || item.pic || item.poster_url || '';
-            var remarks = item.vod_remarks || '';
-            var score = item.vod_score || '';
-            var id = item.vod_id || item.id || '';
-            return '<div class="related-card" onclick="window.location.href=\'video-player.html?id=' + id + '\'">' +
-                '<div class="related-card-img">' +
-                    (pic ? '<img src="' + pic + '" alt="' + title + '" loading="lazy">' : '<div style="background:#14141e;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:24px;"><i class="fas fa-film"></i></div>') +
-                    (remarks ? '<div class="related-card-badge">' + (score && score !== '0.0' ? '<i class="fas fa-star"></i>' + score + ' ' : '') + remarks + '</div>' : (score && score !== '0.0' ? '<div class="related-card-badge"><i class="fas fa-star"></i>' + score + '</div>' : '')) +
-                    '<div class="related-card-play"><i class="fas fa-play-circle"></i></div>' +
-                '</div>' +
-                '<div class="related-card-title">' + title + '</div>' +
-            '</div>';
-        }).join('');
+    if (playerRetryBtn) {
+        playerRetryBtn.addEventListener('click', function () {
+            hideError();
+            if (vodSources.length) playCurrentSource();
+            else if (currentUrl) initDPlayer(currentUrl);
+        });
     }
 
-    // ============ Init ============
-    if (videoId) { loadFromAPI(videoId); }
-    else { showNoVideoMessage(); }
+    if (playerNextLineBtn) {
+        playerNextLineBtn.addEventListener('click', function () {
+            hideError();
+            tryNextLine();
+        });
+    }
 
-    window.addEventListener('beforeunload', function() {
-        if (dp) { try { dp.destroy(); } catch(e) {} dp = null; }
-        destroyNativeHLS();
-        stopProgressSave();
+    if (vodSourceTabs) vodSourceTabs.style.display = 'none';
+
+    if (videoId) loadFromAPI(videoId);
+    else {
+        showNoVideoMessage();
+        loadRelatedContent();
+    }
+
+    window.addEventListener('beforeunload', function () {
+        destroyPlayer();
     });
-
-    document.oncontextmenu = function() { return false; };
-    document.addEventListener('keydown', function(e) { if ([123, 116, 85, 83].indexOf(e.keyCode) > -1) e.preventDefault(); });
 })();
 </script>
 </body>
 </html>
+

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Syn Player - Main JavaScript
  * Handles: carousel, navigation, thumbnails, video player
  */
@@ -1029,9 +1029,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============ Related Videos Sidebar ============
+    // Video player page has dedicated related rendering logic in video-player.html.
     var relatedList = document.getElementById('relatedList');
+    var relatedGrid = document.getElementById('relatedGrid');
     var currentVideoId = new URLSearchParams(window.location.search).get('id');
-    if (relatedList) {
+    if (relatedList && !relatedGrid) {
         fetch('/api/videos').then(function(r) { return r.json(); }).then(function(videos) {
             // Filter out current video, show up to 10 random related
             var related = videos.filter(function(v) { return String(v.id) !== String(currentVideoId); });
@@ -1052,3 +1054,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 });
+

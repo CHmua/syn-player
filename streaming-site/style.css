@@ -1,4 +1,4 @@
-/* ===== CSS Variables & Reset ===== */
+﻿/* ===== CSS Variables & Reset ===== */
 /* HarmonyOS Sans — Huawei's open-source font, free for commercial use */
 @font-face {
     font-family: 'HarmonyOS Sans SC';
@@ -4120,3 +4120,438 @@ img {
   color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 4px;
 }
 .password-modal-body .btn-submit:hover { background: var(--red-hover, #f40612); }
+
+/* ===== Player Page Refinement ===== */
+.player-page {
+    padding-top: 68px;
+    min-height: 100vh;
+    background: var(--bg-primary);
+}
+
+.player-page .player-shell {
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 14px 28px 40px;
+}
+
+.player-page .player-breadcrumb {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.player-page .player-breadcrumb a {
+    color: var(--text-secondary);
+    transition: color 0.2s ease;
+}
+
+.player-page .player-breadcrumb a:hover {
+    color: #ffffff;
+}
+
+.player-page .player-breadcrumb i {
+    font-size: 10px;
+    opacity: 0.65;
+}
+
+.player-page .crumb-episode {
+    margin-left: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: #fff;
+    background: rgba(229, 9, 20, 0.18);
+    border: 1px solid rgba(229, 9, 20, 0.4);
+}
+
+.player-page .player-container {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 16px;
+}
+
+.player-page .video-main {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.player-page .player-panel {
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid var(--border-medium);
+    background: var(--bg-card);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.player-page #dplayer,
+.player-page .video-main .player-error-wrap {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.player-page .video-info {
+    margin-top: 0;
+    padding: 18px;
+    border-radius: 14px;
+    border: 1px solid var(--border-medium);
+    background: var(--bg-card);
+}
+
+.player-page .video-info-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 170px;
+    gap: 16px;
+    align-items: start;
+}
+
+.player-page .video-info-content #infoPoster {
+    display: none !important;
+}
+
+.player-page .video-info h2 {
+    font-size: 38px;
+    line-height: 1.1;
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+}
+
+.player-page .video-meta {
+    margin-bottom: 14px;
+    gap: 14px;
+    font-size: 15px;
+}
+
+.player-page .video-meta span {
+    color: var(--text-secondary);
+}
+
+.player-page .video-meta .rating-badge {
+    color: #f6c94f;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.player-page .video-actions {
+    margin-bottom: 14px;
+}
+
+.player-page .video-actions button {
+    border-radius: 8px;
+    padding: 8px 14px;
+    background: var(--video-action-bg);
+    border: 1px solid var(--video-action-border);
+}
+
+.player-page .video-actions button:hover {
+    background: var(--video-action-hover);
+    border-color: var(--border-medium);
+}
+
+.player-page .video-description {
+    color: var(--text-secondary);
+    font-size: 15px;
+    line-height: 1.8;
+}
+
+.player-page .video-score-card {
+    border-radius: 12px;
+    border: 1px solid var(--border-medium);
+    background: var(--bg-secondary);
+    padding: 14px 12px;
+    text-align: center;
+    min-height: 132px;
+}
+
+.player-page .score-main {
+    font-size: 52px;
+    line-height: 1;
+    font-weight: 800;
+    color: #ffffff;
+    margin-bottom: 6px;
+}
+
+.player-page .score-stars {
+    color: #f6c94f;
+    font-size: 14px;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+}
+
+.player-page .score-votes {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.player-page .bottom-related-panel {
+    border-radius: 14px;
+    border: 1px solid var(--border-medium);
+    background: var(--bg-card);
+    padding: 14px;
+}
+
+.player-page .bottom-related-panel h4 {
+    font-size: 28px;
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+}
+
+.player-page .related-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.player-page .related-card {
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--hover-bg);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.player-page .related-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-medium);
+}
+
+.player-page .related-card img {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+}
+
+.player-page .related-card .related-card-info {
+    padding: 8px 8px 10px;
+}
+
+.player-page .related-card .related-card-title {
+    font-size: 15px;
+    line-height: 1.35;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.player-page .related-card .related-card-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.player-page .related-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: none;
+    overflow: visible;
+}
+
+.player-page .playlist-panel,
+.player-page .recommend-panel {
+    border-radius: 14px;
+    border: 1px solid var(--border-medium);
+    background: var(--bg-card);
+    padding: 14px;
+}
+
+.player-page .playlist-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.player-page .playlist-head h4,
+.player-page .recommend-panel h4 {
+    margin: 0;
+    font-size: 28px;
+}
+
+.player-page .playlist-subtitle {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.player-page .playlist-empty {
+    color: var(--text-secondary);
+    font-size: 13px;
+    padding: 10px 6px;
+}
+
+.player-page .vod-lines {
+    margin: 0;
+    padding: 0;
+}
+
+.player-page .vod-source-tabs {
+    display: none !important;
+}
+
+.player-page .vod-episode-list {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    max-height: 560px;
+    overflow-y: auto;
+    padding: 4px 2px 4px 0;
+}
+
+.player-page .vod-lines-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: 0 4px 4px;
+}
+
+.player-page .vod-line-btn {
+    width: 100%;
+    text-align: left;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    padding: 10px 12px;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    font-size: 14px;
+}
+
+.player-page .vod-line-btn:hover:not(.active) {
+    border-color: var(--red);
+    color: #ffffff;
+}
+
+.player-page .vod-line-btn.active {
+    border-color: var(--red);
+    background: rgba(229, 9, 20, 0.2);
+    color: #fff;
+}
+
+.player-page .recommend-panel .related-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.player-page .recommend-panel .related-item {
+    margin: 0;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: var(--hover-bg);
+}
+
+.player-page .recommend-panel .related-item:hover {
+    background: var(--hover-bg-strong);
+    border-color: var(--border-medium);
+}
+
+.player-page .recommend-panel .related-item img {
+    width: 92px;
+    height: 58px;
+    border-radius: 6px;
+}
+
+.player-page .recommend-panel .related-item-info h5 {
+    font-size: 15px;
+    margin-bottom: 6px;
+}
+
+.player-page .recommend-panel .related-item-info span {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.player-page .recommend-panel .related-item-score {
+    margin-left: auto;
+    align-self: center;
+    color: #f6c94f;
+    font-weight: 700;
+    font-size: 18px;
+}
+
+@media (max-width: 1240px) {
+    .player-page .player-container {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .player-page .related-sidebar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-items: start;
+    }
+}
+
+@media (max-width: 900px) {
+    .player-page .player-shell {
+        padding: 12px 14px 28px;
+    }
+    .player-page .bottom-related-panel {
+        display: none;
+    }
+    .player-page .video-info h2 {
+        font-size: 30px;
+    }
+    .player-page .video-info-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .player-page .video-score-card {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        column-gap: 12px;
+        row-gap: 3px;
+        text-align: left;
+        align-items: center;
+    }
+    .player-page .score-main {
+        grid-row: 1 / span 2;
+        margin-bottom: 0;
+        font-size: 40px;
+    }
+    .player-page .related-sidebar {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .player-page .related-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    .player-page {
+        padding-top: 54px;
+    }
+    .player-page .player-breadcrumb {
+        font-size: 12px;
+        gap: 8px;
+    }
+    .player-page .video-meta .rating-badge {
+        font-size: 20px;
+    }
+    .player-page .video-actions button {
+        padding: 7px 10px;
+        font-size: 12px;
+    }
+    .player-page .playlist-head h4,
+    .player-page .recommend-panel h4,
+    .player-page .bottom-related-panel h4 {
+        font-size: 22px;
+    }
+    .player-page .related-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .player-page .recommend-panel .related-item img {
+        width: 84px;
+        height: 52px;
+    }
+}
+
