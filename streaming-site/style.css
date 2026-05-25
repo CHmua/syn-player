@@ -488,6 +488,290 @@ img {
     color: var(--text-primary);
 }
 
+/* ===== Account Dropdown ===== */
+.account-dropdown {
+    position: relative;
+}
+
+.account-trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    height: auto;
+}
+
+.account-trigger .nav-user-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-trigger:hover .nav-user-name {
+    color: var(--text-primary);
+}
+
+/* Panel */
+.account-panel {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: -10px;
+    width: 340px;
+    background: var(--dropdown-bg);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid var(--dropdown-border);
+    border-radius: 14px;
+    box-shadow: var(--dropdown-shadow);
+    z-index: 1001;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    animation: accountPanelIn 0.2s ease;
+}
+
+@keyframes accountPanelIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.account-panel.show {
+    display: flex;
+}
+
+/* Panel header — user info when logged in */
+.account-panel-header {
+    padding: 20px 22px 14px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.account-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.account-user-info {
+    min-width: 0;
+}
+
+.account-user-info .username {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.account-user-info .email {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Panel menu items */
+.account-menu {
+    padding: 8px;
+}
+
+.account-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+}
+
+.account-menu-item:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.account-menu-item i {
+    width: 18px;
+    text-align: center;
+    font-size: 14px;
+}
+
+.account-menu-item.danger {
+    color: var(--red);
+}
+
+.account-menu-item.danger:hover {
+    background: rgba(229,9,20,0.08);
+}
+
+/* Panel — logged out tabs */
+.account-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.account-tab {
+    flex: 1;
+    padding: 14px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+    background: none;
+    font-family: inherit;
+    position: relative;
+}
+
+.account-tab:hover {
+    color: var(--text-primary);
+}
+
+.account-tab.active {
+    color: var(--text-primary);
+}
+
+.account-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32px;
+    height: 3px;
+    background: var(--red);
+    border-radius: 2px;
+}
+
+/* Panel — form */
+.account-form {
+    padding: 18px 22px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.account-form .field {
+    position: relative;
+}
+
+.account-form .field input {
+    width: 100%;
+    height: 44px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.account-form .field input::placeholder {
+    color: var(--text-muted);
+}
+
+.account-form .field input:focus {
+    border-color: var(--text-muted);
+}
+
+.account-form .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.account-form .form-msg {
+    font-size: 12px;
+    padding: 4px 0;
+    min-height: 20px;
+}
+
+.account-form .form-msg.error {
+    color: #e87c03;
+}
+
+.account-form .form-msg.success {
+    color: #2ecc71;
+}
+
+.account-btn {
+    height: 42px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    width: 100%;
+}
+
+.account-btn.primary {
+    background: var(--red);
+    color: #fff;
+}
+
+.account-btn.primary:hover {
+    background: var(--red-hover);
+}
+
+.account-form-footer {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.account-form-footer a {
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.account-form-footer a:hover {
+    color: var(--red);
+}
+
+/* Account panel backdrop */
+.account-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+}
+
+.account-backdrop.show {
+    display: block;
+}
+
 .hamburger {
     display: none;
     background: none;
@@ -2222,6 +2506,10 @@ img {
     .nav-user-name {
         display: none;
     }
+    .account-panel {
+        width: 300px;
+        right: -60px;
+    }
 }
 
 @media (max-width: 576px) {
@@ -2250,6 +2538,13 @@ img {
         width: 28px;
         height: 28px;
         font-size: 14px;
+    }
+    .account-panel {
+        width: 280px;
+        right: -80px;
+    }
+    .account-trigger .nav-user-name {
+        display: none;
     }
     .hamburger {
         width: 40px;

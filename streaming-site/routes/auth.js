@@ -6,9 +6,31 @@ const { JWT_SECRET } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Register new user — disabled for private deployment
+// Register new user
 router.post('/register', (req, res) => {
-  return res.status(403).json({ error: '暂不开放新用户注册' });
+  const { username, email, password } = req.body;
+  if (!username || !email || !password) {
+    return res.status(400).json({ error: '请填写所有字段' });
+  }
+  if (username.length < 2 || username.length > 20) {
+    return res.status(400).json({ error: '用户名需要2-20个字符' });
+  }
+  if (!/^[a-zA-Z0-9_一-龥]+$/.test(username)) {
+    return res.status(400).json({ error: '用户名只能包含中英文、数字和下划线' });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: '请输入有效的邮箱地址' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: '密码至少需要6个字符' });
+  }
+  const existing = db.prepare('SELECT id FROM users WHERE username = ? OR email = ?').get(username, email);
+  if (existing) {
+    return res.status(409).json({ error: '用户名或邮箱已被注册' });
+  }
+  const hash = bcrypt.hashSync(password, 10);
+  const result = db.prepare('INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)').run(username, email, hash);
+  res.status(201).json({ success: true, user: { id: result.lastInsertRowid, username, email } });
 });
 
 // User login

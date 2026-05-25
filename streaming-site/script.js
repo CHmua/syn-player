@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
     '</div>';
     document.body.insertAdjacentHTML('beforeend', searchOverlayHTML);
 
-    // ============ User Auth ============
+    // ============ Account Dropdown ============
     var userToken = localStorage.getItem('syn_user_token');
     var userData = null;
     try { userData = JSON.parse(localStorage.getItem('syn_user')); } catch(e) {}
@@ -39,45 +39,310 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Update navbar: show username + logout
-    var userCircleLink = document.querySelector('.nav-right a[title="登录"]');
-    if (userCircleLink && userData) {
-        userCircleLink.href = 'javascript:;';
-        userCircleLink.title = userData.username;
-        var span = document.createElement('span');
-        span.className = 'nav-user-name';
-        span.style.cssText = 'font-size:13px;margin-left:4px;';
-        span.textContent = userData.username;
-        userCircleLink.innerHTML = '<i class="fas fa-user-check"></i> ';
-        userCircleLink.appendChild(span);
-    }
+    var accountDropdown = document.getElementById('accountDropdown');
+    var accountTrigger = document.getElementById('accountTrigger');
+    var accountPanel = document.getElementById('accountPanel');
 
-    // Logout functionality
-    var logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', function() {
-            localStorage.removeItem('syn_user_token');
-            localStorage.removeItem('syn_user');
-            document.cookie = 'syn_user_token=; path=/; max-age=0';
-            window.location.href = '/';
+    if (accountDropdown && accountTrigger && accountPanel) {
+
+        // Build panel HTML
+        function buildAccountPanel() {
+            if (userData) {
+                return buildLoggedInPanel();
+            } else {
+                return buildLoggedOutPanel();
+            }
+        }
+
+        function buildLoggedInPanel() {
+            var initial = (userData.username || 'User').charAt(0).toUpperCase();
+            var html = '' +
+            '<div class="account-panel-header">' +
+            '  <div class="account-avatar">' + initial + '</div>' +
+            '  <div class="account-user-info">' +
+            '    <div class="username">' + (userData.username || 'User') + '</div>' +
+            '    <div class="email">' + (userData.email || '') + '</div>' +
+            '  </div>' +
+            '</div>' +
+            '<div class="account-menu">' +
+            '  <button class="account-menu-item" id="menuChangePwd"><i class="fas fa-key"></i> 修改密码</button>' +
+            '  <button class="account-menu-item" id="menuBookmarks"><i class="fas fa-bookmark"></i> 我的收藏</button>' +
+            '  <button class="account-menu-item" id="menuHistory"><i class="fas fa-history"></i> 观看记录</button>' +
+            '  <button class="account-menu-item danger" id="menuLogout"><i class="fas fa-sign-out-alt"></i> 退出登录</button>' +
+            '</div>';
+            return html;
+        }
+
+        function buildLoggedOutPanel() {
+            var html = '' +
+            '<div class="account-tabs">' +
+            '  <button class="account-tab active" data-tab="login">登录</button>' +
+            '  <button class="account-tab" data-tab="register">注册</button>' +
+            '</div>' +
+            '<div class="account-form" id="loginForm">' +
+            '  <div class="form-msg" id="loginMsg"></div>' +
+            '  <div class="field">' +
+            '    <input type="text" id="loginUsername" placeholder="用户名或邮箱" autocomplete="username">' +
+            '  </div>' +
+            '  <div class="field">' +
+            '    <input type="password" id="loginPassword" placeholder="密码" autocomplete="current-password">' +
+            '  </div>' +
+            '  <button class="account-btn primary" id="loginSubmit">登 录</button>' +
+            '</div>' +
+            '<div class="account-form" id="registerForm" style="display:none;">' +
+            '  <div class="form-msg" id="registerMsg"></div>' +
+            '  <div class="field">' +
+            '    <input type="text" id="regUsername" placeholder="用户名" autocomplete="username">' +
+            '  </div>' +
+            '  <div class="field">' +
+            '    <input type="email" id="regEmail" placeholder="邮箱" autocomplete="email">' +
+            '  </div>' +
+            '  <div class="field">' +
+            '    <input type="password" id="regPassword" placeholder="密码（至少6位）" autocomplete="new-password">' +
+            '  </div>' +
+            '  <button class="account-btn primary" id="registerSubmit">注 册</button>' +
+            '</div>';
+            return html;
+        }
+
+        // Render
+        function renderPanel() {
+            accountPanel.innerHTML = buildAccountPanel();
+            bindPanelEvents();
+        }
+
+        // Toggle panel
+        function openPanel() {
+            renderPanel();
+            accountPanel.classList.add('show');
+            if (backdrop) backdrop.classList.add('show');
+        }
+
+        function closePanel() {
+            accountPanel.classList.remove('show');
+            if (backdrop) backdrop.classList.remove('show');
+        }
+
+        function togglePanel() {
+            if (accountPanel.classList.contains('show')) {
+                closePanel();
+            } else {
+                openPanel();
+            }
+        }
+
+        accountTrigger.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            togglePanel();
+        });
+
+        // Backdrop for outside click
+        var backdrop = document.querySelector('.account-backdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.className = 'account-backdrop';
+            document.body.appendChild(backdrop);
+        }
+
+        backdrop.addEventListener('click', closePanel);
+
+        document.addEventListener('click', function(e) {
+            if (accountPanel.classList.contains('show') &&
+                !accountDropdown.contains(e.target)) {
+                closePanel();
+            }
+        });
+
+        // Update trigger appearance
+        function updateTrigger() {
+            if (!accountTrigger) return;
+            if (userData) {
+                var initial = (userData.username || 'U').charAt(0).toUpperCase();
+                accountTrigger.innerHTML = '<i class="fas fa-user-check"></i>' +
+                    '<span class="nav-user-name">' + (userData.username || '') + '</span>';
+                accountTrigger.title = userData.username;
+            } else {
+                accountTrigger.innerHTML = '<i class="fas fa-user-circle"></i>';
+                accountTrigger.title = '账户';
+            }
+        }
+        updateTrigger();
+
+        // Bind events after render
+        function bindPanelEvents() {
+            // Tab switching
+            var tabs = accountPanel.querySelectorAll('.account-tab');
+            var loginForm = document.getElementById('loginForm');
+            var registerForm = document.getElementById('registerForm');
+
+            tabs.forEach(function(tab) {
+                tab.addEventListener('click', function() {
+                    tabs.forEach(function(t) { t.classList.remove('active'); });
+                    tab.classList.add('active');
+                    var target = tab.getAttribute('data-tab');
+                    if (target === 'login') {
+                        if (loginForm) loginForm.style.display = 'flex';
+                        if (registerForm) registerForm.style.display = 'none';
+                    } else {
+                        if (loginForm) loginForm.style.display = 'none';
+                        if (registerForm) registerForm.style.display = 'flex';
+                    }
+                    // Clear messages
+                    var msg = document.getElementById('loginMsg');
+                    if (msg) { msg.className = 'form-msg'; msg.textContent = ''; }
+                    msg = document.getElementById('registerMsg');
+                    if (msg) { msg.className = 'form-msg'; msg.textContent = ''; }
+                });
+            });
+
+            // Login submit
+            var loginSubmit = document.getElementById('loginSubmit');
+            if (loginSubmit) {
+                loginSubmit.addEventListener('click', function() {
+                    var username = document.getElementById('loginUsername').value.trim();
+                    var password = document.getElementById('loginPassword').value;
+                    var msg = document.getElementById('loginMsg');
+                    if (!username || !password) {
+                        msg.className = 'form-msg error';
+                        msg.textContent = '请输入用户名和密码';
+                        return;
+                    }
+                    loginSubmit.disabled = true;
+                    loginSubmit.textContent = '登录中...';
+                    fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: username, password: password })
+                    }).then(function(resp) { return resp.json(); })
+                      .then(function(data) {
+                        if (data.token) {
+                            msg.className = 'form-msg success';
+                            msg.textContent = '登录成功';
+                            localStorage.setItem('syn_user_token', data.token);
+                            localStorage.setItem('syn_user', JSON.stringify(data.user));
+                            document.cookie = 'syn_user_token=' + data.token + '; path=/; max-age=604800; SameSite=Lax';
+                            userToken = data.token;
+                            userData = data.user;
+                            updateTrigger();
+                            setTimeout(function() {
+                                closePanel();
+                                window.location.reload();
+                            }, 600);
+                        } else {
+                            msg.className = 'form-msg error';
+                            msg.textContent = data.error || '登录失败';
+                            loginSubmit.disabled = false;
+                            loginSubmit.textContent = '登 录';
+                        }
+                    }).catch(function() {
+                        msg.className = 'form-msg error';
+                        msg.textContent = '网络错误，请重试';
+                        loginSubmit.disabled = false;
+                        loginSubmit.textContent = '登 录';
+                    });
+                });
+            }
+
+            // Register submit
+            var registerSubmit = document.getElementById('registerSubmit');
+            if (registerSubmit) {
+                registerSubmit.addEventListener('click', function() {
+                    var username = document.getElementById('regUsername').value.trim();
+                    var email = document.getElementById('regEmail').value.trim();
+                    var password = document.getElementById('regPassword').value;
+                    var msg = document.getElementById('registerMsg');
+                    if (!username || !email || !password) {
+                        msg.className = 'form-msg error';
+                        msg.textContent = '请填写所有字段';
+                        return;
+                    }
+                    if (password.length < 6) {
+                        msg.className = 'form-msg error';
+                        msg.textContent = '密码至少需要6个字符';
+                        return;
+                    }
+                    registerSubmit.disabled = true;
+                    registerSubmit.textContent = '注册中...';
+                    fetch('/api/auth/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: username, email: email, password: password })
+                    }).then(function(resp) { return resp.json(); })
+                      .then(function(data) {
+                        if (data.success) {
+                            msg.className = 'form-msg success';
+                            msg.textContent = '注册成功，请登录';
+                            registerSubmit.disabled = false;
+                            registerSubmit.textContent = '注 册';
+                            // Switch to login tab
+                            setTimeout(function() {
+                                var loginTab = accountPanel.querySelector('.account-tab[data-tab="login"]');
+                                if (loginTab) loginTab.click();
+                                var loginUser = document.getElementById('loginUsername');
+                                if (loginUser) loginUser.value = username;
+                            }, 800);
+                        } else {
+                            msg.className = 'form-msg error';
+                            msg.textContent = data.error || '注册失败';
+                            registerSubmit.disabled = false;
+                            registerSubmit.textContent = '注 册';
+                        }
+                    }).catch(function() {
+                        msg.className = 'form-msg error';
+                        msg.textContent = '网络错误，请重试';
+                        registerSubmit.disabled = false;
+                        registerSubmit.textContent = '注 册';
+                    });
+                });
+            }
+
+            // Logged-in menu items
+            var menuLogout = document.getElementById('menuLogout');
+            if (menuLogout) {
+                menuLogout.addEventListener('click', function() {
+                    localStorage.removeItem('syn_user_token');
+                    localStorage.removeItem('syn_user');
+                    document.cookie = 'syn_user_token=; path=/; max-age=0';
+                    window.location.href = '/';
+                });
+            }
+
+            var menuChangePwd = document.getElementById('menuChangePwd');
+            if (menuChangePwd) {
+                menuChangePwd.addEventListener('click', function() {
+                    closePanel();
+                    // Trigger existing password modal
+                    setTimeout(function() {
+                        var pwModal = document.getElementById('passwordModal');
+                        if (pwModal) pwModal.style.display = 'flex';
+                    }, 200);
+                });
+            }
+        }
+
+        // Initial render for when panel opens
+        renderPanel();
+
+        // Keyboard: Enter to submit
+        accountPanel.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                var loginForm = document.getElementById('loginForm');
+                var registerForm = document.getElementById('registerForm');
+                if (loginForm && loginForm.style.display !== 'none') {
+                    var btn = document.getElementById('loginSubmit');
+                    if (btn) btn.click();
+                } else if (registerForm && registerForm.style.display !== 'none') {
+                    var btn = document.getElementById('registerSubmit');
+                    if (btn) btn.click();
+                }
+            }
         });
     }
 
-    // Inject password change modal & button (shared across all pages)
+    // ============ Password Change Modal ============
     (function initPasswordChange() {
         if (!userToken) return;
-        // Inject button into nav
-        var navRight = document.querySelector('.nav-right');
-        if (navRight && !document.getElementById('passwordBtn')) {
-            var pwBtn = document.createElement('button');
-            pwBtn.id = 'passwordBtn';
-            pwBtn.className = 'nav-icon';
-            pwBtn.title = '修改密码';
-            pwBtn.style.cssText = 'background:none;border:none;cursor:pointer;';
-            pwBtn.innerHTML = '<i class="fas fa-key" style="color:#ffa500;"></i>';
-            navRight.appendChild(pwBtn);
-        }
-        // Inject modal if not present
         if (!document.getElementById('passwordModal')) {
             var modalHTML = '' +
             '<div class="password-modal-overlay" id="passwordModal" style="display:none;">' +
@@ -97,21 +362,10 @@ document.addEventListener('DOMContentLoaded', function() {
             '</div>';
             document.body.insertAdjacentHTML('beforeend', modalHTML);
         }
-        // Wire up events
         setTimeout(function() {
-            var btn = document.getElementById('passwordBtn');
             var modal = document.getElementById('passwordModal');
-            if (!btn || !modal) return;
-            if (btn._wired) return;
-            btn._wired = true;
-            btn.addEventListener('click', function() {
-                modal.style.display = 'flex';
-                var msg = document.getElementById('passwordMsg');
-                msg.className = 'password-msg'; msg.textContent = '';
-                document.getElementById('currentPassword').value = '';
-                document.getElementById('newPassword').value = '';
-                document.getElementById('confirmPassword').value = '';
-            });
+            if (!modal || modal._wired) return;
+            modal._wired = true;
             document.getElementById('passwordModalClose').addEventListener('click', function() {
                 modal.style.display = 'none';
             });

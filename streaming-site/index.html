@@ -107,12 +107,12 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         <button class="nav-icon theme-toggle" id="themeToggle" title="切换主题">
             <i class="fas fa-moon"></i>
         </button>
-        <a href="/login" class="nav-icon" title="登录">
-            <i class="fas fa-user-circle"></i>
-        </a>
-        <button class="nav-icon" id="logoutBtn" title="退出登录" style="background:none;border:none;cursor:pointer;">
-            <i class="fas fa-sign-out-alt" style="color:#e50914;"></i>
-        </button>
+        <div class="account-dropdown" id="accountDropdown">
+            <button class="nav-icon account-trigger" id="accountTrigger" title="账户">
+                <i class="fas fa-user-circle"></i>
+            </button>
+            <div class="account-panel" id="accountPanel"></div>
+        </div>
     </div>
 </nav>
 
