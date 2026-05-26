@@ -1216,6 +1216,22 @@ document.addEventListener('DOMContentLoaded', function() {
     loadCarousel();
     loadSections();
 
+    // ============ Category Navigation Bar ============
+    var catNav = document.getElementById('categoryNav');
+    if (catNav) {
+        catNav.querySelectorAll('.cat-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                var targetId = this.getAttribute('data-target');
+                var target = document.getElementById(targetId);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                catNav.querySelectorAll('.cat-item').forEach(function(c) { c.classList.remove('active'); });
+                this.classList.add('active');
+            });
+        });
+    }
+
     // ============ Scroll Arrows for all iQiyi-style sections ============
     function setupAllScrollArrows() {
         var wraps = document.querySelectorAll('.section-trending-iqiyi .thumb-scroll-wrap');
