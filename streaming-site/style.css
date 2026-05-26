@@ -821,12 +821,17 @@ img {
 }
 
 .hamburger {
-    display: none;
+    display: none !important;
     background: none;
     border: none;
     color: var(--text-primary);
     font-size: 24px;
     cursor: pointer;
+}
+
+/* Prevent mobile nav menu from sliding open — bottom nav handles mobile navigation */
+.nav-menu.open {
+    transform: translateX(-100%) !important;
 }
 
 /* Search Box (inline) */
@@ -2462,15 +2467,6 @@ img {
 }
 
 @media (max-width: 1100px) {
-    .hamburger {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 44px;
-        height: 44px;
-        font-size: 22px;
-        flex-shrink: 0;
-    }
     .nav-menu {
         position: fixed;
         top: 68px;
@@ -2486,9 +2482,6 @@ img {
         transition: transform 0.3s ease;
         overflow-y: auto;
         z-index: 999;
-    }
-    .nav-menu.open {
-        transform: translateX(0);
     }
     .nav-menu > li {
         width: 100%;
@@ -2582,9 +2575,6 @@ img {
     .footer-middle {
         grid-template-columns: 1fr;
     }
-
-    .hamburger { display: none !important; }
-    .nav-menu.open { transform: translateX(-100%) !important; }
 }
 
 @media (max-width: 640px) {
