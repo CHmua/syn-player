@@ -54,6 +54,26 @@ app.get('/video-player.html', userAuthMiddleware, (req, res) => res.sendFile(pat
 app.get('/news.html', userAuthMiddleware, (req, res) => res.sendFile(path.join(__dirname, 'news.html')));
 app.get('/browse.html', userAuthMiddleware, (req, res) => res.sendFile(path.join(__dirname, 'browse.html')));
 app.get('/series.html', userAuthMiddleware, (req, res) => res.sendFile(path.join(__dirname, 'series.html')));
+app.get('/live-tv.html', userAuthMiddleware, (req, res) => res.sendFile(path.join(__dirname, 'live-tv.html')));
+
+// Block direct .html access — any HTML file not already handled above
+// must still require auth (prevents static middleware bypass)
+app.use((req, res, next) => {
+  if (req.path.match(/\.html$/i) && req.path !== '/login.html') {
+    return userAuthMiddleware(req, res, next);
+  }
+  next();
+});
+
+// Block access to sensitive files (database, config, source)
+app.use((req, res, next) => {
+  var blocked = /\.(db|db-shm|db-wal|env|sql|sqlite)$/i;
+  var blockedExact = /^\/(package\.json|package-lock\.json|server\.js|Dockerfile|\.git)/i;
+  if (blocked.test(req.path) || blockedExact.test(req.path)) {
+    return res.status(404).send('Not Found');
+  }
+  next();
+});
 
 // Serve static files (CSS, JS, images, etc.) — AFTER routes so auth checks run first
 app.use(express.static(__dirname, { index: false }));

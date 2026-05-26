@@ -36,4 +36,23 @@ function userAuthMiddleware(req, res, next) {
   }
 }
 
-module.exports = { authMiddleware, userAuthMiddleware, JWT_SECRET };
+// API auth — accepts user cookie OR Bearer token (user or admin), returns JSON
+function apiAuthMiddleware(req, res, next) {
+  let token = null;
+  if (req.cookies && req.cookies.syn_user_token) {
+    token = req.cookies.syn_user_token;
+  } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    token = req.headers.authorization.slice(7);
+  }
+  if (!token) {
+    return res.status(401).json({ error: '未登录' });
+  }
+  try {
+    jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
+    return res.status(401).json({ error: '登录已过期' });
+  }
+}
+
+module.exports = { authMiddleware, userAuthMiddleware, apiAuthMiddleware, JWT_SECRET };

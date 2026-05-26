@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const axios = require('axios');
 const db = require('../database');
-const { authMiddleware, JWT_SECRET } = require('../middleware/auth');
+const { authMiddleware, apiAuthMiddleware, JWT_SECRET } = require('../middleware/auth');
 const { heartbeat, getOnlineCount } = require('../middleware/online');
 const { dedupVods, normalizeTitle } = require('../utils/dedup');
 
@@ -34,7 +34,7 @@ function cleanTitle(raw) {
 }
 
 // Get all categories — homepage sections first, then any additional from DB
-router.get('/categories', (req, res) => {
+router.get('/categories', apiAuthMiddleware, (req, res) => {
   const homepageSections = [
     { value: 'trendingMovies', label: '热门电影' },
     { value: 'trendingTV', label: '热门电视剧' },
@@ -89,7 +89,7 @@ function getCategoryCondition(category) {
   return { sql: `type_name IN (${placeholders})`, params: types };
 }
 
-router.get('/videos', async (req, res) => {
+router.get('/videos', apiAuthMiddleware, async (req, res) => {
   const { category, search, limit, featured, page } = req.query;
   const limitNum = parseInt(limit) || (category === 'moreRecommend' ? 400 : 200);
   const featuredOnly = featured === '1';
@@ -223,14 +223,32 @@ router.get('/videos', async (req, res) => {
     // Both DBs unavailable
   }
 
-  // Enrich VODs with TMDB posters (cached, skips already-enriched)
+  // Enrich VODs with Douban posters first (works in China), TMDB as fallback
   try {
-    const { enrichVods } = require('../services/tmdb');
-    vodRows = await enrichVods(vodRows);
+    const { enrichVods: enrichDouban } = require('../services/douban');
+    const { isAvailable: tmdbAvailable, enrichVods: enrichTMDB } = require('../services/tmdb');
+    // Douban first (works in China without proxy)
+    vodRows = await enrichDouban(vodRows);
+    // TMDB fallback for any VODs still missing posters
+    if (tmdbAvailable()) {
+      const needPoster = vodRows.filter(v => !v.poster || v.poster === '');
+      if (needPoster.length > 0) {
+        const tmdbEnriched = await enrichTMDB(needPoster);
+        // Merge back
+        for (let i = 0, j = 0; i < vodRows.length && j < needPoster.length; i++) {
+          if (!vodRows[i].poster || vodRows[i].poster === '') {
+            if (tmdbEnriched[j] && tmdbEnriched[j].poster) {
+              vodRows[i] = { ...vodRows[i], ...tmdbEnriched[j] };
+            }
+            j++;
+          }
+        }
+      }
+    }
     // Sync poster_url from enriched poster
     vodRows = vodRows.map(v => ({ ...v, poster_url: posterProxyUrl(v.poster || v.poster_url || '') }));
   } catch (err) {
-    console.error('[API] TMDB enrich error:', err.message);
+    console.error('[API] Enrich error:', err.message);
   }
 
   // Dedup VODs internally first (merge year/lang variants of same title)
@@ -272,7 +290,7 @@ router.get('/videos', async (req, res) => {
 });
 
 // Get single video (checks videos table, then vods in SQLite, then MySQL)
-router.get('/videos/:id', async (req, res) => {
+router.get('/videos/:id', apiAuthMiddleware, async (req, res) => {
   const id = req.params.id;
 
   // 1. Try admin-managed videos table (SQLite)
@@ -549,7 +567,7 @@ async function softDeleteMySQLVod(title) {
 // ===== Series / Season Grouping =====
 
 // List all series (distinct series_title with video count)
-router.get('/series', (req, res) => {
+router.get('/series', apiAuthMiddleware, (req, res) => {
   const series = db.prepare(`
     SELECT series_title, COUNT(*) as video_count, MAX(poster_url) as poster_url, MAX(year) as year, MAX(category) as category
     FROM videos WHERE series_title != '' AND series_title IS NOT NULL
@@ -559,7 +577,7 @@ router.get('/series', (req, res) => {
 });
 
 // Get series detail — all seasons with episodes
-router.get('/series/:encodedTitle', (req, res) => {
+router.get('/series/:encodedTitle', apiAuthMiddleware, (req, res) => {
   const title = decodeURIComponent(req.params.encodedTitle);
   const videos = db.prepare(`
     SELECT * FROM videos WHERE series_title = ? ORDER BY season_label, sort_order, id
@@ -781,7 +799,7 @@ router.post('/online/heartbeat', (req, res) => {
 });
 
 // Search movie poster via Bing image search
-router.get('/search-poster', async (req, res) => {
+router.get('/search-poster', apiAuthMiddleware, async (req, res) => {
   const title = req.query.title;
   if (!title) return res.status(400).json({ error: 'title required' });
 
@@ -920,45 +938,22 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
     // Step 3: Use the matching title for metadata search
     const searchTitle = vodMatch ? (vodMatch.vod_name || title) : title;
 
-    // Step 4: TMDB metadata (best poster quality + full metadata)
+    // Step 4: Douban metadata (works in China, no proxy needed)
     try {
-      const { searchMovieFull: searchTMDB } = require('../services/tmdb');
-      const tmdbResult = await searchTMDB(searchTitle, year);
-      if (tmdbResult) {
-        best = {
-          title: cleanTitle(tmdbResult.title || searchTitle),
-          poster: tmdbResult.poster || '',
-          backdrop_url: tmdbResult.backdrop_w1280 || tmdbResult.backdrop || '',
-          year: tmdbResult.year || '',
-          rating: tmdbResult.rating || '',
-          genre: tmdbResult.genre || '',
-          description: tmdbResult.description || '',
-          director: tmdbResult.director || '',
-          actors: tmdbResult.actors || '',
-          douban_id: '',
-          tmdb_id: tmdbResult.tmdb_id || ''
-        };
-        if (tmdbResult.duration) best.duration = tmdbResult.duration;
-      }
-    } catch { /* TMDB optional */ }
-
-    // Step 5: Douban fallback if TMDB found nothing or no poster
-    if (!best || !best.poster) {
-      try {
-        const { searchMovie, getMobileSubjectDetail } = require('../services/douban');
-        const result = await searchMovie(searchTitle, year);
-        if (result && result.douban_id) {
-          const dbEntry = {
-            title: cleanTitle(preferChineseTitle(result.title, searchTitle)),
-            poster: result.poster || '',
-            year: result.year || '',
-            rating: result.rating || '',
-            genre: '',
-            description: result.description || '',
-            director: result.director || '',
-            actors: result.actors || '',
-            douban_id: result.douban_id,
-            tmdb_id: ''
+      const { searchMovie, getMobileSubjectDetail } = require('../services/douban');
+      const result = await searchMovie(searchTitle, year);
+      if (result && result.douban_id) {
+        const dbEntry = {
+          title: cleanTitle(preferChineseTitle(result.title, searchTitle)),
+          poster: result.poster || '',
+          year: result.year || '',
+          rating: result.rating || '',
+          genre: '',
+          description: result.description || '',
+          director: result.director || '',
+          actors: result.actors || '',
+          douban_id: result.douban_id,
+          tmdb_id: ''
           };
           try {
             const mobileDetail = await getMobileSubjectDetail(result.douban_id);
@@ -981,6 +976,37 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
           }
         }
       } catch {}
+
+    // Step 5: TMDB fallback if Douban found nothing or no poster
+    if (!best || !best.poster) {
+      try {
+        const { searchMovieFull: searchTMDB } = require('../services/tmdb');
+        const tmdbResult = await searchTMDB(searchTitle, year);
+        if (tmdbResult) {
+          const tmdbEntry = {
+            title: cleanTitle(tmdbResult.title || searchTitle),
+            poster: tmdbResult.poster || '',
+            backdrop_url: tmdbResult.backdrop_w1280 || tmdbResult.backdrop || '',
+            year: tmdbResult.year || '',
+            rating: tmdbResult.rating || '',
+            genre: tmdbResult.genre || '',
+            description: tmdbResult.description || '',
+            director: tmdbResult.director || '',
+            actors: tmdbResult.actors || '',
+            douban_id: '',
+            tmdb_id: tmdbResult.tmdb_id || ''
+          };
+          if (tmdbResult.duration) tmdbEntry.duration = tmdbResult.duration;
+          if (!best) { best = tmdbEntry; }
+          else {
+            if (!best.poster && tmdbEntry.poster) best.poster = tmdbEntry.poster;
+            if (!best.year && tmdbEntry.year) best.year = tmdbEntry.year;
+            if (!best.rating && tmdbEntry.rating) best.rating = tmdbEntry.rating;
+            if (!best.genre && tmdbEntry.genre) best.genre = tmdbEntry.genre;
+            if (!best.description && tmdbEntry.description) best.description = tmdbEntry.description;
+          }
+        }
+      } catch { /* TMDB optional */ }
     }
 
     // Step 6: Attach video source URL from AppleCMS/local match
@@ -1006,7 +1032,7 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
 let enrichRunning = false;
 let enrichProgress = { total: 0, done: 0, updated: 0, failed: 0, current: '' };
 
-// Batch auto-fill: enrich videos + VODs — TMDB first, Douban fallback
+// Batch auto-fill: enrich videos + VODs — Douban first (works in China), TMDB fallback
 // Runs in background; check GET /api/batch-auto-fill/status for progress
 router.post('/batch-auto-fill', authMiddleware, async (req, res) => {
   if (enrichRunning) {
@@ -1019,7 +1045,8 @@ router.post('/batch-auto-fill', authMiddleware, async (req, res) => {
   // Start background work (don't await — return immediately)
   (async () => {
     try {
-      const { searchMovie: tmdbSearch } = require('../services/tmdb');
+      const { searchMovie: doubanSearch } = require('../services/douban');
+      const { searchMovie: tmdbSearch, isAvailable: tmdbAvailable } = require('../services/tmdb');
 
       // Get admin videos needing enrichment
       const videos = db.prepare(`
@@ -1048,7 +1075,7 @@ router.post('/batch-auto-fill', authMiddleware, async (req, res) => {
 
       const allItems = [...videos, ...vods];
       enrichProgress.total = allItems.length;
-      console.log('[Batch] Starting TMDB enrichment of', allItems.length, 'items (', videos.length, 'videos +', vods.length, 'VODs)');
+      console.log('[Batch] Starting Douban enrichment of', allItems.length, 'items (', videos.length, 'videos +', vods.length, 'VODs)');
 
       for (const v of allItems) {
         if (!enrichRunning) break; // Allow cancellation
@@ -1077,21 +1104,39 @@ router.post('/batch-auto-fill', authMiddleware, async (req, res) => {
         let best = null;
 
         try {
-          // TMDB movie search
+          // Douban search first (works in China, no proxy needed)
           try {
-            const tmdbResult = await Promise.race([
-              tmdbSearch(searchTitle),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+            const doubanResult = await Promise.race([
+              doubanSearch(searchTitle),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
             ]);
-            if (tmdbResult && tmdbResult.poster_path) {
+            if (doubanResult && doubanResult.poster) {
               best = {
-                poster: 'https://image.tmdb.org/t/p/w500' + tmdbResult.poster_path,
-                year: (tmdbResult.release_date || '').substring(0, 4),
-                rating: tmdbResult.vote_average ? String(Math.round(tmdbResult.vote_average * 10) / 10) : '',
-                description: tmdbResult.overview || '',
+                poster: doubanResult.poster,
+                year: doubanResult.year || '',
+                rating: doubanResult.rating || '',
+                description: doubanResult.description || '',
               };
             }
           } catch {}
+
+          // TMDB fallback if Douban found nothing and TMDB is available
+          if (!best && tmdbAvailable()) {
+            try {
+              const tmdbResult = await Promise.race([
+                tmdbSearch(searchTitle),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+              ]);
+              if (tmdbResult && tmdbResult.poster_path) {
+                best = {
+                  poster: 'https://image.tmdb.org/t/p/w500' + tmdbResult.poster_path,
+                  year: (tmdbResult.release_date || '').substring(0, 4),
+                  rating: tmdbResult.vote_average ? String(Math.round(tmdbResult.vote_average * 10) / 10) : '',
+                  description: tmdbResult.overview || '',
+                };
+              }
+            } catch {}
+          }
 
           if (best) {
             const fields = [];
@@ -1130,8 +1175,8 @@ router.post('/batch-auto-fill', authMiddleware, async (req, res) => {
           enrichProgress.failed++;
         }
 
-        // 300ms between TMDB API calls (~40 req/10s, well under rate limit)
-        await new Promise(r => setTimeout(r, 300));
+        // 500ms between Douban calls (scraper-friendly, avoids rate limiting)
+        await new Promise(r => setTimeout(r, 500));
 
         if (enrichProgress.done % 20 === 0) {
           console.log('[Batch] Progress:', enrichProgress.done, '/', enrichProgress.total, 'updated:', enrichProgress.updated);
