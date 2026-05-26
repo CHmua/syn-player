@@ -138,7 +138,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         <a href="javascript:;" class="cat-item" data-target="trendingAnime"><i class="fas fa-laptop"></i> 动漫</a>
         <a href="javascript:;" class="cat-item" data-target="trendingVariety"><i class="fas fa-th-large"></i> 综艺</a>
         <a href="javascript:;" class="cat-item" data-target="liveTV"><i class="fas fa-play-circle"></i> 记录解说</a>
-        <a href="javascript:;" class="cat-item" data-target="newsSection"><i class="fas fa-newspaper"></i> 资讯</a>
+        <a href="news.html" class="cat-item" data-target=""><i class="fas fa-newspaper"></i> 资讯</a>
     </div>
 </nav>
 
@@ -195,16 +195,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             <a href="browse.html?section=liveTV&title=记录解说" class="more-link">更多内容 <i class="fas fa-chevron-right"></i></a>
         </div>
         <div class="thumb-grid" id="liveTV"></div>
-    </section>
-    <!-- 资讯 -->
-    <section class="section section-news-home" id="newsSection">
-        <div class="section-header">
-            <h3><i class="fas fa-newspaper" style="color:var(--red);margin-right:8px;"></i>猫眼资讯</h3>
-            <a href="news.html" class="more-link">更多资讯 <i class="fas fa-chevron-right"></i></a>
-        </div>
-        <div class="news-home-grid" id="newsHomeGrid">
-            <div class="news-loading"><div class="loading-spinner"></div><p>正在加载猫眼电影资讯...</p></div>
-        </div>
     </section>
 
     <section class="section section-more-recommend">
