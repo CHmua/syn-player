@@ -234,6 +234,13 @@ body {
   padding: 10px 12px;
   font-size: 14px;
   outline: none;
+  font-family: inherit;
+}
+
+.form-group textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 80px;
 }
 
 .toolbar input:focus,
@@ -741,6 +748,15 @@ tbody tr:hover {
 
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  .form-row.cols-4 {
+    flex-wrap: wrap;
+  }
+
+  .form-row.cols-4 .form-group {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 140px;
   }
 
   .form-row,
