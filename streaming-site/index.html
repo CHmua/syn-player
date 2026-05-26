@@ -2,9 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <title>Syn Player - 在线视频播放平台</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="mobile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.css">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -134,7 +135,6 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     <section class="section section-trending-iqiyi section-home-posters section-hot-recommend">
         <div class="section-header">
             <h3>热门推荐</h3>
-            <a href="browse.html?section=moreRecommend&title=热门推荐" class="more-link">更多 <i class="fas fa-chevron-right"></i></a>
         </div>
         <div class="thumb-grid" id="hotRecommend"></div>
     </section>
@@ -326,8 +326,34 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     </div>
 </footer>
 
+<!-- ===== Mobile Bottom Navigation ===== -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav">
+    <a href="index.html" class="mobile-nav-item active">
+        <i class="fas fa-home"></i>
+        <span>首页</span>
+    </a>
+    <a href="browse.html?section=trendingMovies&title=电影" class="mobile-nav-item">
+        <i class="fas fa-film"></i>
+        <span>电影</span>
+    </a>
+    <a href="series.html" class="mobile-nav-item">
+        <i class="fas fa-tv"></i>
+        <span>剧集</span>
+    </a>
+    <a href="browse.html?section=trendingAnime&title=动漫" class="mobile-nav-item">
+        <i class="fas fa-laptop"></i>
+        <span>动漫</span>
+    </a>
+    <a href="news.html" class="mobile-nav-item">
+        <i class="fas fa-newspaper"></i>
+        <span>资讯</span>
+    </a>
+</nav>
+
+<script src="server-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.js"></script>
 <script src="script.js"></script>
+<script src="capacitor-init.js"></script>
 </body>
 </html>
 

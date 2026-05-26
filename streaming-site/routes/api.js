@@ -102,7 +102,9 @@ router.get('/videos', apiAuthMiddleware, async (req, res) => {
   // ============================================================
   let adminRows;
   if (featuredOnly) {
-    adminRows = db.prepare('SELECT * FROM videos WHERE featured = 1 ORDER BY sort_order').all();
+    adminRows = db.prepare(`SELECT * FROM videos WHERE featured = 1 ORDER BY
+      CASE WHEN CAST(badge AS INTEGER) > 0 AND badge = CAST(CAST(badge AS INTEGER) AS TEXT)
+           THEN CAST(badge AS INTEGER) ELSE 999 END ASC, sort_order ASC`).all();
   } else if (search) {
     adminRows = db.prepare('SELECT * FROM videos WHERE title LIKE ? ORDER BY sort_order').all(`%${search}%`);
   } else if (category) {
