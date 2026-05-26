@@ -786,6 +786,63 @@ document.addEventListener('DOMContentLoaded', function() {
     // Carousel is loaded dynamically from API — see loadCarousel() above
 
     // ============ Load Content from API ============
+    // Render Hot Movies hero + ranked list layout
+    function renderHotMoviesLayout(videos) {
+        if (!videos.length) return '<p style="color:#999;padding:20px;">暂无内容</p>';
+        var hero = videos[0];
+        var heroImg = hero.backdrop_url || hero.poster_url || '';
+        var heroTitle = hero.title || hero.vod_name || '未知影片';
+        var heroDesc = hero.description || hero.vod_content || '';
+        var heroYear = hero.year || hero.vod_year || '';
+        var heroGenre = hero.genre || hero.vod_type || hero.type_name || '';
+        var heroRating = parseFloat(hero.rating || hero.douban_rating || hero.vod_score || 0);
+        var heroId = hero.vod_id || hero.id || '';
+
+        var html = '';
+        // Hero card
+        html += '<div class="hot-movies-hero" onclick="location.href=\'video-player.html?id=' + heroId + '\'">';
+        if (heroImg) {
+            html += '<img class="hot-movies-hero-bg" src="' + escapeHtml(heroImg) + '" alt="' + heroTitle + '" loading="lazy" onerror="this.style.opacity=\'0\'">';
+        }
+        html += '<div class="hot-movies-hero-overlay"></div>';
+        html += '<div class="hot-movies-hero-info">';
+        html += '<span class="hero-badge"><i class="fas fa-fire"></i> 热播</span>';
+        html += '<h3>' + heroTitle + '</h3>';
+        html += '<div class="hero-meta">' + [heroYear, heroGenre, heroRating > 0 ? '<i class="fas fa-star" style="color:#f5c518;font-size:11px;"></i> ' + heroRating.toFixed(1) : ''].filter(Boolean).join(' / ') + '</div>';
+        if (heroDesc) {
+            html += '<div class="hero-desc">' + heroDesc.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().substring(0, 120) + '</div>';
+        }
+        html += '</div></div>';
+
+        // Ranked list
+        html += '<div class="hot-movies-list">';
+        var list = videos.slice(1, 10);
+        list.forEach(function(v, i) {
+            var poster = v.poster_url || v.poster || '';
+            var title = v.title || v.vod_name || '未知';
+            var year = v.year || v.vod_year || '';
+            var type = v.vod_type || v.type_name || '';
+            var score = parseFloat(v.rating || v.douban_rating || v.vod_score || 0);
+            var vid = v.vod_id || v.id || '';
+            var num = i + 2; // rank starts from 2
+
+            html += '<div class="hot-movie-rank-item" onclick="location.href=\'video-player.html?id=' + vid + '\'">';
+            html += '<span class="hot-movie-rank-num">' + (num < 10 ? '0' + num : num) + '</span>';
+            html += '<img class="hot-movie-rank-poster" src="' + escapeHtml(poster || '/api/vod/image-proxy?fallback=1') + '" alt="' + title + '" loading="lazy" onerror="this.onerror=null;this.src=\'/api/vod/image-proxy?fallback=1\';">';
+            html += '<div class="hot-movie-rank-info">';
+            html += '<div class="rank-title">' + title + '</div>';
+            html += '<div class="rank-meta">' + [year, type].filter(Boolean).join(' / ') + '</div>';
+            html += '</div>';
+            if (score > 0) {
+                html += '<span class="hot-movie-rank-score"><i class="fas fa-star"></i> ' + score.toFixed(1) + '</span>';
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+
+        return html;
+    }
+
     function renderVideoCard(video, opts) {
         opts = opts || {};
         var useBackdrop = opts.useBackdrop;
@@ -1144,12 +1201,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 var rendered = videos.slice(0, limit);
                 // Only track actually-rendered IDs so moreRecommend still has items to show
                 rendered.forEach(function(v) { shownIds.add(String(v.vod_id || v.id)); });
-                container.innerHTML = rendered.map(function(v, i) {
-                    return renderVideoCard(v, {
-                        useBackdrop: useBackdrop,
-                        rankNumber: sectionId === 'hotRecommend' ? (i + 1) : null
-                    });
-                }).join('');
+                if (sectionId === 'trendingMovies') {
+                    container.innerHTML = renderHotMoviesLayout(videos.slice(0, 10));
+                } else {
+                    container.innerHTML = rendered.map(function(v, i) {
+                        return renderVideoCard(v, {
+                            useBackdrop: useBackdrop,
+                            rankNumber: sectionId === 'hotRecommend' ? (i + 1) : null
+                        });
+                    }).join('');
+                }
             }).catch(function() {
                 container.innerHTML = '<p style="color:#999;padding:20px;">加载失败</p>';
             });
