@@ -1149,7 +1149,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (sectionId === 'trendingVariety') {
                     trendingVarietyData = videos.slice();
                 }
-                var limit = 16;
+                var limit = sectionId === 'hotRecommend' ? 8 : 16;
                 var useBackdrop = false;
                 var rendered = videos.slice(0, limit);
                 // Only track actually-rendered IDs so moreRecommend still has items to show
