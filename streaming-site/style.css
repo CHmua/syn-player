@@ -4359,7 +4359,7 @@ img {
     transition: var(--transition);
 }
 .vod-line-btn.active { background: var(--red); border-color: var(--red); color: #fff; }
-.vod-line-btn:hover:not(.active) { border-color: var(--text-muted); color: var(--text); }
+.vod-line-btn:hover:not(.active) { border-color: var(--text-muted); color: var(--text-primary); }
 
 /* Big play button */
 .big-play-btn {
@@ -4770,7 +4770,7 @@ img {
     font-size: 52px;
     line-height: 1;
     font-weight: 800;
-    color: #ffffff;
+    color: var(--text-primary);
     margin-bottom: 6px;
 }
 
@@ -4927,7 +4927,7 @@ img {
 
 .player-page .vod-line-btn:hover:not(.active) {
     border-color: var(--red);
-    color: #ffffff;
+    color: var(--text-primary);
 }
 
 .player-page .vod-line-btn.active {
