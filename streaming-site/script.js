@@ -1139,16 +1139,6 @@ document.addEventListener('DOMContentLoaded', function() {
             var sectionApi = sectionId === 'hotRecommend' ? '/api/videos?featured=1' : '/api/videos?category=' + sectionId;
             return fetch(sectionApi).then(function(r) { return r.json(); }).then(function(videos) {
                 if (!videos.length) { container.innerHTML = '<p style="color:#999;padding:20px;">暂无内容</p>'; return; }
-                // Store for tab sorting
-                if (sectionId === 'trendingMovies') {
-                    trendingData = videos.slice();
-                } else if (sectionId === 'trendingTV') {
-                    trendingTVData = videos.slice();
-                } else if (sectionId === 'trendingAnime') {
-                    trendingAnimeData = videos.slice();
-                } else if (sectionId === 'trendingVariety') {
-                    trendingVarietyData = videos.slice();
-                }
                 var limit = sectionId === 'hotRecommend' ? 8 : 16;
                 var useBackdrop = false;
                 var rendered = videos.slice(0, limit);
@@ -1222,53 +1212,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         observer.observe(sentinel);
     }
-
-    // ============ Trending Section Tabs (iQiyi-style) ============
-    var trendingData = [];
-    var trendingTVData = [];
-    var trendingAnimeData = [];
-    var trendingVarietyData = [];
-
-    var sectionDataMap = {
-        'trendingMovies': function() { return trendingData; },
-        'trendingTV': function() { return trendingTVData; },
-        'trendingAnime': function() { return trendingAnimeData; },
-        'trendingVariety': function() { return trendingVarietyData; }
-    };
-
-    document.querySelectorAll('.section-tabs').forEach(function(tabsWrap) {
-        var section = tabsWrap.closest('.section-trending-iqiyi');
-        var grid = section ? section.querySelector('.thumb-grid') : null;
-        if (!grid) return;
-        var sectionId = grid.id;
-
-        tabsWrap.querySelectorAll('.section-tab').forEach(function(tab) {
-            tab.addEventListener('click', function() {
-                var getData = sectionDataMap[sectionId];
-                if (!getData) return;
-                var data = getData();
-                if (!data.length) return;
-
-                // Only update tabs within this section
-                tabsWrap.querySelectorAll('.section-tab').forEach(function(t) { t.classList.remove('active'); });
-                this.classList.add('active');
-
-                var mode = this.dataset.tab;
-                var sorted = data.slice();
-                if (mode === 'hot') {
-                    sorted.sort(function(a, b) { return (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0); });
-                } else if (mode === 'new') {
-                    sorted.sort(function(a, b) { return (parseInt(b.year || b.vod_year) || 0) - (parseInt(a.year || a.vod_year) || 0); });
-                }
-                grid.innerHTML = sorted.slice(0, 16).map(function(v) {
-                    return renderVideoCard(v, {
-                        useBackdrop: false,
-                        rankNumber: null
-                    });
-                }).join('');
-            });
-        });
-    });
 
     loadCarousel();
     loadSections();

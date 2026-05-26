@@ -1538,39 +1538,6 @@ img {
     gap: 16px;
 }
 
-/* Tab navigation — always dark pill, works in both light/dark mode */
-.section-tabs {
-    display: flex;
-    gap: 4px;
-    background: rgba(30,30,40,0.85);
-    border-radius: 6px;
-    padding: 3px;
-}
-
-.section-tab {
-    padding: 5px 16px;
-    font-size: 13px;
-    font-weight: 500;
-    color: rgba(255,255,255,0.7);
-    background: transparent;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: inherit;
-    white-space: nowrap;
-}
-
-.section-tab.active {
-    background: rgba(255,255,255,0.18);
-    color: #fff;
-    font-weight: 600;
-}
-
-.section-tab:hover:not(.active) {
-    color: #fff;
-}
-
 /* Landscape poster cards — only in trending section */
 .section-trending-iqiyi .thumb-scroll-wrap {
     position: relative;
@@ -2525,7 +2492,7 @@ img {
     .section-home-posters .thumb-grid {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
-    .section-trending-iqiyi .section-tabs { display: none; }
+
     .thumb-scroll-arrow { width: 32px; height: 32px; font-size: 11px; }
     .thumb-badge { font-size: 9px; padding: 2px 6px; }
     .footer-grid {
