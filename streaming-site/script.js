@@ -1232,6 +1232,40 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // ============ Homepage News Section (Douban) ============
+    var newsHomeGrid = document.getElementById('newsHomeGrid');
+    if (newsHomeGrid) {
+        fetch('/api/news')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.success || !data.articles || !data.articles.length) {
+                    newsHomeGrid.innerHTML = '<div class="news-loading"><p style="color:var(--text-muted)">暂无资讯</p></div>';
+                    return;
+                }
+                var articles = data.articles.slice(0, 8);
+                newsHomeGrid.innerHTML = articles.map(function(a) {
+                    var img = a.image ? '/api/news/image-proxy?url=' + encodeURIComponent(a.image) : '';
+                    var ratingHtml = a.rating ? '<span class="rating-badge"><i class="fas fa-star"></i> ' + a.rating + '</span>' : '';
+                    return '<div class="news-home-card" onclick="window.open(\'' + (a.url || '#') + '\', \'_blank\')">' +
+                        '<img class="news-home-card-img" src="' + img + '" alt="' + a.title + '" loading="lazy" onerror="this.style.opacity=\'0.3\'">' +
+                        '<div class="news-home-card-body">' +
+                        '<h4>' + a.title + '</h4>' +
+                        '<div class="news-home-card-meta">' +
+                        ratingHtml +
+                        '<span class="cat-tag">' + (a.category || '豆瓣') + '</span>' +
+                        '</div></div></div>';
+                }).join('');
+                if (data.lastUpdate) {
+                    var ago = Math.round((Date.now() - new Date(data.lastUpdate).getTime()) / 60000);
+                    var el = document.getElementById('newsUpdateInfo');
+                    if (el) el.textContent = '更新于 ' + (ago < 1 ? '刚刚' : ago + '分钟前');
+                }
+            })
+            .catch(function() {
+                newsHomeGrid.innerHTML = '<div class="news-loading"><p style="color:var(--text-muted)">资讯加载失败</p></div>';
+            });
+    }
+
     // ============ Scroll Arrows for all iQiyi-style sections ============
     function setupAllScrollArrows() {
         var wraps = document.querySelectorAll('.section-trending-iqiyi .thumb-scroll-wrap');
