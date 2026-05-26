@@ -2,9 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <title>电影资讯 - Syn Player</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="mobile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body class="player-page">
@@ -67,25 +68,28 @@
     <section class="news-hero">
         <div class="news-hero-content">
             <h1><i class="fas fa-newspaper"></i> 电影资讯</h1>
-            <p>全球最新电影新闻、影评、票房、产业动态 — 内容来源：全球电影资讯网</p>
+            <p>豆瓣高分、热门电影推荐 — 内容来源：豆瓣电影</p>
             <p class="news-update-info" id="newsUpdateInfo" style="font-size:12px;color:var(--text-muted);margin-top:4px;"></p>
         </div>
     </section>
 
     <div class="news-categories" id="newsCategories">
         <button class="news-cat-btn active" data-cat="all">全部</button>
-        <button class="news-cat-btn" data-cat="huayudianying.html">华语</button>
-        <button class="news-cat-btn" data-cat="oumeidianying.html">欧美</button>
-        <button class="news-cat-btn" data-cat="xianggang.html">香港</button>
-        <button class="news-cat-btn" data-cat="hanguo.html">韩国</button>
-        <button class="news-cat-btn" data-cat="riben.html">日本</button>
-        <button class="news-cat-btn" data-cat="yingping.html">影评</button>
-        <button class="news-cat-btn" data-cat="piaofang.html">票房</button>
-        <button class="news-cat-btn" data-cat="zongyi.html">综艺</button>
+        <button class="news-cat-btn" data-cat="hot">热门推荐</button>
+        <button class="news-cat-btn" data-cat="highscore">豆瓣高分</button>
+        <button class="news-cat-btn" data-cat="latest">最新上线</button>
+        <button class="news-cat-btn" data-cat="huayu">华语</button>
+        <button class="news-cat-btn" data-cat="oumei">欧美</button>
+        <button class="news-cat-btn" data-cat="riben">日本</button>
+        <button class="news-cat-btn" data-cat="hanguo">韩国</button>
+        <button class="news-cat-btn" data-cat="dongzuo">动作</button>
+        <button class="news-cat-btn" data-cat="xiju">喜剧</button>
+        <button class="news-cat-btn" data-cat="kehuan">科幻</button>
+        <button class="news-cat-btn" data-cat="donghua">动画</button>
     </div>
 
     <section class="news-headlines" id="newsHeadlines" style="display:none;">
-        <h3 class="news-section-title"><i class="fas fa-fire"></i> 热点头条</h3>
+        <h3 class="news-section-title"><i class="fas fa-fire"></i> 豆瓣热门</h3>
         <div class="headlines-grid" id="headlinesGrid"></div>
     </section>
 
@@ -121,6 +125,7 @@
     </div>
 </div>
 
+<script src="server-config.js"></script>
 <script src="script.js"></script>
 <script>
 (function() {
@@ -139,7 +144,11 @@
     var closeBtn = document.getElementById('articleClose');
 
     function extractId(url) {
-        var m = url.match(/\/article\/(\d+)\.html/);
+        // Douban subject URL: /subject/{id}/ or article ID directly
+        var m = url.match(/\/subject\/(\d+)\//);
+        if (m) return m[1];
+        // Fallback: plain numeric ID
+        m = url.match(/(\d{6,})/);
         return m ? m[1] : null;
     }
 
@@ -245,7 +254,7 @@
                 if (data.lastUpdate) {
                     var ago = Math.round((Date.now() - new Date(data.lastUpdate).getTime()) / 60000);
                     var agoText = ago < 1 ? '刚刚' : ago + ' 分钟前';
-                    document.getElementById('newsUpdateInfo').innerHTML = '<i class="fas fa-sync-alt"></i> 数据更新于 ' + agoText + '（每5分钟自动同步）';
+                    document.getElementById('newsUpdateInfo').innerHTML = '<i class="fas fa-sync-alt"></i> 数据更新于 ' + agoText + '（每15分钟自动同步）';
                 }
             })
             .catch(function(err) {
@@ -362,5 +371,29 @@
     fetchNews(1, 'all');
 })();
 </script>
+<!-- ===== Mobile Bottom Navigation ===== -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav">
+    <a href="index.html" class="mobile-nav-item">
+        <i class="fas fa-home"></i>
+        <span>首页</span>
+    </a>
+    <a href="browse.html?section=trendingMovies&title=电影" class="mobile-nav-item">
+        <i class="fas fa-film"></i>
+        <span>电影</span>
+    </a>
+    <a href="series.html" class="mobile-nav-item">
+        <i class="fas fa-tv"></i>
+        <span>剧集</span>
+    </a>
+    <a href="browse.html?section=trendingAnime&title=动漫" class="mobile-nav-item">
+        <i class="fas fa-laptop"></i>
+        <span>动漫</span>
+    </a>
+    <a href="news.html" class="mobile-nav-item active">
+        <i class="fas fa-newspaper"></i>
+        <span>资讯</span>
+    </a>
+</nav>
+<script src="capacitor-init.js"></script>
 </body>
 </html>
