@@ -2,9 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <title>浏览 - Syn Player</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="mobile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body class="player-page">
@@ -13,7 +14,7 @@
 <nav class="navbar" id="navbar">
     <button class="hamburger" id="hamburgerBtn"><i class="fas fa-bars"></i></button>
     <a href="index.html" class="logo">
-        <span style="font-size:28px;font-weight:800;color:#e50914;">SYN</span><span style="font-size:28px;font-weight:700;color:#fff;">PLAYER</span>
+        <span style="font-size:28px;font-weight:800;color:#e50914;">SYN</span><span style="font-size:28px;font-weight:700;">PLAYER</span>
     </a>
     <ul class="nav-menu" id="navMenu">
         <li><a href="index.html"><i class="fas fa-home"></i> 首页</a></li>
@@ -142,6 +143,7 @@
 
 <button class="back-to-top" id="backToTop" title="返回顶部"><i class="fas fa-arrow-up"></i></button>
 
+<script src="server-config.js"></script>
 <script src="script.js"></script>
 <script>
 (function() {
@@ -468,5 +470,29 @@
     loadVideos();
 })();
 </script>
+<!-- ===== Mobile Bottom Navigation ===== -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav">
+    <a href="index.html" class="mobile-nav-item">
+        <i class="fas fa-home"></i>
+        <span>首页</span>
+    </a>
+    <a href="browse.html?section=trendingMovies&title=电影" class="mobile-nav-item active">
+        <i class="fas fa-film"></i>
+        <span>电影</span>
+    </a>
+    <a href="series.html" class="mobile-nav-item">
+        <i class="fas fa-tv"></i>
+        <span>剧集</span>
+    </a>
+    <a href="browse.html?section=trendingAnime&title=动漫" class="mobile-nav-item">
+        <i class="fas fa-laptop"></i>
+        <span>动漫</span>
+    </a>
+    <a href="news.html" class="mobile-nav-item">
+        <i class="fas fa-newspaper"></i>
+        <span>资讯</span>
+    </a>
+</nav>
+<script src="capacitor-init.js"></script>
 </body>
 </html>

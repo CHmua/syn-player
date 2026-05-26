@@ -488,6 +488,9 @@ img {
     color: var(--text-primary);
 }
 
+/* Logo text color follows theme */
+.logo span { color: var(--text-primary); }
+
 /* ===== Account Dropdown (B站-style) ===== */
 .account-dropdown {
     position: relative;
