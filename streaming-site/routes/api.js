@@ -106,7 +106,23 @@ router.get('/videos', apiAuthMiddleware, async (req, res) => {
   } else if (search) {
     adminRows = db.prepare('SELECT * FROM videos WHERE title LIKE ? ORDER BY sort_order').all(`%${search}%`);
   } else if (category) {
-    adminRows = db.prepare('SELECT * FROM videos WHERE category = ? ORDER BY sort_order').all(category);
+    // Match admin videos by section ID, or by Chinese category label
+    const chineseLabel = {
+      trendingMovies: ['电影', '热门电影'],
+      trendingTV: ['电视剧', '热门电视剧'],
+      trendingAnime: ['动漫', '热门动漫'],
+      trendingVariety: ['综艺', '热门综艺'],
+      liveTV: ['纪录片', '记录解说', '电影解说', '影视解说'],
+    };
+    const matchLabels = chineseLabel[category] || [];
+    if (matchLabels.length > 0) {
+      const placeholders = matchLabels.map(() => '?').join(', ');
+      adminRows = db.prepare(
+        'SELECT * FROM videos WHERE category = ? OR category IN (' + placeholders + ') ORDER BY sort_order'
+      ).all(category, ...matchLabels);
+    } else {
+      adminRows = db.prepare('SELECT * FROM videos WHERE category = ? ORDER BY sort_order').all(category);
+    }
   } else {
     adminRows = db.prepare('SELECT * FROM videos ORDER BY featured DESC, sort_order').all();
   }

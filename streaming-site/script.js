@@ -802,7 +802,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Hero card
         html += '<div class="hot-movies-hero" onclick="location.href=\'video-player.html?id=' + heroId + '\'">';
         if (heroImg) {
-            html += '<img class="hot-movies-hero-bg" src="' + escapeHtml(heroImg) + '" alt="' + heroTitle + '" loading="lazy" onerror="this.style.opacity=\'0\'">';
+            html += '<img class="hot-movies-hero-bg" src="' + escapeHtml(heroImg) + '" alt="' + heroTitle + '" loading="lazy" onerror="this.onerror=null;this.src=\'/api/vod/image-proxy?fallback=1\';">';
         }
         html += '<div class="hot-movies-hero-overlay"></div>';
         html += '<div class="hot-movies-hero-info">';
@@ -883,7 +883,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var clickUrl = video.series_title ? 'series.html?title=' + encodeURIComponent(video.series_title) : 'video-player.html?id=' + video.id;
         var html = '<div class="' + cardClass + '" onclick="location.href=\'' + clickUrl + '\'">';
         html += '<div class="thumb-poster">';
-        html += '<img src="' + imgSrc + '" alt="' + video.title + '" loading="lazy" referrerpolicy="no-referrer">';
+        html += '<img src="' + imgSrc + '" alt="' + video.title + '" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=\'/api/vod/image-proxy?fallback=1\';">';
         html += '<div style="display:none;width:100%;height:100%;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);align-items:center;justify-content:center;font-size:12px;color:#888;text-align:center;padding:10px;">' + video.title + '</div>';
         if (rankNumber) {
             html += '<span class="thumb-rank-badge">' + rankNumber + '</span>';
@@ -920,7 +920,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var recClickUrl = video.series_title ? 'series.html?title=' + encodeURIComponent(video.series_title) : 'video-player.html?id=' + (video.vod_id || video.id);
         return '<div class="more-recommend-card" data-index="' + index + '" onclick="location.href=\'' + recClickUrl + '\'">' +
-            '<img class="poster-img" src="' + (posterUrl || '/api/vod/image-proxy?fallback=1') + '" alt="' + title + '" loading="lazy">' +
+            '<img class="poster-img" src="' + (posterUrl || '/api/vod/image-proxy?fallback=1') + '" alt="' + title + '" loading="lazy" onerror="this.onerror=null;this.src=\'/api/vod/image-proxy?fallback=1\';">' +
             '<div class="poster-overlay">' +
                 (badgeText ? '<span class="poster-badge"><i class="fas fa-star"></i> ' + badgeText + '</span>' : '') +
                 '<div class="poster-title">' + title + '</div>' +
