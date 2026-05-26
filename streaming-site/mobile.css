@@ -1,0 +1,344 @@
+/* ============================================================
+   Syn Player — Mobile App Styles (Capacitor / Native Shell)
+   Loaded after style.css to override and enhance for mobile
+   ============================================================ */
+
+/* ---- CSS Variables for safe areas ---- */
+:root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+}
+
+/* ===== Global Mobile Fixes ===== */
+html {
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+body {
+    /* Prevent pull-to-refresh and overscroll */
+    overscroll-behavior-y: none;
+    overscroll-behavior-x: none;
+    /* Native-like scrollbar hiding */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+body::-webkit-scrollbar {
+    display: none;
+}
+
+/* ===== Safe Area Padding Helpers ===== */
+.safe-top {
+    padding-top: var(--sat);
+}
+.safe-bottom {
+    padding-bottom: var(--sab);
+}
+.safe-left {
+    padding-left: var(--sal);
+}
+.safe-right {
+    padding-right: var(--sar);
+}
+
+/* ===== Navigation — Mobile Optimizations ===== */
+@media (max-width: 1100px) {
+    .navbar {
+        /* Push navbar below status bar */
+        padding-top: var(--sat);
+        /* Ensure minimum touch target height */
+        min-height: 56px;
+    }
+    .hamburger {
+        width: 48px;
+        height: 48px;
+        font-size: 24px;
+    }
+    .nav-menu {
+        top: calc(56px + var(--sat));
+        padding-bottom: calc(80px + var(--sab));
+    }
+    .nav-menu > li > a {
+        padding: 14px 16px;
+        font-size: 17px;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+    }
+}
+
+@media (max-width: 640px) {
+    .navbar {
+        min-height: 52px;
+        padding-left: calc(8px + var(--sal));
+        padding-right: calc(8px + var(--sar));
+    }
+    .nav-menu {
+        top: calc(52px + var(--sat));
+    }
+}
+
+@media (max-width: 576px) {
+    .navbar {
+        min-height: 48px;
+        padding-left: calc(4px + var(--sal));
+        padding-right: calc(4px + var(--sar));
+    }
+    .nav-menu {
+        top: calc(48px + var(--sat));
+    }
+    .nav-menu > li > a {
+        padding: 12px 14px;
+        font-size: 16px;
+        min-height: 44px;
+    }
+}
+
+/* ===== Mobile Bottom Navigation Bar ===== */
+.mobile-bottom-nav {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: rgba(13, 13, 13, 0.92);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 6px 8px calc(6px + var(--sab));
+        justify-content: space-around;
+        align-items: flex-start;
+    }
+    /* Add bottom padding to pages so content isn't hidden behind the navbar */
+    .content-sections,
+    .browse-container,
+    .player-shell,
+    .news-container,
+    .series-container {
+        padding-bottom: calc(80px + var(--sab));
+    }
+}
+
+.mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    min-width: 56px;
+    min-height: 48px;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.mobile-nav-item i {
+    font-size: 20px;
+    transition: transform 0.2s ease;
+}
+
+.mobile-nav-item.active {
+    color: var(--red);
+}
+
+.mobile-nav-item:active {
+    transform: scale(0.92);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* ===== Touch-Friendly Buttons ===== */
+@media (max-width: 768px) {
+    button, .btn, [role="button"], a.btn {
+        min-height: 44px;
+        min-width: 44px;
+        -webkit-tap-highlight-color: transparent;
+    }
+    /* Prevent long-press context menu on buttons */
+    button, .btn-play-hero, .btn-add-list-hero, .filter-pill,
+    .page-btn, .thumb-card, .browse-card, .hero-card, .related-item {
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+}
+
+/* ===== Video Player — Fullscreen & Mobile Controls ===== */
+@media (max-width: 768px) {
+    .player-page {
+        padding-top: 52px;
+    }
+    .player-container {
+        padding: 0;
+        gap: 0;
+    }
+    .video-wrapper {
+        aspect-ratio: auto;
+        height: auto;
+        max-height: 56vw;
+    }
+    .video-main {
+        border-radius: 0;
+    }
+    .video-controls {
+        padding: 8px 10px;
+        gap: 8px;
+    }
+    .video-controls button {
+        min-width: 40px;
+        min-height: 40px;
+        font-size: 18px;
+    }
+    .progress-bar {
+        min-width: 80px;
+        height: 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .player-page {
+        padding-top: 44px;
+    }
+    .video-info h2 {
+        font-size: 22px !important;
+    }
+    .video-meta {
+        font-size: 12px;
+        gap: 8px;
+    }
+}
+
+/* ===== Content Sections — Tighter Mobile Padding ===== */
+@media (max-width: 768px) {
+    .content-sections {
+        padding: 0 12px;
+    }
+    .section {
+        margin-bottom: 32px;
+    }
+    .section-header h3 {
+        font-size: 18px;
+        padding-left: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .content-sections {
+        padding: 0 8px;
+    }
+    .section {
+        margin-bottom: 24px;
+    }
+    .section-header h3 {
+        font-size: 16px;
+    }
+}
+
+/* ===== Forms — Touch Optimized ===== */
+@media (max-width: 768px) {
+    input, select, textarea {
+        font-size: 16px !important; /* Prevent iOS zoom on focus */
+        min-height: 44px;
+    }
+    input[type="text"], input[type="password"], input[type="email"],
+    input[type="search"], input[type="number"] {
+        padding: 10px 14px;
+        border-radius: 10px;
+    }
+}
+
+/* ===== Account Panel — Mobile ===== */
+@media (max-width: 640px) {
+    .account-panel {
+        width: calc(100vw - 20px);
+        max-width: 340px;
+        right: -20px;
+    }
+}
+
+/* ===== Toast / Notification — Mobile ===== */
+@media (max-width: 768px) {
+    .toast, .notification, [class*="toast"], [class*="notification"] {
+        bottom: calc(80px + var(--sab));
+        left: 12px;
+        right: 12px;
+        max-width: none;
+        border-radius: 12px;
+    }
+}
+
+/* ===== Footer — Hide on Mobile (use bottom nav instead) ===== */
+@media (max-width: 768px) {
+    .footer {
+        display: none;
+    }
+}
+
+/* ===== Hero Carousel — Mobile ===== */
+@media (max-width: 576px) {
+    .hero-carousel {
+        height: 50vh;
+        min-height: 240px;
+    }
+    .hero-info {
+        width: calc(100% - 28px);
+        margin-left: 14px;
+        padding: 10px;
+    }
+    .hero-title {
+        font-size: 22px;
+        line-height: 1.1;
+    }
+}
+
+/* ===== Scroll Areas — Smooth momentum ===== */
+.thumb-scroll,
+.browse-grid,
+.related-list,
+.playlist-list {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* ===== Active/Selected States (mobile feedback) ===== */
+.thumb-card:active,
+.browse-card:active,
+.hero-card:active,
+.related-item:active {
+    opacity: 0.8;
+    transform: scale(0.97);
+    transition: all 0.1s ease;
+}
+
+/* ===== Prevent text selection during scroll ===== */
+.nav-menu,
+.thumb-scroll,
+.browse-grid {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* ===== Capacitor Status Bar spacer ===== */
+.status-bar-spacer {
+    height: var(--sat);
+    background: var(--bg-primary);
+    position: sticky;
+    top: 0;
+    z-index: 999;
+}
