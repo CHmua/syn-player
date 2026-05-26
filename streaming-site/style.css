@@ -2582,6 +2582,9 @@ img {
     .footer-middle {
         grid-template-columns: 1fr;
     }
+
+    .hamburger { display: none !important; }
+    .nav-menu.open { transform: translateX(-100%) !important; }
 }
 
 @media (max-width: 640px) {
@@ -2614,7 +2617,6 @@ img {
     .nav-user-name {
         display: none;
     }
-    .hamburger { display: none; }
     .account-panel {
         width: 310px;
         right: -50px;
