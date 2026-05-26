@@ -1781,25 +1781,39 @@ img {
     position: absolute;
     top: 6px;
     left: 6px;
-    min-width: 20px;
-    height: 20px;
-    padding: 0 6px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
     border-radius: 6px;
-    background: rgba(24,30,44,0.84);
+    background: rgba(110,118,130,0.82);
     color: #fff;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
-    line-height: 20px;
+    line-height: 22px;
     text-align: center;
-    border: 1px solid rgba(255,255,255,0.16);
+    border: 1px solid rgba(255,255,255,0.10);
     z-index: 3;
 }
 
-.section-hot-recommend .thumb-grid .thumb-card:nth-child(1) .thumb-rank-badge,
-.section-hot-recommend .thumb-grid .thumb-card:nth-child(2) .thumb-rank-badge,
+/* Gold — Rank 1 */
+.section-hot-recommend .thumb-grid .thumb-card:nth-child(1) .thumb-rank-badge {
+    background: linear-gradient(135deg, #f5c518, #e6a800);
+    border-color: rgba(255,215,0,0.4);
+    color: #5c3d00;
+}
+
+/* Silver — Rank 2 */
+.section-hot-recommend .thumb-grid .thumb-card:nth-child(2) .thumb-rank-badge {
+    background: linear-gradient(135deg, #b8c6d4, #8e9eab);
+    border-color: rgba(200,210,220,0.4);
+    color: #fff;
+}
+
+/* Bronze — Rank 3 */
 .section-hot-recommend .thumb-grid .thumb-card:nth-child(3) .thumb-rank-badge {
-    background: linear-gradient(135deg, #ff4d4f, #ff7a45);
-    border-color: rgba(255,255,255,0.28);
+    background: linear-gradient(135deg, #d4956b, #b87333);
+    border-color: rgba(210,150,100,0.4);
+    color: #fff;
 }
 
 .section-more-recommend .more-recommend-grid {
