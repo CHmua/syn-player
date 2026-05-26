@@ -68,28 +68,25 @@
     <section class="news-hero">
         <div class="news-hero-content">
             <h1><i class="fas fa-newspaper"></i> 电影资讯</h1>
-            <p>豆瓣高分、热门电影推荐 — 内容来源：豆瓣电影</p>
+            <p>最新上映、热门电影推荐 — 内容来源：猫眼电影</p>
             <p class="news-update-info" id="newsUpdateInfo" style="font-size:12px;color:var(--text-muted);margin-top:4px;"></p>
         </div>
     </section>
 
     <div class="news-categories" id="newsCategories">
         <button class="news-cat-btn active" data-cat="all">全部</button>
-        <button class="news-cat-btn" data-cat="hot">热门推荐</button>
-        <button class="news-cat-btn" data-cat="highscore">豆瓣高分</button>
-        <button class="news-cat-btn" data-cat="latest">最新上线</button>
-        <button class="news-cat-btn" data-cat="huayu">华语</button>
-        <button class="news-cat-btn" data-cat="oumei">欧美</button>
-        <button class="news-cat-btn" data-cat="riben">日本</button>
-        <button class="news-cat-btn" data-cat="hanguo">韩国</button>
-        <button class="news-cat-btn" data-cat="dongzuo">动作</button>
-        <button class="news-cat-btn" data-cat="xiju">喜剧</button>
-        <button class="news-cat-btn" data-cat="kehuan">科幻</button>
-        <button class="news-cat-btn" data-cat="donghua">动画</button>
+        <button class="news-cat-btn" data-cat="nowplaying">正在热映</button>
+        <button class="news-cat-btn" data-cat="action">动作</button>
+        <button class="news-cat-btn" data-cat="comedy">喜剧</button>
+        <button class="news-cat-btn" data-cat="scifi">科幻</button>
+        <button class="news-cat-btn" data-cat="drama">剧情</button>
+        <button class="news-cat-btn" data-cat="horror">恐怖</button>
+        <button class="news-cat-btn" data-cat="romance">爱情</button>
+        <button class="news-cat-btn" data-cat="anime">动画</button>
     </div>
 
     <section class="news-headlines" id="newsHeadlines" style="display:none;">
-        <h3 class="news-section-title"><i class="fas fa-fire"></i> 豆瓣热门</h3>
+        <h3 class="news-section-title"><i class="fas fa-fire"></i> 正在热映</h3>
         <div class="headlines-grid" id="headlinesGrid"></div>
     </section>
 
@@ -144,10 +141,13 @@
     var closeBtn = document.getElementById('articleClose');
 
     function extractId(url) {
-        // Douban subject URL: /subject/{id}/ or article ID directly
-        var m = url.match(/\/subject\/(\d+)\//);
+        // Maoyan movie URL: /movie/{id}
+        var m = url.match(/\/movie\/(\d+)/);
         if (m) return m[1];
-        // Fallback: plain numeric ID
+        // Douban fallback
+        m = url.match(/\/subject\/(\d+)\//);
+        if (m) return m[1];
+        // Plain numeric ID
         m = url.match(/(\d{6,})/);
         return m ? m[1] : null;
     }
@@ -254,7 +254,7 @@
                 if (data.lastUpdate) {
                     var ago = Math.round((Date.now() - new Date(data.lastUpdate).getTime()) / 60000);
                     var agoText = ago < 1 ? '刚刚' : ago + ' 分钟前';
-                    document.getElementById('newsUpdateInfo').innerHTML = '<i class="fas fa-sync-alt"></i> 数据更新于 ' + agoText + '（每15分钟自动同步）';
+                    document.getElementById('newsUpdateInfo').innerHTML = '<i class="fas fa-sync-alt"></i> 数据更新于 ' + agoText + '（每10分钟自动同步）';
                 }
             })
             .catch(function(err) {

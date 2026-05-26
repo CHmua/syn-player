@@ -1252,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         '<h4>' + a.title + '</h4>' +
                         '<div class="news-home-card-meta">' +
                         ratingHtml +
-                        '<span class="cat-tag">' + (a.category || '豆瓣') + '</span>' +
+                        '<span class="cat-tag">' + (a.category || '猫眼') + '</span>' +
                         '</div></div></div>';
                 }).join('');
                 if (data.lastUpdate) {
