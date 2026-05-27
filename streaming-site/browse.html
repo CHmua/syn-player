@@ -9,6 +9,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body class="player-page">
+<div style="position:absolute;left:-9999px;top:-9999px;" aria-hidden="true">
+    <input type="text" name="prevent_autofill_user" autocomplete="username" tabindex="-1">
+    <input type="password" name="prevent_autofill_pass" autocomplete="current-password" tabindex="-1">
+</div>
 
 <!-- ===== Navigation ===== -->
 <nav class="navbar" id="navbar">
@@ -83,7 +87,7 @@
     <div class="nav-right">
         <div class="search-box">
             <i class="fas fa-search search-icon"></i>
-            <input type="text" id="searchInput" placeholder="搜索电影、电视剧...">
+            <input type="search" id="searchInput" name="q" autocomplete="off" placeholder="搜索电影、电视剧...">
             <button class="search-clear" id="searchClear" style="display:none;"><i class="fas fa-times"></i></button>
         </div>
         <a href="javascript:;" class="nav-icon" title="我的列表"><i class="fas fa-bookmark"></i></a>
