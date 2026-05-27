@@ -327,12 +327,20 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     var nativeRetries = 0;
     var maxDplayerRetries = 1;
     var maxNativeRetries = 2;
+    var parseSourcesQueryLimit = 3500;
 
     var vodSources = [];
     var currentSourceIdx = 0;
     var currentEpisodeIdx = 0;
     var episodeUrlCache = Object.create(null);
+    var sourceProbeCache = Object.create(null);
     var playRequestNonce = 0;
+    var probeRankNonce = 0;
+    var lastFailureReportAt = 0;
+    var sourceInitialProbeLimit = 3;
+    var sourceInitialProbeTimeoutMs = 1200;
+    var sourceBackgroundProbeLimit = 8;
+    var sourceBackgroundProbeTimeoutMs = 2500;
 
     var savedTime = parseFloat(localStorage.getItem('playTime_' + (videoId || 'default'))) || 0;
     var currentMeta = { title: '', year: '', category: '', genre: '' };
@@ -435,15 +443,172 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             .catch(function () { return false; });
     }
 
+    function mapWithConcurrency(items, concurrency, worker) {
+        var list = Array.isArray(items) ? items : [];
+        if (!list.length) return Promise.resolve([]);
+        var limit = Math.max(1, Math.min(parseInt(concurrency, 10) || 1, list.length));
+        var idx = 0;
+        var results = new Array(list.length);
+
+        async function runWorker() {
+            while (true) {
+                var current = idx++;
+                if (current >= list.length) break;
+                try {
+                    results[current] = await worker(list[current], current);
+                } catch (_) {
+                    results[current] = null;
+                }
+            }
+        }
+
+        var workers = [];
+        for (var i = 0; i < limit; i++) workers.push(runWorker());
+        return Promise.all(workers).then(function () { return results; });
+    }
+
+    function checkUrlPlayableFast(url, timeoutMs) {
+        var timeout = Math.max(300, parseInt(timeoutMs, 10) || 1000);
+        return new Promise(function (resolve) {
+            var done = false;
+            var timer = setTimeout(function () {
+                if (done) return;
+                done = true;
+                resolve(false);
+            }, timeout);
+
+            checkUrlPlayableByServer(url).then(function (ok) {
+                if (done) return;
+                done = true;
+                clearTimeout(timer);
+                resolve(!!ok);
+            }).catch(function () {
+                if (done) return;
+                done = true;
+                clearTimeout(timer);
+                resolve(false);
+            });
+        });
+    }
+
+    async function probeSourceHealth(source, timeoutMs, maxEpisodes) {
+        var episodes = source && Array.isArray(source.episodes) ? source.episodes : [];
+        if (!episodes.length) return false;
+        var limit = Math.max(1, Math.min(parseInt(maxEpisodes, 10) || 1, episodes.length));
+
+        for (var i = 0; i < limit; i++) {
+            var ep = episodes[i] || {};
+            var normalized = normalizeEpisodeUrl(ep.play_url);
+            if (!normalized) continue;
+            if (sourceProbeCache[normalized] !== undefined) {
+                if (sourceProbeCache[normalized]) return true;
+                continue;
+            }
+            var ok = await checkUrlPlayableFast(normalized, timeoutMs);
+            sourceProbeCache[normalized] = !!ok;
+            if (ok) return true;
+        }
+        return false;
+    }
+
+    async function selectBetterInitialSource() {
+        if (!Array.isArray(vodSources) || vodSources.length < 2) return;
+        var headCount = Math.min(sourceInitialProbeLimit, vodSources.length);
+        var head = vodSources.slice(0, headCount);
+        var results = await mapWithConcurrency(head, 3, async function (source) {
+            return probeSourceHealth(source, sourceInitialProbeTimeoutMs, 1);
+        });
+
+        var firstPlayable = -1;
+        for (var i = 0; i < results.length; i++) {
+            if (results[i]) {
+                firstPlayable = i;
+                break;
+            }
+        }
+        if (firstPlayable > 0) {
+            var target = head[firstPlayable];
+            var realIdx = vodSources.indexOf(target);
+            if (realIdx > -1) currentSourceIdx = realIdx;
+        }
+    }
+
+    async function rerankSourcesByHealth() {
+        if (!Array.isArray(vodSources) || vodSources.length < 2) return;
+        var rankId = ++probeRankNonce;
+        var snapshot = vodSources.slice();
+        var keepSource = snapshot[currentSourceIdx];
+        var headCount = Math.min(sourceBackgroundProbeLimit, snapshot.length);
+        var head = snapshot.slice(0, headCount);
+        var tail = snapshot.slice(headCount);
+
+        var statuses = await mapWithConcurrency(head, 3, async function (source) {
+            return probeSourceHealth(source, sourceBackgroundProbeTimeoutMs, 2);
+        });
+        if (rankId !== probeRankNonce) return;
+
+        var decorated = head.map(function (source, idx) {
+            return { source: source, ok: !!statuses[idx], idx: idx };
+        });
+        decorated.sort(function (a, b) {
+            if (a.ok !== b.ok) return (b.ok ? 1 : 0) - (a.ok ? 1 : 0);
+            return a.idx - b.idx;
+        });
+
+        var reordered = decorated.map(function (d) { return d.source; }).concat(tail);
+        var changed = false;
+        for (var i = 0; i < snapshot.length; i++) {
+            if (snapshot[i] !== reordered[i]) {
+                changed = true;
+                break;
+            }
+        }
+        if (!changed) return;
+
+        vodSources = reordered;
+        var keepIdx = vodSources.indexOf(keepSource);
+        if (keepIdx > -1) currentSourceIdx = keepIdx;
+        renderEpisodeList();
+    }
+
+    function reportPlaybackFailure(reason) {
+        if (!videoId) return;
+        var now = Date.now();
+        if (now - lastFailureReportAt < 60000) return;
+        var reportKey = 'syn_fail_report_' + String(videoId);
+        var lastGlobal = parseInt(localStorage.getItem(reportKey), 10) || 0;
+        if (now - lastGlobal < 15 * 60 * 1000) return;
+        lastFailureReportAt = now;
+        localStorage.setItem(reportKey, String(now));
+
+        fetch('/api/vod/report-playback-failure', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                vod_id: String(videoId),
+                title: currentMeta.title || '',
+                reason: reason || 'all_lines_failed',
+                source_count: vodSources.length,
+                source_index: currentSourceIdx,
+                episode_index: currentEpisodeIdx
+            })
+        }).catch(function () {});
+    }
+
     async function resolvePlayableUrl(rawUrl) {
         var base = normalizeEpisodeUrl(rawUrl);
-        if (!base) return '';
+        if (!base) return { url: '', verified: false, weak: true };
         if (episodeUrlCache[base]) return episodeUrlCache[base];
 
         if (isDirectStreamUrl(base)) {
-            var directPlayable = toPlayableUrl(base);
-            episodeUrlCache[base] = directPlayable;
-            return directPlayable;
+            var directOk = await checkUrlPlayableByServer(base);
+            var directResult = {
+                url: toPlayableUrl(base),
+                verified: !!directOk,
+                weak: !directOk
+            };
+            episodeUrlCache[base] = directResult;
+            return directResult;
         }
 
         var candidates = buildUrlCandidates(base);
@@ -451,16 +616,16 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             var candidate = candidates[i];
             var ok = await checkUrlPlayableByServer(candidate);
             if (ok) {
-                var playable = toPlayableUrl(candidate);
-                episodeUrlCache[base] = playable;
-                return playable;
+                var playableResult = { url: toPlayableUrl(candidate), verified: true, weak: false };
+                episodeUrlCache[base] = playableResult;
+                return playableResult;
             }
         }
 
         var fallback = candidates[0] || base;
-        var fallbackPlayable = toPlayableUrl(fallback);
-        episodeUrlCache[base] = fallbackPlayable;
-        return fallbackPlayable;
+        var fallbackResult = { url: toPlayableUrl(fallback), verified: false, weak: true };
+        episodeUrlCache[base] = fallbackResult;
+        return fallbackResult;
     }
 
     function setPlaylistLoading(text) {
@@ -721,9 +886,10 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         });
     }
 
-    function parseSourcesFromRaw(rawInput) {
+    function parseSourcesFromRaw(rawInput, playFromRaw) {
         var raw = String(rawInput || '').trim();
         if (!raw) return [];
+        var sourceNames = String(playFromRaw || '').split('$$$').map(function (n) { return n.trim(); }).filter(Boolean);
 
         var groups = raw.split('$$$').map(function (g) { return g.trim(); }).filter(Boolean);
         var allSources = [];
@@ -755,14 +921,17 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             }
 
             if (episodes.length) {
-                allSources.push({ source_name: '线路' + (sourceIdx + 1), episodes: episodes });
+                allSources.push({
+                    source_name: sourceNames[sourceIdx] || ('线路' + (sourceIdx + 1)),
+                    episodes: episodes
+                });
             }
         });
 
         var rawUrl = normalizeEpisodeUrl(raw);
         if (!allSources.length && /^https?:\/\//i.test(rawUrl)) {
             allSources.push({
-                source_name: '线路1',
+                source_name: sourceNames[0] || '线路1',
                 episodes: [{ episode_name: '正片', play_url: rawUrl }]
             });
         }
@@ -780,9 +949,9 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 
         var ep = source.episodes[currentEpisodeIdx];
         var requestId = ++playRequestNonce;
-        var resolvedUrl = await resolvePlayableUrl(ep.play_url);
+        var resolved = await resolvePlayableUrl(ep.play_url);
         if (requestId !== playRequestNonce) return;
-        if (!resolvedUrl) {
+        if (!resolved || !resolved.url) {
             showError('播放地址不存在', true);
             return;
         }
@@ -790,15 +959,19 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         localStorage.setItem('syn_source_' + (videoId || '0'), String(currentSourceIdx));
         localStorage.setItem('syn_episode_' + (videoId || '0'), String(currentEpisodeIdx));
 
-        initDPlayer(resolvedUrl);
+        initDPlayer(resolved.url);
         updateBreadcrumb(currentMeta.title, episodeName(ep, currentEpisodeIdx));
 
         stopWatchdog();
+        var watchdogMs = resolved.weak ? 9000 : 18000;
         loadWatchdog = setTimeout(function () {
             if (currentSourceIdx < vodSources.length - 1) {
                 tryNextLine(currentEpisodeIdx);
+            } else {
+                showError('当前资源加载超时，请切换线路或稍后重试', true);
+                reportPlaybackFailure('load_timeout');
             }
-        }, 18000);
+        }, watchdogMs);
     }
 
     function tryNextLine(preferredEpisodeIdx) {
@@ -814,14 +987,18 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             setTimeout(hideError, 1800);
         } else {
             showError('所有线路都无法播放，请稍后重试', true);
+            reportPlaybackFailure('all_lines_failed');
         }
     }
 
     function applySourcesAndPlay(sources) {
+        probeRankNonce += 1;
+        sourceProbeCache = Object.create(null);
         vodSources = prioritizeSources(sources || []);
         if (!vodSources.length) {
             setPlaylistLoading('暂无选集');
             showError('暂无播放地址', true);
+            reportPlaybackFailure('no_play_sources');
             return;
         }
 
@@ -832,8 +1009,14 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         currentEpisodeIdx = Number.isFinite(savedEpisode) ? Math.max(savedEpisode, 0) : 0;
         if (currentEpisodeIdx >= vodSources[currentSourceIdx].episodes.length) currentEpisodeIdx = 0;
 
-        renderEpisodeList();
-        playCurrentSource();
+        setPlaylistLoading('正在探测可播线路...');
+        selectBetterInitialSource()
+            .catch(function () {})
+            .finally(function () {
+                renderEpisodeList();
+                playCurrentSource();
+                rerankSourcesByHealth().catch(function () {});
+            });
     }
 
     function updateInfoSection(v) {
@@ -850,6 +1033,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         var description = v.vod_content || v.description || '暂无剧情简介';
         var director = v.vod_director || v.director || '';
         var actor = v.vod_actor || v.actor || '';
+        var poster = v.poster_url || v.poster || v.vod_pic || '';
 
         currentMeta.title = title;
         currentMeta.year = year;
@@ -861,6 +1045,17 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 
         var h2 = document.querySelector('.video-info h2');
         if (h2) h2.textContent = title;
+
+        var infoPoster = document.getElementById('infoPoster');
+        if (infoPoster && poster) {
+            infoPoster.src = poster;
+            infoPoster.alt = title;
+            infoPoster.style.display = '';
+            infoPoster.onerror = function() {
+                this.onerror = null;
+                this.src = '/api/vod/image-proxy?fallback=1';
+            };
+        }
 
         var metaDiv = document.querySelector('.video-meta');
         if (metaDiv) {
@@ -907,7 +1102,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             relatedList.innerHTML = sideItems.map(function (v) {
                 var vid = v.id || v.vod_id || '';
                 var title = escapeHtml(v.title || v.vod_name || '未知影片');
-                var poster = escapeHtml(v.poster_url || '/api/vod/image-proxy?fallback=1');
+                var poster = escapeHtml(v.poster_url || v.poster || v.vod_pic || '/api/vod/image-proxy?fallback=1');
                 var meta = escapeHtml(v.duration || v.year || v.type_name || '更新中');
                 var score = toScoreNumber(v.rating || v.douban_rating || v.vod_score);
                 var scoreText = score > 0 ? score.toFixed(1) : '';
@@ -924,7 +1119,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             relatedGrid.innerHTML = bottomItems.map(function (v) {
                 var vid = v.id || v.vod_id || '';
                 var title = escapeHtml(v.title || v.vod_name || '未知影片');
-                var poster = escapeHtml(v.poster_url || '/api/vod/image-proxy?fallback=1');
+                var poster = escapeHtml(v.poster_url || v.poster || v.vod_pic || '/api/vod/image-proxy?fallback=1');
                 var year = escapeHtml(v.year || v.vod_year || '');
                 var genre = escapeHtml(v.genre || v.type_name || v.vod_type || '');
                 var score = toScoreNumber(v.rating || v.douban_rating || v.vod_score);
@@ -940,7 +1135,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     }
 
     function loadRelatedContent() {
-        fetch('/api/videos')
+        fetch('/api/videos?limit=120')
             .then(function (r) { return r.json(); })
             .then(function (videos) {
                 var list = Array.isArray(videos) ? videos.slice() : [];
@@ -973,6 +1168,17 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             return;
         }
 
+        var quickSources = parseSourcesFromRaw(playRaw, v.vod_play_from);
+        if (quickSources.length) {
+            applySourcesAndPlay(quickSources);
+            return;
+        }
+
+        if (playRaw.length > parseSourcesQueryLimit) {
+            applySourcesAndPlay([]);
+            return;
+        }
+
         var fromParam = v.vod_play_from ? '&from=' + encodeURIComponent(v.vod_play_from) : '';
         fetch('/api/vod/parse-sources?url=' + encodeURIComponent(playRaw) + fromParam)
             .then(function (r) { return r.json(); })
@@ -980,11 +1186,11 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
                 if (result && result.success && Array.isArray(result.sources) && result.sources.length) {
                     applySourcesAndPlay(result.sources);
                 } else {
-                    applySourcesAndPlay(parseSourcesFromRaw(playRaw));
+                    applySourcesAndPlay(parseSourcesFromRaw(playRaw, v.vod_play_from));
                 }
             })
             .catch(function () {
-                applySourcesAndPlay(parseSourcesFromRaw(playRaw));
+                applySourcesAndPlay(parseSourcesFromRaw(playRaw, v.vod_play_from));
             });
     }
 
@@ -992,7 +1198,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         updateInfoSection(v);
         loadRelatedContent();
         var raw = v.video_url || v.vod_play_url || '';
-        applySourcesAndPlay(parseSourcesFromRaw(raw));
+        applySourcesAndPlay(parseSourcesFromRaw(raw, v.vod_play_from));
     }
 
     function showNoVideoMessage() {

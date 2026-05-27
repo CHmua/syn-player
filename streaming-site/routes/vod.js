@@ -1,21 +1,42 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
-const { searchAcrossSources, getRecentUpdates, parsePlayUrls, checkUrlValid } = require('../services/collect');
+const { searchAcrossSources, getRecentUpdates, parsePlayUrls, parseWithLines, checkUrlValid } = require('../services/collect');
 const { dedupVods } = require('../utils/dedup');
 const cache = require('../services/cache');
 const { authMiddleware } = require('../middleware/auth');
 const { proxyHandler } = require('../services/m3u8-proxy');
 
+const IMAGE_REQUEST_TIMEOUT_MS = parseInt(process.env.IMAGE_PROXY_REQUEST_TIMEOUT_MS || '5000', 10);
+const IMAGE_STREAM_TIMEOUT_MS = parseInt(process.env.IMAGE_PROXY_STREAM_TIMEOUT_MS || '7000', 10);
+const AUTO_DISABLE_FAIL_THRESHOLD = Math.max(2, parseInt(process.env.VOD_AUTO_DISABLE_FAIL_THRESHOLD || '4', 10) || 4);
+const AUTO_DISABLE_VERIFY_SOURCE_LIMIT = Math.max(1, parseInt(process.env.VOD_AUTO_DISABLE_VERIFY_SOURCE_LIMIT || '3', 10) || 3);
+const AUTO_DISABLE_VERIFY_EP_LIMIT = Math.max(1, parseInt(process.env.VOD_AUTO_DISABLE_VERIFY_EP_LIMIT || '1', 10) || 1);
+
 // Wrap external poster URLs through image proxy to bypass hotlink/CORS/SSL issues
 function proxyImageUrl(url) {
-  if (!url) return '';
-  if (url.startsWith('/api/') || url.startsWith('data:')) return url;
-  return url;
+  const raw = String(url || '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('/api/img-proxy?') || raw.startsWith('/api/tmdb/image-proxy?')) {
+    try {
+      const qIndex = raw.indexOf('?');
+      const params = new URLSearchParams(raw.slice(qIndex + 1));
+      const upstream = params.get('url');
+      if (upstream) return `/api/vod/image-proxy?url=${encodeURIComponent(upstream)}`;
+      return '/api/vod/image-proxy?fallback=1';
+    } catch {
+      return '/api/vod/image-proxy?fallback=1';
+    }
+  }
+  if (raw.startsWith('/api/') || raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+  if (raw.startsWith('//')) return `/api/vod/image-proxy?url=${encodeURIComponent('https:' + raw)}`;
+  if (/^https?:\/\//i.test(raw)) return `/api/vod/image-proxy?url=${encodeURIComponent(raw)}`;
+  return raw;
 }
 
 // Unified DB helper — tries MySQL (with connection test), falls back to SQLite
 let _vodDb = null;
+let _playbackHealthColumnsReady = false;
 async function getVODDB() {
   if (_vodDb) return _vodDb;
 
@@ -38,6 +59,196 @@ async function getVODDB() {
 
   _vodDb = { type: 'none' };
   return _vodDb;
+}
+
+async function ensurePlaybackHealthColumns(vdb) {
+  if (_playbackHealthColumnsReady || !vdb) return;
+  try {
+    if (vdb.type === 'mysql') {
+      try { await vdb.pool.query('ALTER TABLE vods ADD COLUMN playback_fail_count INT DEFAULT 0'); } catch {}
+      try { await vdb.pool.query('ALTER TABLE vods ADD COLUMN playback_last_failed_at TIMESTAMP NULL'); } catch {}
+      try { await vdb.pool.query("ALTER TABLE vods ADD COLUMN playback_disable_reason VARCHAR(255) DEFAULT ''"); } catch {}
+      try { await vdb.pool.query('CREATE INDEX idx_playback_fail_count ON vods(playback_fail_count)'); } catch {}
+    } else if (vdb.type === 'sqlite') {
+      try { vdb.sqlite.exec('ALTER TABLE vods ADD COLUMN playback_fail_count INTEGER DEFAULT 0'); } catch {}
+      try { vdb.sqlite.exec("ALTER TABLE vods ADD COLUMN playback_last_failed_at TEXT DEFAULT ''"); } catch {}
+      try { vdb.sqlite.exec("ALTER TABLE vods ADD COLUMN playback_disable_reason TEXT DEFAULT ''"); } catch {}
+      try { vdb.sqlite.exec('CREATE INDEX IF NOT EXISTS idx_vods_playback_fail_count ON vods(playback_fail_count)'); } catch {}
+    }
+  } finally {
+    _playbackHealthColumnsReady = true;
+  }
+}
+
+async function getVodHealthRow(vdb, vodId) {
+  if (!vdb || !vodId) return null;
+  if (vdb.type === 'mysql') {
+    const [rows] = await vdb.pool.query(
+      `SELECT vod_id, vod_play_url, vod_play_from, is_active,
+              COALESCE(playback_fail_count, 0) AS playback_fail_count
+       FROM vods WHERE vod_id = ? LIMIT 1`,
+      [vodId]
+    );
+    return rows && rows.length ? rows[0] : null;
+  }
+  if (vdb.type === 'sqlite') {
+    return vdb.sqlite.prepare(
+      `SELECT vod_id, vod_play_url, vod_play_from, is_active,
+              COALESCE(playback_fail_count, 0) AS playback_fail_count
+       FROM vods WHERE vod_id = ? LIMIT 1`
+    ).get(vodId) || null;
+  }
+  return null;
+}
+
+async function findVodIdByTitle(vdb, titleHint) {
+  const title = String(titleHint || '').trim();
+  if (!title || !vdb) return '';
+  if (vdb.type === 'mysql') {
+    let rows = [];
+    [rows] = await vdb.pool.query(
+      'SELECT vod_id FROM vods WHERE is_active = 1 AND vod_name = ? ORDER BY updated_at DESC LIMIT 1',
+      [title]
+    );
+    if (rows && rows.length && rows[0].vod_id) return String(rows[0].vod_id);
+    [rows] = await vdb.pool.query(
+      'SELECT vod_id FROM vods WHERE is_active = 1 AND vod_name LIKE ? ORDER BY updated_at DESC LIMIT 1',
+      [`%${title}%`]
+    );
+    return rows && rows.length && rows[0].vod_id ? String(rows[0].vod_id) : '';
+  }
+  if (vdb.type === 'sqlite') {
+    let row = vdb.sqlite.prepare(
+      'SELECT vod_id FROM vods WHERE is_active = 1 AND vod_name = ? ORDER BY updated_at DESC LIMIT 1'
+    ).get(title);
+    if (row && row.vod_id) return String(row.vod_id);
+    row = vdb.sqlite.prepare(
+      'SELECT vod_id FROM vods WHERE is_active = 1 AND vod_name LIKE ? ORDER BY updated_at DESC LIMIT 1'
+    ).get(`%${title}%`);
+    return row && row.vod_id ? String(row.vod_id) : '';
+  }
+  return '';
+}
+
+async function verifyVodStillPlayable(vodRow) {
+  if (!vodRow) return false;
+  const sources = parseWithLines(vodRow.vod_play_url || '', vodRow.vod_play_from || '').slice(0, AUTO_DISABLE_VERIFY_SOURCE_LIMIT);
+  if (!sources.length) return false;
+
+  for (const source of sources) {
+    const episodes = (source.episodes || []).slice(0, AUTO_DISABLE_VERIFY_EP_LIMIT);
+    for (const ep of episodes) {
+      const url = String(ep && ep.play_url ? ep.play_url : '').trim();
+      if (!url) continue;
+      try {
+        const ok = await checkUrlValid(url);
+        if (ok) return true;
+      } catch {}
+    }
+  }
+  return false;
+}
+
+async function registerPlaybackFailure(vodId, reasonText, titleHint) {
+  const cleanVodId = String(vodId || '').trim();
+  if (!cleanVodId) return { updated: false, auto_disabled: false, reason: 'missing_vod_id' };
+
+  const vdb = await getVODDB();
+  if (vdb.type === 'none') return { updated: false, auto_disabled: false, reason: 'db_unavailable' };
+  await ensurePlaybackHealthColumns(vdb);
+
+  const reason = String(reasonText || 'playback_failed').trim().slice(0, 120) || 'playback_failed';
+  let targetVodId = cleanVodId;
+  let before = await getVodHealthRow(vdb, targetVodId);
+  if (!before) {
+    const matchedVodId = await findVodIdByTitle(vdb, titleHint);
+    if (matchedVodId) {
+      targetVodId = matchedVodId;
+      before = await getVodHealthRow(vdb, targetVodId);
+    }
+  }
+  if (!before) return { updated: false, auto_disabled: false, reason: 'not_found' };
+
+  if (vdb.type === 'mysql') {
+    await vdb.pool.query(
+      `UPDATE vods
+       SET playback_fail_count = COALESCE(playback_fail_count, 0) + 1,
+           playback_last_failed_at = CURRENT_TIMESTAMP,
+           playback_disable_reason = CASE
+             WHEN playback_disable_reason IS NULL OR playback_disable_reason = '' THEN ?
+             ELSE playback_disable_reason
+           END
+       WHERE vod_id = ?`,
+      [reason, targetVodId]
+    );
+  } else if (vdb.type === 'sqlite') {
+    vdb.sqlite.prepare(
+      `UPDATE vods
+       SET playback_fail_count = COALESCE(playback_fail_count, 0) + 1,
+           playback_last_failed_at = datetime('now','localtime'),
+           playback_disable_reason = CASE
+             WHEN playback_disable_reason IS NULL OR playback_disable_reason = '' THEN ?
+             ELSE playback_disable_reason
+           END
+       WHERE vod_id = ?`
+    ).run(reason, targetVodId);
+  }
+
+  const after = await getVodHealthRow(vdb, targetVodId);
+  const failCount = Math.max(0, parseInt(after && after.playback_fail_count, 10) || 0);
+  if (failCount < AUTO_DISABLE_FAIL_THRESHOLD) {
+    await cache.del(`detail:${targetVodId}`);
+    return { updated: true, auto_disabled: false, fail_count: failCount, mapped_vod_id: targetVodId };
+  }
+
+  const stillPlayable = await verifyVodStillPlayable(after);
+  if (stillPlayable) {
+    if (vdb.type === 'mysql') {
+      await vdb.pool.query(
+        `UPDATE vods
+         SET playback_fail_count = GREATEST(COALESCE(playback_fail_count, 0) - 1, 0),
+             playback_disable_reason = ''
+         WHERE vod_id = ?`,
+        [targetVodId]
+      );
+    } else if (vdb.type === 'sqlite') {
+      vdb.sqlite.prepare(
+        `UPDATE vods
+         SET playback_fail_count = CASE
+              WHEN COALESCE(playback_fail_count, 0) > 0 THEN playback_fail_count - 1
+              ELSE 0
+            END,
+            playback_disable_reason = ''
+         WHERE vod_id = ?`
+      ).run(targetVodId);
+    }
+    await cache.del(`detail:${targetVodId}`);
+    return { updated: true, auto_disabled: false, fail_count: Math.max(0, failCount - 1), verified_playable: true, mapped_vod_id: targetVodId };
+  }
+
+  if (vdb.type === 'mysql') {
+    await vdb.pool.query(
+      `UPDATE vods
+       SET is_active = 0,
+           playback_disable_reason = 'auto_disabled_dead_sources',
+           updated_at = CURRENT_TIMESTAMP
+       WHERE vod_id = ?`,
+      [targetVodId]
+    );
+  } else if (vdb.type === 'sqlite') {
+    vdb.sqlite.prepare(
+      `UPDATE vods
+       SET is_active = 0,
+           playback_disable_reason = 'auto_disabled_dead_sources',
+           updated_at = datetime('now','localtime')
+       WHERE vod_id = ?`
+    ).run(targetVodId);
+  }
+
+  await cache.del(`detail:${targetVodId}`);
+  await cache.del('browse:recent');
+  await cache.delPattern('search:*');
+  return { updated: true, auto_disabled: true, fail_count: failCount, mapped_vod_id: targetVodId };
 }
 
 // ============================================================
@@ -279,7 +490,7 @@ router.get('/detail/:vodId', async (req, res) => {
         }
       }
       // Attach proxied poster URL for hotlink/CORS/SSL bypass
-      vod.poster_url = proxyImageUrl(vod.vod_pic || '');
+      vod.poster_url = proxyImageUrl(vod.poster || vod.vod_pic || '');
       await cache.set(cacheKey, vod, 1800);
       return res.json({ success: true, data: vod, source: 'local' });
     }
@@ -374,10 +585,10 @@ router.get('/image-proxy', (req, res) => {
       'Accept-Language': 'zh-CN,zh;q=0.9'
     },
     rejectUnauthorized: false,
-    timeout: 12000
+    timeout: IMAGE_REQUEST_TIMEOUT_MS
   };
 
-  transport.get(imgUrl, opts, (imgRes) => {
+  const reqImg = transport.get(imgUrl, opts, (imgRes) => {
     // Follow redirects (up to 3)
     if ([301, 302, 303, 307, 308].includes(imgRes.statusCode)) {
       const redirectUrl = imgRes.headers.location;
@@ -385,22 +596,38 @@ router.get('/image-proxy', (req, res) => {
         const redirectParsed = new URL(redirectUrl, imgUrl);
         const redirectTransport = redirectParsed.protocol === 'https:' ? require('https') : require('http');
         opts.headers.Referer = parsed.origin + '/';
-        redirectTransport.get(redirectParsed.href, opts, (redirectRes) => {
+        const redirectReq = redirectTransport.get(redirectParsed.href, opts, (redirectRes) => {
           pipeImageResponse(redirectRes, res);
-        }).on('error', () => sendPlaceholder(res));
+        });
+        attachProxyTimeout(redirectReq, res);
+        redirectReq.on('error', () => { if (!res.headersSent) sendPlaceholder(res); });
         return;
       }
     }
     pipeImageResponse(imgRes, res);
-  }).on('error', (err) => {
+  });
+  attachProxyTimeout(reqImg, res);
+  reqImg.on('error', (err) => {
     if (!res.headersSent) sendPlaceholder(res);
   });
 });
+
+function attachProxyTimeout(request, res) {
+  request.setTimeout(IMAGE_REQUEST_TIMEOUT_MS, () => {
+    if (!res.headersSent) sendPlaceholder(res);
+    request.destroy();
+  });
+}
 
 function pipeImageResponse(source, dest) {
   if (source.statusCode !== 200) {
     return sendPlaceholder(dest);
   }
+  source.setTimeout(IMAGE_STREAM_TIMEOUT_MS, () => {
+    source.destroy();
+    if (!dest.headersSent) sendPlaceholder(dest);
+    else dest.end();
+  });
   const contentType = source.headers['content-type'] || 'image/jpeg';
   dest.set({
     'Content-Type': contentType,
@@ -430,6 +657,22 @@ router.get('/check-url', async (req, res) => {
   if (!url) return res.json({ success: false, msg: 'Missing url' });
   const valid = await checkUrlValid(url);
   res.json({ success: true, valid });
+});
+
+// --------------- Report playback failure (auto mark / auto disable dead VODs) ---------------
+router.post('/report-playback-failure', async (req, res) => {
+  try {
+    const vodId = String(req.body && (req.body.vod_id || req.body.video_id) || '').trim();
+    if (!vodId) return res.status(400).json({ success: false, msg: 'Missing vod_id' });
+
+    const reason = req.body && req.body.reason ? String(req.body.reason) : 'playback_failed';
+    const titleHint = req.body && req.body.title ? String(req.body.title) : '';
+    const result = await registerPlaybackFailure(vodId, reason, titleHint);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[VOD] report-playback-failure error:', err.message);
+    res.status(500).json({ success: false, msg: 'report failed' });
+  }
 });
 
 // --------------- Recent Updates ---------------
@@ -696,14 +939,14 @@ router.get('/related/:vodId', async (req, res) => {
         const typeName = current[0].type_name || current[0].vod_type || '';
         if (typeName) {
           [rows] = await vdb.pool.query(
-            'SELECT vod_id, vod_name, vod_pic, vod_remarks, vod_score FROM vods WHERE vod_id != ? AND (type_name = ? OR vod_type = ?) ORDER BY updated_at DESC LIMIT ?',
+            'SELECT vod_id, vod_name, vod_pic, poster, vod_remarks, vod_score FROM vods WHERE vod_id != ? AND (type_name = ? OR vod_type = ?) ORDER BY updated_at DESC LIMIT ?',
             [vodId, typeName, typeName, limit]
           );
         }
       }
       if (!rows || rows.length === 0) {
         [rows] = await vdb.pool.query(
-          'SELECT vod_id, vod_name, vod_pic, vod_remarks, vod_score FROM vods WHERE vod_id != ? ORDER BY updated_at DESC LIMIT ?',
+          'SELECT vod_id, vod_name, vod_pic, poster, vod_remarks, vod_score FROM vods WHERE vod_id != ? ORDER BY updated_at DESC LIMIT ?',
           [vodId, limit]
         );
       }
@@ -713,13 +956,13 @@ router.get('/related/:vodId', async (req, res) => {
         const typeName = current.type_name || current.vod_type || '';
         if (typeName) {
           rows = vdb.sqlite.prepare(
-            'SELECT vod_id, vod_name, vod_pic, vod_remarks, vod_score FROM vods WHERE vod_id != ? AND (type_name = ? OR vod_type = ?) ORDER BY updated_at DESC LIMIT ?'
+            'SELECT vod_id, vod_name, vod_pic, poster, vod_remarks, vod_score FROM vods WHERE vod_id != ? AND (type_name = ? OR vod_type = ?) ORDER BY updated_at DESC LIMIT ?'
           ).all(vodId, typeName, typeName, limit);
         }
       }
       if (!rows || rows.length === 0) {
         rows = vdb.sqlite.prepare(
-          'SELECT vod_id, vod_name, vod_pic, vod_remarks, vod_score FROM vods WHERE vod_id != ? ORDER BY updated_at DESC LIMIT ?'
+          'SELECT vod_id, vod_name, vod_pic, poster, vod_remarks, vod_score FROM vods WHERE vod_id != ? ORDER BY updated_at DESC LIMIT ?'
         ).all(vodId, limit);
       }
     }
@@ -727,7 +970,8 @@ router.get('/related/:vodId', async (req, res) => {
     const result = (rows || []).map(r => ({
       vod_id: r.vod_id,
       vod_name: r.vod_name,
-      vod_pic: proxyImageUrl(r.vod_pic),
+      vod_pic: proxyImageUrl(r.poster || r.vod_pic),
+      poster_url: proxyImageUrl(r.poster || r.vod_pic),
       vod_remarks: r.vod_remarks || '',
       vod_score: r.vod_score || ''
     }));

@@ -299,12 +299,12 @@
     }
 
     function buildCard(video, index) {
-        var poster = video.poster_url || 'https://picsum.photos/seed/browse' + index + '/400/600';
+        var poster = video.poster_url || video.poster || video.vod_pic || 'https://picsum.photos/seed/browse' + index + '/400/600';
         var title = video.title || '精彩内容';
-        var year = video.year || '';
+        var year = video.year || video.vod_year || '';
         var rating = video.rating || '';
-        var genre = video.genre || video.category || '';
-        var desc = video.description || '';
+        var genre = video.genre || video.vod_type || video.type_name || video.category || '';
+        var desc = video.description || video.vod_content || '';
         var href = video.vod_id
             ? 'video-player.html?id=' + video.vod_id
             : (video.id ? 'video-player.html?id=' + video.id : 'javascript:;');
@@ -316,7 +316,7 @@
 
         return '<div class="browse-card" onclick="location.href=\'' + href + '\'">' +
             '<div class="browse-card-poster">' +
-                '<img src="' + poster + '" alt="' + title + '" loading="lazy">' +
+                '<img src="' + poster + '" alt="' + title + '" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=\'/api/vod/image-proxy?fallback=1\';">' +
                 '<div class="browse-card-play"><i class="fas fa-play"></i></div>' +
                 (ratingHtml) +
             '</div>' +

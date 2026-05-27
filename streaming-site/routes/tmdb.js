@@ -8,7 +8,7 @@ router.get('/search', async (req, res) => {
   const query = (req.query.q || '').trim();
   if (!query) return res.json({ success: false, msg: 'Missing query' });
 
-  if (!isConfigured()) return res.json({ success: false, msg: 'TMDB API key not configured' });
+  if (!isConfigured()) return res.json({ success: false, msg: 'TMDB is not available — check TMDB_ENABLED env var or API key' });
 
   try {
     const cacheKey = `tmdb_search:${query}`;
@@ -63,6 +63,33 @@ router.post('/enrich-batch', async (req, res) => {
     res.json({ success: true, count: enriched.length, data: enriched });
   } catch (err) {
     res.status(500).json({ success: false, msg: err.message });
+  }
+});
+
+// --------------- Image proxy ---------------
+// Proxies TMDB images through the server to bypass GFW blocks on image.tmdb.org
+router.get('/image-proxy', async (req, res) => {
+  const url = req.query.url;
+  if (!url) return res.status(400).json({ error: 'Missing url' });
+
+  // Only proxy TMDB image URLs
+  if (!url.includes('image.tmdb.org') && !url.includes('api.themoviedb.org')) {
+    return res.status(403).json({ error: 'Only TMDB images allowed' });
+  }
+
+  try {
+    const axios = require('axios');
+    const response = await axios.get(url, {
+      responseType: 'arraybuffer',
+      timeout: 10000,
+      headers: { 'User-Agent': 'SynPlayer/1.0' }
+    });
+    res.set('Content-Type', response.headers['content-type'] || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(Buffer.from(response.data));
+  } catch (err) {
+    // Fallback: redirect to a placeholder
+    res.status(404).send('');
   }
 });
 

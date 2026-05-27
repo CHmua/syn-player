@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <title>Syn Player - 在线视频播放平台</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="mobile.css">
+    <link rel="stylesheet" href="style.css?v=20260527c">
+    <link rel="stylesheet" href="mobile.css?v=20260527c">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.css">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -166,7 +166,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     </section>
 
     <!-- 热门电视剧 -->
-    <section class="section section-trending-iqiyi section-home-posters">
+    <section class="section section-trending-iqiyi section-home-posters section-poster-year">
         <div class="section-header">
             <h3>热门电视剧</h3>
 <a href="browse.html?section=trendingTV&title=热门电视剧" class="more-link">更多剧集 <i class="fas fa-chevron-right"></i></a>
@@ -175,7 +175,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     </section>
 
     <!-- 热门动漫 -->
-    <section class="section section-trending-iqiyi section-home-posters">
+    <section class="section section-trending-iqiyi section-home-posters section-poster-year">
         <div class="section-header">
             <h3>热门动漫</h3>
 <a href="browse.html?section=trendingAnime&title=热门动漫" class="more-link">更多动漫 <i class="fas fa-chevron-right"></i></a>
@@ -184,7 +184,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     </section>
 
     <!-- 热门综艺 -->
-    <section class="section section-trending-iqiyi section-home-posters">
+    <section class="section section-trending-iqiyi section-home-posters section-poster-year">
         <div class="section-header">
             <h3>热门综艺</h3>
 <a href="browse.html?section=trendingVariety&title=热门综艺" class="more-link">更多综艺 <i class="fas fa-chevron-right"></i></a>
@@ -193,7 +193,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     </section>
 
     <!-- 记录解说 -->
-    <section class="section section-trending-iqiyi section-home-posters">
+    <section class="section section-trending-iqiyi section-home-posters section-poster-year">
         <div class="section-header">
             <h3>记录解说</h3>
             <a href="browse.html?section=liveTV&title=记录解说" class="more-link">更多内容 <i class="fas fa-chevron-right"></i></a>
@@ -201,12 +201,12 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         <div class="thumb-grid" id="liveTV"></div>
     </section>
 
-    <section class="section section-more-recommend">
+    <section class="section section-trending-iqiyi section-home-posters section-more-recommend section-poster-year">
         <div class="section-header">
             <h3>更多推荐</h3>
             <a href="browse.html?section=moreRecommend&title=更多推荐" class="more-link">更多内容 <i class="fas fa-chevron-right"></i></a>
         </div>
-        <div class="more-recommend-grid" id="moreRecommend"></div>
+        <div class="thumb-grid" id="moreRecommend"></div>
         <div id="moreRecommendSentinel"></div>
     </section>
 
@@ -354,4 +354,3 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 <script src="capacitor-init.js"></script>
 </body>
 </html>
-

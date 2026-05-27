@@ -9,12 +9,69 @@ const { heartbeat, getOnlineCount } = require('../middleware/online');
 const { dedupVods, normalizeTitle } = require('../utils/dedup');
 
 const router = express.Router();
+const IMAGE_REQUEST_TIMEOUT_MS = parseInt(process.env.IMAGE_PROXY_REQUEST_TIMEOUT_MS || '5000', 10);
+const IMAGE_STREAM_TIMEOUT_MS = parseInt(process.env.IMAGE_PROXY_STREAM_TIMEOUT_MS || '7000', 10);
 
-// Return direct poster URL for fast loading — client-side onerror handles proxy fallback
+// Route remote poster/backdrop URLs through our image proxy to avoid hotlink blocks.
+function normalizeLegacyProxy(raw) {
+  try {
+    const qIndex = raw.indexOf('?');
+    if (qIndex === -1) return '';
+    const params = new URLSearchParams(raw.slice(qIndex + 1));
+    const upstream = params.get('url');
+    if (!upstream) return '';
+    return `/api/vod/image-proxy?url=${encodeURIComponent(upstream)}`;
+  } catch {
+    return '';
+  }
+}
+
 function posterProxyUrl(url) {
-  if (!url) return '';
-  if (url.startsWith('/api/') || url.startsWith('data:')) return url;
-  return url;
+  const raw = String(url || '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('/api/img-proxy?') || raw.startsWith('/api/tmdb/image-proxy?')) {
+    return normalizeLegacyProxy(raw) || '/api/vod/image-proxy?fallback=1';
+  }
+  if (raw.startsWith('/api/') || raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+  if (raw.startsWith('//')) return `/api/vod/image-proxy?url=${encodeURIComponent('https:' + raw)}`;
+  if (/^https?:\/\//i.test(raw)) return `/api/vod/image-proxy?url=${encodeURIComponent(raw)}`;
+  return raw;
+}
+
+let posterEnrichRunning = false;
+let lastPosterEnrichAt = 0;
+
+function queueBackgroundPosterEnrichment(vods) {
+  const now = Date.now();
+  if (posterEnrichRunning || now - lastPosterEnrichAt < 3 * 60 * 1000) return;
+
+  const candidates = (Array.isArray(vods) ? vods : [])
+    .filter(v => v && (v.vod_id || v.id) && (v.title || v.vod_name))
+    .filter(v => !String(v.poster || '').trim() && !String(v.poster_url || '').trim())
+    .slice(0, 12);
+
+  if (!candidates.length) return;
+
+  posterEnrichRunning = true;
+  lastPosterEnrichAt = now;
+
+  setImmediate(async () => {
+    try {
+      const { enrichVods: enrichDouban } = require('../services/douban');
+      const { isAvailable: tmdbAvailable, enrichVods: enrichTMDB } = require('../services/tmdb');
+
+      let enriched = await enrichDouban(candidates.slice(0, 6));
+
+      if (tmdbAvailable()) {
+        const needTmdb = enriched.filter(v => !String(v.poster || '').trim()).slice(0, 6);
+        if (needTmdb.length) await enrichTMDB(needTmdb);
+      }
+    } catch (err) {
+      console.error('[API] Background poster enrich error:', err.message);
+    } finally {
+      posterEnrichRunning = false;
+    }
+  });
 }
 
 // Strip unwanted suffixes from titles (category labels, season info, etc.)
@@ -130,6 +187,7 @@ router.get('/videos', /* public — pages already require auth */ async (req, re
     vod_id: r.vod_id || String(r.id),
     poster: r.poster_url || r.poster || '',
     poster_url: posterProxyUrl(r.poster_url || r.poster || ''),
+    backdrop_url: posterProxyUrl(r.backdrop_url || r.backdrop || ''),
     rating_source: r.rating && parseFloat(r.rating) > 0 ? 'TMDB' : '',
     featured: r.featured || 0,
     source: 'video'
@@ -216,7 +274,7 @@ router.get('/videos', /* public — pages already require auth */ async (req, re
         category: r.type_name,
         poster_url: posterProxyUrl(r.poster || r.vod_pic || ''),
         poster: r.poster || r.vod_pic || '',
-        backdrop_url: r.backdrop_url || '',
+        backdrop_url: posterProxyUrl(r.backdrop_url || r.backdrop || ''),
         video_url: r.vod_play_url || '',
         year: r.vod_year,
         release_date: r.release_date || '',
@@ -237,32 +295,54 @@ router.get('/videos', /* public — pages already require auth */ async (req, re
     // Both DBs unavailable
   }
 
-  // Enrich VODs with Douban posters first (works in China), TMDB as fallback
-  try {
-    const { enrichVods: enrichDouban } = require('../services/douban');
-    const { isAvailable: tmdbAvailable, enrichVods: enrichTMDB } = require('../services/tmdb');
-    // Douban first (works in China without proxy)
-    vodRows = await enrichDouban(vodRows);
-    // TMDB fallback for any VODs still missing posters
-    if (tmdbAvailable()) {
-      const needPoster = vodRows.filter(v => !v.poster || v.poster === '');
-      if (needPoster.length > 0) {
-        const tmdbEnriched = await enrichTMDB(needPoster);
-        // Merge back
-        for (let i = 0, j = 0; i < vodRows.length && j < needPoster.length; i++) {
-          if (!vodRows[i].poster || vodRows[i].poster === '') {
-            if (tmdbEnriched[j] && tmdbEnriched[j].poster) {
-              vodRows[i] = { ...vodRows[i], ...tmdbEnriched[j] };
-            }
-            j++;
+  // Keep API responses fast: normalize media URLs immediately.
+  // Full metadata enrichment can still be requested explicitly via ?enrich=1.
+  vodRows = vodRows.map(v => ({
+    ...v,
+    poster_url: posterProxyUrl(v.poster || v.poster_url || v.vod_pic || ''),
+    backdrop_url: posterProxyUrl(v.backdrop_url || v.backdrop || '')
+  }));
+
+  if (req.query.enrich === '1') {
+    try {
+      const { enrichVods: enrichDouban } = require('../services/douban');
+      const { isAvailable: tmdbAvailable, enrichVods: enrichTMDB } = require('../services/tmdb');
+      const target = vodRows.slice(0, 40);
+      const doubanEnriched = await enrichDouban(target);
+
+      let mergedById = new Map(
+        doubanEnriched.map(v => [String(v.vod_id || v.id), v])
+      );
+
+      if (tmdbAvailable()) {
+        const needTmdb = doubanEnriched.filter(v => !String(v.poster || '').trim());
+        if (needTmdb.length) {
+          const tmdbEnriched = await enrichTMDB(needTmdb.slice(0, 20));
+          for (const row of tmdbEnriched) {
+            mergedById.set(String(row.vod_id || row.id), {
+              ...(mergedById.get(String(row.vod_id || row.id)) || row),
+              ...row
+            });
           }
         }
       }
+
+      vodRows = vodRows.map(v => {
+        const enriched = mergedById.get(String(v.vod_id || v.id));
+        if (!enriched) return v;
+        return {
+          ...v,
+          ...enriched,
+          poster_url: posterProxyUrl(enriched.poster || enriched.poster_url || enriched.vod_pic || v.poster_url || ''),
+          backdrop_url: posterProxyUrl(enriched.backdrop_url || enriched.backdrop || v.backdrop_url || '')
+        };
+      });
+    } catch (err) {
+      console.error('[API] Inline enrich error:', err.message);
     }
-    // Sync poster_url from enriched poster
-    vodRows = vodRows.map(v => ({ ...v, poster_url: posterProxyUrl(v.poster || v.poster_url || '') }));
-  } catch (err) {
-    console.error('[API] Enrich error:', err.message);
+  } else {
+    // Non-blocking best-effort enrichment for records missing posters.
+    queueBackgroundPosterEnrichment(vodRows);
   }
 
   // Dedup VODs internally first (merge year/lang variants of same title)
@@ -309,14 +389,19 @@ router.get('/videos/:id', /* public */ async (req, res) => {
 
   // 1. Try admin-managed videos table (SQLite)
   const row = db.prepare('SELECT * FROM videos WHERE id = ?').get(id);
-  if (row) return res.json({ ...row, poster_url: posterProxyUrl(row.poster_url || ''), source: 'video' });
+  if (row) return res.json({
+    ...row,
+    poster_url: posterProxyUrl(row.poster_url || row.poster || ''),
+    backdrop_url: posterProxyUrl(row.backdrop_url || row.backdrop || ''),
+    source: 'video'
+  });
 
   // 2. Try SQLite vods table
   const vod = db.prepare('SELECT * FROM vods WHERE vod_id = ?').get(id);
   if (vod) return res.json({
     id: vod.vod_id, title: vod.vod_name, category: vod.type_name,
     description: vod.vod_content || '', poster_url: posterProxyUrl(vod.poster || vod.vod_pic || ''),
-    backdrop_url: '', video_url: vod.vod_play_url || '', year: vod.vod_year || '', duration: '',
+    backdrop_url: posterProxyUrl(vod.backdrop_url || vod.backdrop || ''), video_url: vod.vod_play_url || '', year: vod.vod_year || '', duration: '',
     genre: vod.vod_type || '', rating: parseFloat(vod.douban_rating || vod.vod_score) || 0,
     badge: '', is_live: 0, sort_order: 0, source: 'vod',
     vod_id: vod.vod_id
@@ -331,7 +416,7 @@ router.get('/videos/:id', /* public */ async (req, res) => {
       return res.json({
         id: v.vod_id, title: v.vod_name, category: v.type_name,
         description: v.vod_content || '', poster_url: posterProxyUrl(v.poster || v.vod_pic || ''),
-        backdrop_url: '', video_url: v.vod_play_url || '', year: v.vod_year || '', duration: '',
+        backdrop_url: posterProxyUrl(v.backdrop_url || v.backdrop || ''), video_url: v.vod_play_url || '', year: v.vod_year || '', duration: '',
         genre: v.vod_type || '', rating: parseFloat(v.douban_rating || v.vod_score) || 0,
         badge: '', is_live: 0, sort_order: 0, source: 'vod',
         vod_id: v.vod_id
@@ -587,7 +672,10 @@ router.get('/series', /* public */ (req, res) => {
     FROM videos WHERE series_title != '' AND series_title IS NOT NULL
     GROUP BY series_title ORDER BY series_title
   `).all();
-  res.json(series);
+  res.json(series.map(s => ({
+    ...s,
+    poster_url: posterProxyUrl(s.poster_url || '')
+  })));
 });
 
 // Get series detail — all seasons with episodes
@@ -612,14 +700,18 @@ router.get('/series/:encodedTitle', apiAuthMiddleware, (req, res) => {
       season = { label, videos: [] };
       seenLabels.set(label, season);
     }
-    season.videos.push(v);
+    season.videos.push({
+      ...v,
+      poster_url: posterProxyUrl(v.poster_url || v.poster || ''),
+      backdrop_url: posterProxyUrl(v.backdrop_url || v.backdrop || '')
+    });
   }
 
   res.json({
     series_title: title,
     video_count: videos.length,
-    poster_url: videos[0].poster_url || videos[0].backdrop_url || '',
-    backdrop_url: videos[0].backdrop_url || '',
+    poster_url: posterProxyUrl(videos[0].poster_url || videos[0].poster || videos[0].backdrop_url || ''),
+    backdrop_url: posterProxyUrl(videos[0].backdrop_url || videos[0].backdrop || ''),
     category: videos[0].category || '',
     year: videos[0].year || '',
     description: videos[0].description || '',
@@ -1356,7 +1448,7 @@ router.get('/img-proxy', (req, res) => {
   const parsed = new URL(imgUrl);
   const transport = parsed.protocol === 'https:' ? require('https') : require('http');
 
-  transport.get(imgUrl, {
+  const reqImg = transport.get(imgUrl, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       'Referer': parsed.origin + '/',
@@ -1364,25 +1456,46 @@ router.get('/img-proxy', (req, res) => {
       'Accept-Language': 'zh-CN,zh;q=0.9'
     },
     rejectUnauthorized: false,
-    timeout: 12000
+    timeout: IMAGE_REQUEST_TIMEOUT_MS
   }, (imgRes) => {
     if (imgRes.statusCode !== 200) {
       if ([301, 302, 303, 307, 308].includes(imgRes.statusCode) && imgRes.headers.location) {
         const redirectUrl = new URL(imgRes.headers.location, imgUrl);
         const rt = redirectUrl.protocol === 'https:' ? require('https') : require('http');
-        rt.get(redirectUrl.href, { rejectUnauthorized: false, timeout: 12000, headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': parsed.origin + '/' } }, (r2) => {
+        const redirectReq = rt.get(redirectUrl.href, { rejectUnauthorized: false, timeout: IMAGE_REQUEST_TIMEOUT_MS, headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': parsed.origin + '/' } }, (r2) => {
           if (r2.statusCode !== 200) return sendPlaceholder(res);
+          attachLegacyProxyResponseTimeout(r2, res);
           res.set({ 'Content-Type': r2.headers['content-type'] || 'image/jpeg', 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' });
           r2.pipe(res);
-        }).on('error', () => sendPlaceholder(res));
+        });
+        attachLegacyProxyRequestTimeout(redirectReq, res);
+        redirectReq.on('error', () => { if (!res.headersSent) sendPlaceholder(res); });
         return;
       }
       return sendPlaceholder(res);
     }
+    attachLegacyProxyResponseTimeout(imgRes, res);
     res.set({ 'Content-Type': imgRes.headers['content-type'] || 'image/jpeg', 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' });
     imgRes.pipe(res);
-  }).on('error', () => { if (!res.headersSent) sendPlaceholder(res); });
+  });
+  attachLegacyProxyRequestTimeout(reqImg, res);
+  reqImg.on('error', () => { if (!res.headersSent) sendPlaceholder(res); });
 });
+
+function attachLegacyProxyRequestTimeout(request, res) {
+  request.setTimeout(IMAGE_REQUEST_TIMEOUT_MS, () => {
+    if (!res.headersSent) sendPlaceholder(res);
+    request.destroy();
+  });
+}
+
+function attachLegacyProxyResponseTimeout(source, res) {
+  source.setTimeout(IMAGE_STREAM_TIMEOUT_MS, () => {
+    source.destroy();
+    if (!res.headersSent) sendPlaceholder(res);
+    else res.end();
+  });
+}
 
 function sendPlaceholder(res) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600">

@@ -61,6 +61,11 @@ async function initDB() {
     try { await conn.query('ALTER TABLE vods ADD COLUMN backdrop TEXT'); } catch(e) {}
     try { await conn.query('ALTER TABLE vods ADD COLUMN douban_id VARCHAR(50)'); } catch(e) {}
     try { await conn.query('ALTER TABLE vods ADD COLUMN douban_rating VARCHAR(10)'); } catch(e) {}
+    // Playback-health columns (auto disable dead sources)
+    try { await conn.query('ALTER TABLE vods ADD COLUMN playback_fail_count INT DEFAULT 0'); } catch(e) {}
+    try { await conn.query('ALTER TABLE vods ADD COLUMN playback_last_failed_at TIMESTAMP NULL'); } catch(e) {}
+    try { await conn.query("ALTER TABLE vods ADD COLUMN playback_disable_reason VARCHAR(255) DEFAULT ''"); } catch(e) {}
+    try { await conn.query('CREATE INDEX idx_playback_fail_count ON vods(playback_fail_count)'); } catch(e) {}
 
     await conn.query(`
       CREATE TABLE IF NOT EXISTS vod_play_sources (

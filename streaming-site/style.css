@@ -2,21 +2,21 @@
 /* HarmonyOS Sans — Huawei's open-source font, free for commercial use */
 @font-face {
     font-family: 'HarmonyOS Sans SC';
-    src: url('https://cdn.jsdelivr.net/gh/irozhi/HarmonyOS-Sans@main/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Regular.woff2') format('woff2');
+    src: url('https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@5.2.7/files/noto-sans-sc-chinese-simplified-400-normal.woff2') format('woff2');
     font-weight: 400;
     font-style: normal;
     font-display: swap;
 }
 @font-face {
     font-family: 'HarmonyOS Sans SC';
-    src: url('https://cdn.jsdelivr.net/gh/irozhi/HarmonyOS-Sans@main/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Medium.woff2') format('woff2');
+    src: url('https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@5.2.7/files/noto-sans-sc-chinese-simplified-500-normal.woff2') format('woff2');
     font-weight: 500;
     font-style: normal;
     font-display: swap;
 }
 @font-face {
     font-family: 'HarmonyOS Sans SC';
-    src: url('https://cdn.jsdelivr.net/gh/irozhi/HarmonyOS-Sans@main/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Bold.woff2') format('woff2');
+    src: url('https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@5.2.7/files/noto-sans-sc-chinese-simplified-700-normal.woff2') format('woff2');
     font-weight: 700;
     font-style: normal;
     font-display: swap;
@@ -1829,6 +1829,119 @@ img {
     line-height: 1.35;
 }
 
+/* Reference-style poster blocks: poster / title / year (left aligned) */
+.section-poster-year .thumb-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 16px 14px;
+}
+
+.section-poster-year .poster-year-card {
+    min-width: 0;
+}
+
+.section-poster-year .poster-year-card .thumb-poster {
+    width: 100%;
+    aspect-ratio: 2/3;
+    border-radius: 7px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.24);
+}
+
+.section-poster-year .poster-year-card .thumb-poster img {
+    object-fit: cover;
+}
+
+.section.section-poster-year .poster-year-card .thumb-info {
+    padding: 8px 0 0;
+    text-align: left;
+}
+
+.section.section-poster-year .poster-year-card .thumb-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.section.section-poster-year .poster-year-card .thumb-subtitle {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.section-poster-year .poster-year-card:hover {
+    transform: translateY(-2px);
+}
+
+.section-poster-year .poster-year-card:hover .thumb-poster img {
+    transform: scale(1.02);
+}
+
+.section-poster-year .poster-year-card .thumb-badge,
+.section-poster-year .poster-year-card .thumb-overlay-hover {
+    display: none !important;
+}
+
+/* Dedicated responsive grid for poster-year sections */
+@media (max-width: 1280px) {
+    .section.section-poster-year .thumb-grid {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 14px 12px;
+    }
+}
+
+@media (max-width: 1100px) {
+    .section.section-poster-year .thumb-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 992px) {
+    .section.section-poster-year .thumb-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px 10px;
+    }
+    .section.section-poster-year .poster-year-card .thumb-title {
+        font-size: 13px;
+    }
+    .section.section-poster-year .poster-year-card .thumb-subtitle {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 768px) {
+    .section.section-poster-year .thumb-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px 8px;
+    }
+}
+
+@media (max-width: 576px) {
+    .section.section-poster-year .thumb-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 9px 7px;
+    }
+    .section.section-poster-year .poster-year-card .thumb-info {
+        padding-top: 6px;
+    }
+    .section.section-poster-year .poster-year-card .thumb-title {
+        font-size: 12px;
+    }
+    .section.section-poster-year .poster-year-card .thumb-subtitle {
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 420px) {
+    .section.section-poster-year .thumb-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 .section-hot-recommend .thumb-rank-badge {
     position: absolute;
     top: 6px;
@@ -1952,6 +2065,17 @@ img {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-height: 0;
+    scrollbar-width: thin;
+}
+
+.hot-movies-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.hot-movies-list::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.22);
+    border-radius: 999px;
 }
 
 .hot-movie-rank-item {
@@ -2031,36 +2155,36 @@ img {
         aspect-ratio: 16 / 9;
     }
     .hot-movies-list {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
     }
     .hot-movie-rank-item {
-        flex-direction: column;
-        text-align: center;
-        gap: 6px;
-        padding: 12px 8px;
+        flex-direction: row;
+        text-align: left;
+        gap: 10px;
+        padding: 9px 10px;
     }
     .hot-movie-rank-poster {
-        width: 60px;
-        height: 84px;
+        width: 46px;
+        height: 64px;
     }
     .hot-movie-rank-num {
-        position: absolute;
-        top: 4px;
-        left: 4px;
-        font-size: 14px;
-        min-width: auto;
-        background: rgba(0,0,0,0.6);
-        border-radius: 3px;
-        padding: 0 4px;
-        color: #fff;
+        position: static;
+        min-width: 30px;
+        font-size: 20px;
+        background: transparent;
+        border-radius: 0;
+        padding: 0;
     }
 }
 
 @media (max-width: 600px) {
-    .hot-movies-list {
-        grid-template-columns: repeat(2, 1fr);
-    }
+    .hot-movie-rank-item { padding: 8px 9px; }
+    .hot-movie-rank-poster { width: 42px; height: 58px; }
+    .hot-movie-rank-info .rank-title { font-size: 13px; }
+    .hot-movie-rank-info .rank-meta { font-size: 10px; }
+    .hot-movie-rank-score { font-size: 12px; }
     .hot-movies-hero-info h3 { font-size: 20px; }
 }
 
@@ -5201,7 +5325,12 @@ img {
         order: 2;
         display: flex;
         flex-direction: column;
+        align-items: stretch;
         gap: 12px;
+    }
+    .player-page .playlist-panel,
+    .player-page .recommend-panel {
+        width: 100%;
     }
     .player-page .player-shell {
         padding: 12px 16px 28px;

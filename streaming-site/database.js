@@ -115,7 +115,11 @@ try { db.exec('ALTER TABLE vods ADD COLUMN series_title TEXT DEFAULT \'\''); } c
 try { db.exec('ALTER TABLE vods ADD COLUMN season_label TEXT DEFAULT \'\''); } catch(e) {}
 try { db.exec('ALTER TABLE vods ADD COLUMN duration TEXT DEFAULT \'\''); } catch(e) {}
 try { db.exec('ALTER TABLE vods ADD COLUMN genre TEXT DEFAULT \'\''); } catch(e) {}
+try { db.exec('ALTER TABLE vods ADD COLUMN playback_fail_count INTEGER DEFAULT 0'); } catch(e) {}
+try { db.exec('ALTER TABLE vods ADD COLUMN playback_last_failed_at TEXT DEFAULT \'\''); } catch(e) {}
+try { db.exec('ALTER TABLE vods ADD COLUMN playback_disable_reason TEXT DEFAULT \'\''); } catch(e) {}
 try { db.exec('CREATE INDEX IF NOT EXISTS idx_vods_series ON vods(series_title)'); } catch(e) {}
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_vods_playback_fail_count ON vods(playback_fail_count)'); } catch(e) {}
 
 // Add release_date for full date display (YYYY年MM月DD日)
 try { db.exec('ALTER TABLE vods ADD COLUMN release_date TEXT DEFAULT \'\''); } catch(e) {}

@@ -724,12 +724,44 @@ function parseWithLines(playUrlStr, playFrom) {
   return lines;
 }
 
-// Check m3u8 URL validity (lightweight HEAD request)
+function normalizeCheckUrl(url) {
+  const raw = String(url || '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('//')) return 'https:' + raw;
+  if (/^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(raw)) return 'https://' + raw;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return '';
+}
+
+// Check URL validity with HEAD first, then fallback to tiny GET.
+// Some upstream CDNs block HEAD, so GET fallback avoids false negatives.
 async function checkUrlValid(url) {
+  const target = normalizeCheckUrl(url);
+  if (!target) return false;
+
+  const client = createClient(6000);
+  const requestConfig = {
+    maxRedirects: 5,
+    validateStatus: () => true
+  };
+
   try {
-    const client = createClient(3000);
-    const res = await client.head(url);
-    return res.status >= 200 && res.status < 400;
+    const headRes = await client.head(target, requestConfig);
+    if (headRes.status >= 200 && headRes.status < 400) return true;
+    if ([401, 403, 405, 416].includes(headRes.status)) return true;
+  } catch { /* continue with GET fallback */ }
+
+  try {
+    const getRes = await client.get(target, {
+      ...requestConfig,
+      responseType: 'stream',
+      headers: { Range: 'bytes=0-1' }
+    });
+    if (getRes.data && typeof getRes.data.destroy === 'function') {
+      getRes.data.destroy();
+    }
+    if (getRes.status >= 200 && getRes.status < 400) return true;
+    return [401, 403, 416].includes(getRes.status);
   } catch {
     return false;
   }

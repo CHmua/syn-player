@@ -26,6 +26,15 @@ document.addEventListener('DOMContentLoaded', function() {
     '</div>';
     document.body.insertAdjacentHTML('beforeend', searchOverlayHTML);
 
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     // ============ Account Dropdown ============
     var userToken = localStorage.getItem('syn_user_token');
     var userData = null;
@@ -674,14 +683,14 @@ document.addEventListener('DOMContentLoaded', function() {
         html += '<div class="vod-search-grid">';
         vods.forEach(function(v) {
             var title = v.vod_name || v.title || '未知影片';
-            var pic = v.vod_pic || v.poster_url || '';
+            var pic = v.poster_url || v.poster || v.vod_pic || '';
             var remark = v.vod_remarks || '';
             var year = v.vod_year || v.year || '';
             var typeName = v.type_name || v.vod_type || '';
             var rating = v.vod_score || v.douban_rating || '';
             var fallbackSeed = (v.vod_id || Math.random()).toString(36).substring(0, 8);
             html += '<div class="vod-search-card" onclick="location.href=\'video-player.html?id=' + (v.vod_id || v.id) + '\'" title="' + title + '">';
-            html += '<img src="' + (pic || '/api/vod/image-proxy?fallback=1') + '" alt="' + title + '" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">';
+            html += '<img src="' + (pic || '/api/vod/image-proxy?fallback=1') + '" alt="' + title + '" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=\'/api/vod/image-proxy?fallback=1\';">';
             html += '<div class="vod-search-card-body">';
             html += '<div class="vod-search-title">' + title + '</div>';
             html += '<div class="vod-search-meta">';
@@ -786,11 +795,32 @@ document.addEventListener('DOMContentLoaded', function() {
     // Carousel is loaded dynamically from API — see loadCarousel() above
 
     // ============ Load Content from API ============
+    function syncHotMoviesLayoutHeight(container) {
+        if (!container) return;
+        var hero = container.querySelector('.hot-movies-hero');
+        var list = container.querySelector('.hot-movies-list');
+        if (!hero || !list) return;
+
+        // Mobile uses stacked/grid layout; do not lock list height.
+        if (window.innerWidth <= 900) {
+            list.style.maxHeight = '';
+            list.style.overflowY = '';
+            list.style.paddingRight = '';
+            return;
+        }
+
+        var heroRect = hero.getBoundingClientRect();
+        if (!heroRect || !heroRect.height) return;
+        list.style.maxHeight = Math.round(heroRect.height) + 'px';
+        list.style.overflowY = 'auto';
+        list.style.paddingRight = '4px';
+    }
+
     // Render Hot Movies hero + ranked list layout
     function renderHotMoviesLayout(videos) {
         if (!videos.length) return '<p style="color:#999;padding:20px;">暂无内容</p>';
         var hero = videos[0];
-        var heroImg = hero.backdrop_url || hero.poster_url || '';
+        var heroImg = hero.backdrop_url || hero.backdrop || hero.poster_url || hero.poster || hero.vod_pic || '';
         var heroTitle = hero.title || hero.vod_name || '未知影片';
         var heroDesc = hero.description || hero.vod_content || '';
         var heroYear = hero.year || hero.vod_year || '';
@@ -818,7 +848,7 @@ document.addEventListener('DOMContentLoaded', function() {
         html += '<div class="hot-movies-list">';
         var list = videos.slice(1, 10);
         list.forEach(function(v, i) {
-            var poster = v.poster_url || v.poster || '';
+            var poster = v.poster_url || v.poster || v.vod_pic || '';
             var title = v.title || v.vod_name || '未知';
             var year = v.year || v.vod_year || '';
             var type = v.vod_type || v.type_name || '';
@@ -875,16 +905,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Use backdrop (16:9) for landscape sections, poster (2:3) for standard cards
         var imgSrc;
         if (useBackdrop) {
-            imgSrc = video.backdrop_url || video.poster_url || '/api/vod/image-proxy?fallback=1';
+            imgSrc = video.backdrop_url || video.backdrop || video.poster_url || video.poster || video.vod_pic || '/api/vod/image-proxy?fallback=1';
         } else {
-            imgSrc = video.poster_url || '/api/vod/image-proxy?fallback=1';
+            imgSrc = video.poster_url || video.poster || video.vod_pic || '/api/vod/image-proxy?fallback=1';
         }
 
-        var clickUrl = video.series_title ? 'series.html?title=' + encodeURIComponent(video.series_title) : 'video-player.html?id=' + video.id;
+        var clickUrl = video.series_title ? 'series.html?title=' + encodeURIComponent(video.series_title) : 'video-player.html?id=' + (video.vod_id || video.id);
         var html = '<div class="' + cardClass + '" onclick="location.href=\'' + clickUrl + '\'">';
         html += '<div class="thumb-poster">';
-        html += '<img src="' + imgSrc + '" alt="' + video.title + '" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=\'/api/vod/image-proxy?fallback=1\';">';
-        html += '<div style="display:none;width:100%;height:100%;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);align-items:center;justify-content:center;font-size:12px;color:#888;text-align:center;padding:10px;">' + video.title + '</div>';
+        html += '<img src="' + imgSrc + '" alt="' + (video.title || video.vod_name || '') + '" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=\'/api/vod/image-proxy?fallback=1\';">';
+        html += '<div style="display:none;width:100%;height:100%;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);align-items:center;justify-content:center;font-size:12px;color:#888;text-align:center;padding:10px;">' + (video.title || video.vod_name || '') + '</div>';
         if (rankNumber) {
             html += '<span class="thumb-rank-badge">' + rankNumber + '</span>';
         }
@@ -898,7 +928,7 @@ document.addEventListener('DOMContentLoaded', function() {
         html += '<div class="thumb-overlay-hover"><span class="thumb-play-icon"><i class="fas fa-play"></i></span></div>';
         html += '</div>';
         html += '<div class="thumb-info">';
-        html += '<div class="thumb-title">' + video.title + '</div>';
+        html += '<div class="thumb-title">' + (video.title || video.vod_name || '') + '</div>';
         if (video.series_title && video.season_label) {
             html += '<div class="thumb-subtitle" style="color:#e50914;">' + video.season_label + '</div>';
         } else if (subtitle) {
@@ -908,11 +938,31 @@ document.addEventListener('DOMContentLoaded', function() {
         return html;
     }
 
+    function renderPosterYearCard(video) {
+        var title = video.title || video.vod_name || '未知影片';
+        var year = video.year || video.vod_year || '';
+        if (!year && video.release_date) {
+            year = String(video.release_date).slice(0, 4);
+        }
+        var imgSrc = video.poster_url || video.poster || video.vod_pic || '/api/vod/image-proxy?fallback=1';
+        var clickUrl = video.series_title ? 'series.html?title=' + encodeURIComponent(video.series_title) : 'video-player.html?id=' + (video.vod_id || video.id);
+
+        var html = '<div class="thumb-card poster-year-card" onclick="location.href=\'' + clickUrl + '\'">';
+        html += '<div class="thumb-poster">';
+        html += '<img src="' + imgSrc + '" alt="' + title + '" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=\'/api/vod/image-proxy?fallback=1\';">';
+        html += '</div>';
+        html += '<div class="thumb-info">';
+        html += '<div class="thumb-title">' + title + '</div>';
+        html += '<div class="thumb-subtitle">' + (year || '&nbsp;') + '</div>';
+        html += '</div></div>';
+        return html;
+    }
+
     // Poster-wall card for 更多推荐 — uniform grid, no cropping
     function renderPosterWallCard(video, index) {
         var rating = parseFloat(video.rating) || parseFloat(video.douban_rating) || 0;
         var badgeText = rating > 0 ? rating.toFixed(1) : '';
-        var posterUrl = video.poster_url || video.poster || '';
+        var posterUrl = video.poster_url || video.poster || video.vod_pic || '';
         var title = video.title || video.vod_name || '';
         var year = video.year || video.vod_year || '';
         var type = video.type || video.vod_class || video.type_name || '';
@@ -1028,7 +1078,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load carousel using Swiper.js — immersive single-poster design
     function loadCarousel() {
         // Only show manually featured videos — no algorithmic selection
-        fetch('/api/videos?featured=1').then(function(r) { return r.json(); }).then(function(videos) {
+        fetch('/api/videos?featured=1&limit=12').then(function(r) { return r.json(); }).then(function(videos) {
             var wrapper = document.getElementById('swiperWrapper');
             if (!wrapper) return;
 
@@ -1155,11 +1205,21 @@ document.addEventListener('DOMContentLoaded', function() {
         slides.forEach(function(slide) {
             var origBg = slide.getAttribute('data-orig-bg');
             if (!origBg) return;
-            var testImg = new Image();
-            testImg.onerror = function() {
+            var fallback = function() {
                 if (slide.dataset.bgFixed) return;
                 slide.dataset.bgFixed = '1';
                 slide.style.backgroundImage = 'url(https://picsum.photos/seed/' + encodeURIComponent(origBg.slice(-20)) + '/1400/800)';
+            };
+            var testImg = new Image();
+            var timer = setTimeout(function() {
+                fallback();
+            }, 6000);
+            testImg.onload = function() {
+                clearTimeout(timer);
+            };
+            testImg.onerror = function() {
+                clearTimeout(timer);
+                fallback();
             };
             testImg.src = origBg;
         });
@@ -1183,17 +1243,26 @@ document.addEventListener('DOMContentLoaded', function() {
     var moreRecommendLoaded = 0;
     var moreRecommendLoadCount = 0;
     var MORE_RECOMMEND_MAX_LOADS = 4;
-    var MORE_RECOMMEND_BATCH = 40;
+    var MORE_RECOMMEND_BATCH = 24;
 
     function loadSections() {
         // Phase 1: Load homepage sections in parallel, track shown vod_ids
         var mainSections = ['hotRecommend', 'trendingMovies', 'trendingTV', 'trendingAnime', 'trendingVariety', 'liveTV'];
+        var posterYearSections = {
+            trendingTV: true,
+            trendingAnime: true,
+            trendingVariety: true,
+            liveTV: true
+        };
         var shownIds = new Set();
 
         var mainPromises = mainSections.map(function(sectionId) {
             var container = document.getElementById(sectionId);
             if (!container) return Promise.resolve();
-            var sectionApi = sectionId === 'hotRecommend' ? '/api/videos?featured=1' : '/api/videos?category=' + sectionId;
+            var sectionLimit = sectionId === 'hotRecommend' ? 12 : 32;
+            var sectionApi = sectionId === 'hotRecommend'
+                ? '/api/videos?featured=1&limit=' + sectionLimit
+                : '/api/videos?category=' + sectionId + '&limit=' + sectionLimit;
             return fetch(sectionApi).then(function(r) { return r.json(); }).then(function(videos) {
                 if (!videos.length) { container.innerHTML = '<p style="color:#999;padding:20px;">暂无内容</p>'; return; }
                 var limit = sectionId === 'hotRecommend' ? 8 : 16;
@@ -1202,7 +1271,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Only track actually-rendered IDs so moreRecommend still has items to show
                 rendered.forEach(function(v) { shownIds.add(String(v.vod_id || v.id)); });
                 if (sectionId === 'trendingMovies') {
-                    container.innerHTML = renderHotMoviesLayout(videos.slice(0, 10));
+                    try {
+                        container.innerHTML = renderHotMoviesLayout(videos.slice(0, 10));
+                        requestAnimationFrame(function() {
+                            syncHotMoviesLayoutHeight(container);
+                        });
+                        setTimeout(function() {
+                            syncHotMoviesLayoutHeight(container);
+                        }, 200);
+                    } catch (err) {
+                        container.innerHTML = rendered.map(function(v) {
+                            return renderVideoCard(v, { useBackdrop: false });
+                        }).join('');
+                    }
+                } else if (posterYearSections[sectionId]) {
+                    container.innerHTML = rendered.map(function(v) {
+                        return renderPosterYearCard(v);
+                    }).join('');
                 } else {
                     container.innerHTML = rendered.map(function(v, i) {
                         return renderVideoCard(v, {
@@ -1220,7 +1305,7 @@ document.addEventListener('DOMContentLoaded', function() {
         Promise.all(mainPromises).then(function() {
             var container = document.getElementById('moreRecommend');
             if (!container) return;
-            fetch('/api/videos?category=moreRecommend').then(function(r) { return r.json(); }).then(function(videos) {
+            fetch('/api/videos?category=moreRecommend&limit=160').then(function(r) { return r.json(); }).then(function(videos) {
                 var filtered = videos.filter(function(v) { return !shownIds.has(String(v.vod_id || v.id)); });
                 // Fallback: if no moreRecommend videos, load from VOD search as well
                 if (filtered.length < 6) {
@@ -1237,8 +1322,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 moreRecommendData = filtered.slice();
                 moreRecommendLoaded = Math.min(MORE_RECOMMEND_BATCH, filtered.length);
                 moreRecommendLoadCount = 0;
-                container.innerHTML = filtered.slice(0, MORE_RECOMMEND_BATCH).map(function(v, i) { return renderPosterWallCard(v, i); }).join('');
-                setTimeout(function() { animatePosterWallCards(container); }, 200);
+                container.innerHTML = filtered.slice(0, MORE_RECOMMEND_BATCH).map(function(v) {
+                    return renderPosterYearCard(v);
+                }).join('');
                 setupMoreRecommendObserver();
             }).catch(function() {
                 container.innerHTML = '<p style="color:#999;padding:20px;">加载失败</p>';
@@ -1260,11 +1346,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             var next = moreRecommendData.slice(moreRecommendLoaded, moreRecommendLoaded + MORE_RECOMMEND_BATCH);
-            var startIndex = moreRecommendLoaded;
-            container.insertAdjacentHTML('beforeend', next.map(function(v, i) { return renderPosterWallCard(v, startIndex + i); }).join(''));
+            container.insertAdjacentHTML('beforeend', next.map(function(v) {
+                return renderPosterYearCard(v);
+            }).join(''));
             moreRecommendLoaded += MORE_RECOMMEND_BATCH;
             moreRecommendLoadCount++;
-            setTimeout(function() { animatePosterWallCards(container); }, 100);
 
             if (moreRecommendLoaded >= moreRecommendData.length || moreRecommendLoadCount >= MORE_RECOMMEND_MAX_LOADS) {
                 observer.disconnect();
@@ -1276,6 +1362,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     loadCarousel();
     loadSections();
+    window.addEventListener('resize', function() {
+        var trendingMovies = document.getElementById('trendingMovies');
+        if (trendingMovies && trendingMovies.querySelector('.hot-movies-hero')) {
+            syncHotMoviesLayoutHeight(trendingMovies);
+        }
+    });
 
     // ============ Category Navigation Bar ============
     var catNav = document.getElementById('categoryNav');
@@ -1384,14 +1476,14 @@ document.addEventListener('DOMContentLoaded', function() {
     var relatedGrid = document.getElementById('relatedGrid');
     var currentVideoId = new URLSearchParams(window.location.search).get('id');
     if (relatedList && !relatedGrid) {
-        fetch('/api/videos').then(function(r) { return r.json(); }).then(function(videos) {
+        fetch('/api/videos?limit=120').then(function(r) { return r.json(); }).then(function(videos) {
             // Filter out current video, show up to 10 random related
             var related = videos.filter(function(v) { return String(v.id) !== String(currentVideoId); });
             related = related.sort(function() { return Math.random() - 0.5; }).slice(0, 10);
             var html = '';
             related.forEach(function(v) {
                 html += '<div class="related-item" onclick="location.href=\'video-player.html?id=' + v.id + '\'">';
-                html += '<img src="' + (v.poster_url || 'https://picsum.photos/seed/rel' + v.id + '/280/160') + '" alt="' + v.title + '" loading="lazy">';
+                html += '<img src="' + (v.poster_url || v.poster || v.vod_pic || 'https://picsum.photos/seed/rel' + v.id + '/280/160') + '" alt="' + v.title + '" loading="lazy" onerror="this.onerror=null;this.src=\'/api/vod/image-proxy?fallback=1\';">';
                 html += '<div class="related-item-info">';
                 html += '<h5>' + v.title + '</h5>';
                 html += '<span>' + (v.duration || v.year || '') + '</span>';
@@ -1404,4 +1496,3 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 });
-
