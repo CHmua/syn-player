@@ -217,6 +217,10 @@
                             <i class="fas fa-image"></i> 豆瓣搜图
                         </button>
                     </div>
+                    <div class="poster-preview-box" id="posterPreviewBox">
+                        <img id="posterPreviewImg" alt="海报预览" src="/api/vod/image-proxy?fallback=1">
+                        <span id="posterPreviewTip">未填写海报地址，显示占位图</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>背景图 URL (横版16:9，用于首页大屏和轮播)</label>
@@ -409,6 +413,47 @@ function parseEpisodes(videoUrl) {
   return [{ name: '', url: '' }];
 }
 
+function normalizePosterPreviewUrl(url) {
+  var raw = String(url || '').trim();
+  if (!raw) return '/api/vod/image-proxy?fallback=1';
+
+  if (raw.indexOf('/api/img-proxy?') === 0 || raw.indexOf('/api/tmdb/image-proxy?') === 0) {
+    try {
+      var q = raw.indexOf('?');
+      var params = new URLSearchParams(raw.slice(q + 1));
+      var upstream = params.get('url');
+      if (upstream) return '/api/vod/image-proxy?url=' + encodeURIComponent(upstream);
+    } catch (_) {}
+    return '/api/vod/image-proxy?fallback=1';
+  }
+  if (raw.indexOf('/api/') === 0 || raw.indexOf('data:') === 0 || raw.indexOf('blob:') === 0) return raw;
+  if (raw.indexOf('//') === 0) return '/api/vod/image-proxy?url=' + encodeURIComponent('https:' + raw);
+  if (/^https?:\/\//i.test(raw)) return '/api/vod/image-proxy?url=' + encodeURIComponent(raw);
+  return raw;
+}
+
+function updatePosterPreview(rawUrl) {
+  var posterInput = document.getElementById('vposter');
+  var previewImg = document.getElementById('posterPreviewImg');
+  var previewTip = document.getElementById('posterPreviewTip');
+  if (!posterInput || !previewImg || !previewTip) return;
+
+  var raw = typeof rawUrl === 'string' ? rawUrl : posterInput.value;
+  var src = normalizePosterPreviewUrl(raw);
+  previewImg.onerror = function() {
+    this.onerror = null;
+    this.src = '/api/vod/image-proxy?fallback=1';
+    previewTip.textContent = '海报地址加载失败，已显示占位图';
+  };
+  previewImg.src = src;
+
+  if (!String(raw || '').trim()) {
+    previewTip.textContent = '未填写海报地址，显示占位图';
+  } else {
+    previewTip.textContent = '海报预览';
+  }
+}
+
 // Serialize episodes to video_url format
 function serializeEpisodes() {
   const rows = document.querySelectorAll('#episodeList .episode-row');
@@ -482,7 +527,7 @@ async function loadVideos() {
     <tr>
       <td><input type="checkbox" class="row-cb" data-id="${v.id}"></td>
       <td>${v.id}</td>
-      <td><img src="${v.poster_url || ''}" class="thumb-preview" onerror="this.style.display='none'"></td>
+      <td><img src="${v.poster_url || '/api/vod/image-proxy?fallback=1'}" class="thumb-preview" onerror="this.onerror=null;this.src='/api/vod/image-proxy?fallback=1';"></td>
       <td><label class="featured-toggle-wrap" title="设为首页轮播"><input type="checkbox" class="featured-cb" data-id="${v.id}" ${v.featured ? 'checked' : ''}><span class="featured-slider"></span></label></td>
       <td>${v.title}</td>
       <td>${v.series_title ? `<span style="color:#e50914;font-size:12px;">${v.series_title}</span>${v.season_label ? `<br><span style="color:#ffa500;font-size:11px;">${v.season_label}</span>` : ''}` : '-'}</td>
@@ -611,8 +656,9 @@ function editVideo(v) {
   }
   catSel.value = v.category;
   document.getElementById('vdesc').value = v.description || '';
-  document.getElementById('vposter').value = v.poster_url || '';
+  document.getElementById('vposter').value = v.poster_url || v.poster || '';
   document.getElementById('vbackdrop').value = v.backdrop_url || '';
+  updatePosterPreview(document.getElementById('vposter').value);
   rebuildEpisodeRows(parseEpisodes(v.video_url || ''));
   document.getElementById('vyear').value = v.year || '';
   document.getElementById('vduration').value = v.duration || '';
@@ -635,11 +681,16 @@ function resetForm() {
   document.getElementById('featuredGroup').style.display = '';
   document.getElementById('featuredNote').textContent = '';
   rebuildEpisodeRows([{ name: '', url: '' }]);
+  updatePosterPreview('');
 }
 
 document.getElementById('addBtn').addEventListener('click', () => {
   resetForm();
   document.getElementById('modalOverlay').classList.add('active');
+});
+
+document.getElementById('vposter').addEventListener('input', function() {
+  updatePosterPreview(this.value);
 });
 
 document.getElementById('cancelBtn').addEventListener('click', () => {
@@ -696,6 +747,7 @@ async function doAutoFill(triggeredBy) {
     }
     if (d.poster && isEmpty(document.getElementById('vposter'))) {
       document.getElementById('vposter').value = d.poster;
+      updatePosterPreview(d.poster);
       filled.push('封面');
     }
     if (d.backdrop_url && isEmpty(document.getElementById('vbackdrop'))) {
@@ -767,6 +819,7 @@ document.getElementById('tmdbPosterBtn').addEventListener('click', async () => {
     const json = await res.json();
     if (json.success && json.data && json.data.poster) {
       document.getElementById('vposter').value = json.data.poster;
+      updatePosterPreview(json.data.poster);
       if (json.data.backdrop && !document.getElementById('vbackdrop').value) {
         document.getElementById('vbackdrop').value = json.data.backdrop;
       }
@@ -817,6 +870,7 @@ document.getElementById('doubanPosterBtn').addEventListener('click', async () =>
     const json = await res.json();
     if (json.success && json.data && json.data.poster) {
       document.getElementById('vposter').value = json.data.poster;
+      updatePosterPreview(json.data.poster);
       if (json.data.title && !document.getElementById('vtitle').value) {
         document.getElementById('vtitle').value = json.data.title;
       }
@@ -1202,7 +1256,7 @@ document.getElementById('resetCollectBtn').addEventListener('click', async funct
   document.getElementById('syncStatus').textContent = '正在重置采集...';
 
   try {
-    const token = localStorage.getItem('admin_token');
+    const token = localStorage.getItem('syn_token');
     const res = await fetch('/api/admin/reset-collection', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
@@ -1281,7 +1335,7 @@ async function loadSeries() {
       <tr>
         <td><strong style="color:#e50914;">${s.series_title}</strong></td>
         <td>${s.video_count}</td>
-        <td><img src="${s.poster_url || ''}" class="thumb-preview" onerror="this.style.display='none'"></td>
+        <td><img src="${s.poster_url || '/api/vod/image-proxy?fallback=1'}" class="thumb-preview" onerror="this.onerror=null;this.src='/api/vod/image-proxy?fallback=1';"></td>
         <td>${catLabel(s.category)}</td>
         <td><button class="btn-sm btn-edit" onclick="viewSeriesDetail('${encodeURIComponent(s.series_title)}')"><i class="fas fa-list"></i> 查看详情</button></td>
         <td><button class="btn-sm btn-del" onclick="ungroupSeries('${encodeURIComponent(s.series_title)}')">取消分组</button></td>

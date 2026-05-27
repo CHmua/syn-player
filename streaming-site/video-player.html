@@ -628,6 +628,20 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         return fallbackResult;
     }
 
+    function resolvePlayableUrlImmediate(rawUrl) {
+        var base = normalizeEpisodeUrl(rawUrl);
+        if (!base) return { url: '', verified: false, weak: true };
+        if (episodeUrlCache[base]) return episodeUrlCache[base];
+
+        var candidate = base;
+        if (!isDirectStreamUrl(base)) {
+            var candidates = buildUrlCandidates(base);
+            candidate = candidates[0] || base;
+        }
+
+        return { url: toPlayableUrl(candidate), verified: false, weak: true };
+    }
+
     function setPlaylistLoading(text) {
         if (playlistEmpty) {
             playlistEmpty.textContent = text || '正在加载选集...';
@@ -855,10 +869,9 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
                 var idx = parseInt(btn.getAttribute('data-ep'), 10);
                 if (!Number.isFinite(idx) || idx === currentEpisodeIdx) return;
                 currentEpisodeIdx = idx;
-                destroyPlayer();               // Ensure old player is fully destroyed
-                episodeUrlCache = {};           // Clear URL cache when switching episodes
+                localStorage.setItem('syn_episode_' + (videoId || '0'), String(currentEpisodeIdx));
                 renderEpisodeList();
-                playCurrentSource();
+                playCurrentSource({ fastSwitch: true });
             });
         });
 
@@ -939,7 +952,9 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         return allSources;
     }
 
-    async function playCurrentSource() {
+    async function playCurrentSource(options) {
+        options = options || {};
+        var fastSwitch = !!options.fastSwitch;
         destroyPlayer();  // Always clean up before playing new source
         var source = vodSources[currentSourceIdx];
         if (!source || !source.episodes || !source.episodes[currentEpisodeIdx]) {
@@ -949,7 +964,11 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
 
         var ep = source.episodes[currentEpisodeIdx];
         var requestId = ++playRequestNonce;
-        var resolved = await resolvePlayableUrl(ep.play_url);
+        var resolved = fastSwitch ? resolvePlayableUrlImmediate(ep.play_url) : await resolvePlayableUrl(ep.play_url);
+        if (fastSwitch) {
+            // Warm cache in background without blocking manual episode switching UX.
+            resolvePlayableUrl(ep.play_url).catch(function () {});
+        }
         if (requestId !== playRequestNonce) return;
         if (!resolved || !resolved.url) {
             showError('播放地址不存在', true);
