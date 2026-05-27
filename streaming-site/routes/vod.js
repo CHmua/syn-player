@@ -10,10 +10,8 @@ const { proxyHandler } = require('../services/m3u8-proxy');
 // Wrap external poster URLs through image proxy to bypass hotlink/CORS/SSL issues
 function proxyImageUrl(url) {
   if (!url) return '';
-  // Don't double-wrap already-proxied URLs or local resources
-  if (url.startsWith('/api/') || url.includes('picsum.photos') || url.startsWith('data:')) return url;
-  if (!url.startsWith('http')) return url;
-  return '/api/vod/image-proxy?url=' + encodeURIComponent(url);
+  if (url.startsWith('/api/') || url.startsWith('data:')) return url;
+  return url;
 }
 
 // Unified DB helper — tries MySQL (with connection test), falls back to SQLite
@@ -122,7 +120,7 @@ router.get('/search', async (req, res) => {
       await cache.set(cacheKey, deduped, 3600);
       logSearch(keyword, deduped.length, 'external', req.ip);
       await incrementHotKeyword(keyword);
-      enrichVodsWithTMDB(results).catch(() => {});
+      enrichVodsWithDouban(results).catch(() => {});
       return res.json({ success: true, data: deduped, source: 'external' });
     }
 
@@ -663,12 +661,12 @@ router.get('/sources', (req, res) => {
   });
 });
 
-// Async TMDB poster enrichment for VOD records (fire-and-forget)
-async function enrichVodsWithTMDB(vods) {
+// Async Douban poster enrichment for VOD records (fire-and-forget)
+async function enrichVodsWithDouban(vods) {
   if (!vods || vods.length === 0) return;
   try {
-    const { enrichVods } = require('../services/tmdb');
-    const enriched = await enrichVods(vods.slice(0, 10)); // limit to 10 to avoid rate limits
+    const { enrichVods } = require('../services/douban');
+    const enriched = await enrichVods(vods.slice(0, 10)); // limit to 10 to avoid rate limiting
     for (const v of enriched) {
       if (!v.poster) continue;
       try {

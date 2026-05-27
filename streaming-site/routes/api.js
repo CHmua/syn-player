@@ -10,13 +10,11 @@ const { dedupVods, normalizeTitle } = require('../utils/dedup');
 
 const router = express.Router();
 
-// Wrap external poster URLs through image proxy to bypass hotlink/CORS/SSL issues
+// Return direct poster URL for fast loading — client-side onerror handles proxy fallback
 function posterProxyUrl(url) {
   if (!url) return '';
-  // Don't double-wrap already-proxied URLs or local resources
-  if (url.startsWith('/api/') || url.includes('picsum.photos') || url.startsWith('data:')) return url;
-  if (!url.startsWith('http')) return url;
-  return '/api/vod/image-proxy?url=' + encodeURIComponent(url);
+  if (url.startsWith('/api/') || url.startsWith('data:')) return url;
+  return url;
 }
 
 // Strip unwanted suffixes from titles (category labels, season info, etc.)
