@@ -690,6 +690,8 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
                 var idx = parseInt(btn.getAttribute('data-ep'), 10);
                 if (!Number.isFinite(idx) || idx === currentEpisodeIdx) return;
                 currentEpisodeIdx = idx;
+                destroyPlayer();               // Ensure old player is fully destroyed
+                episodeUrlCache = {};           // Clear URL cache when switching episodes
                 renderEpisodeList();
                 playCurrentSource();
             });
@@ -769,6 +771,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
     }
 
     async function playCurrentSource() {
+        destroyPlayer();  // Always clean up before playing new source
         var source = vodSources[currentSourceIdx];
         if (!source || !source.episodes || !source.episodes[currentEpisodeIdx]) {
             showError('播放地址不存在', true);
