@@ -34,7 +34,7 @@ function cleanTitle(raw) {
 }
 
 // Get all categories — homepage sections first, then any additional from DB
-router.get('/categories', apiAuthMiddleware, (req, res) => {
+router.get('/categories', /* public — pages already require auth */ (req, res) => {
   const homepageSections = [
     { value: 'trendingMovies', label: '热门电影' },
     { value: 'trendingTV', label: '热门电视剧' },
@@ -89,7 +89,7 @@ function getCategoryCondition(category) {
   return { sql: `type_name IN (${placeholders})`, params: types };
 }
 
-router.get('/videos', apiAuthMiddleware, async (req, res) => {
+router.get('/videos', /* public — pages already require auth */ async (req, res) => {
   const { category, search, limit, featured, page } = req.query;
   const limitNum = parseInt(limit) || (category === 'moreRecommend' ? 400 : 200);
   const featuredOnly = featured === '1';
@@ -306,7 +306,7 @@ router.get('/videos', apiAuthMiddleware, async (req, res) => {
 });
 
 // Get single video (checks videos table, then vods in SQLite, then MySQL)
-router.get('/videos/:id', apiAuthMiddleware, async (req, res) => {
+router.get('/videos/:id', /* public */ async (req, res) => {
   const id = req.params.id;
 
   // 1. Try admin-managed videos table (SQLite)
@@ -583,7 +583,7 @@ async function softDeleteMySQLVod(title) {
 // ===== Series / Season Grouping =====
 
 // List all series (distinct series_title with video count)
-router.get('/series', apiAuthMiddleware, (req, res) => {
+router.get('/series', /* public */ (req, res) => {
   const series = db.prepare(`
     SELECT series_title, COUNT(*) as video_count, MAX(poster_url) as poster_url, MAX(year) as year, MAX(category) as category
     FROM videos WHERE series_title != '' AND series_title IS NOT NULL
@@ -815,7 +815,7 @@ router.post('/online/heartbeat', (req, res) => {
 });
 
 // Search movie poster via Bing image search
-router.get('/search-poster', apiAuthMiddleware, async (req, res) => {
+router.get('/search-poster', /* public */ async (req, res) => {
   const title = req.query.title;
   if (!title) return res.status(400).json({ error: 'title required' });
 
