@@ -733,6 +733,11 @@ function normalizeCheckUrl(url) {
   return '';
 }
 
+function isHtmlContentType(contentType) {
+  const ct = String(contentType || '').toLowerCase();
+  return ct.includes('text/html') || ct.includes('application/xhtml+xml');
+}
+
 // Check URL validity with HEAD first, then fallback to tiny GET.
 // Some upstream CDNs block HEAD, so GET fallback avoids false negatives.
 async function checkUrlValid(url) {
@@ -747,7 +752,10 @@ async function checkUrlValid(url) {
 
   try {
     const headRes = await client.head(target, requestConfig);
-    if (headRes.status >= 200 && headRes.status < 400) return true;
+    if (headRes.status >= 200 && headRes.status < 400) {
+      if (isHtmlContentType(headRes.headers && headRes.headers['content-type'])) return false;
+      return true;
+    }
     if ([401, 403, 405, 416].includes(headRes.status)) return true;
   } catch { /* continue with GET fallback */ }
 
@@ -760,7 +768,10 @@ async function checkUrlValid(url) {
     if (getRes.data && typeof getRes.data.destroy === 'function') {
       getRes.data.destroy();
     }
-    if (getRes.status >= 200 && getRes.status < 400) return true;
+    if (getRes.status >= 200 && getRes.status < 400) {
+      if (isHtmlContentType(getRes.headers && getRes.headers['content-type'])) return false;
+      return true;
+    }
     return [401, 403, 416].includes(getRes.status);
   } catch {
     return false;

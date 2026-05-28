@@ -397,6 +397,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         var u = String(url || '').trim().toLowerCase();
         if (!u) return false;
         if (u.indexOf('/api/vod/m3u8-proxy?') > -1) return false;
+        if (/^https?:\/\//i.test(u)) return true;
         return u.indexOf('.m3u8') > -1 || u.indexOf('.m3u') > -1;
     }
 
@@ -419,11 +420,11 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         var qIdx = base.indexOf('?');
         if (qIdx > -1) queryPart = base.substring(qIdx);
 
-        var candidates = [
-            root + '/index.m3u8' + queryPart,
-            root + '.m3u8' + queryPart,
-            base
-        ];
+        var candidates = [base];
+        if (root) {
+            candidates.push(root + '/index.m3u8' + queryPart);
+            candidates.push(root + '.m3u8' + queryPart);
+        }
 
         var uniq = [];
         var seen = Object.create(null);
@@ -622,7 +623,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
             }
         }
 
-        var fallback = candidates[0] || base;
+        var fallback = base || candidates[0];
         var fallbackResult = { url: toPlayableUrl(fallback), verified: false, weak: true };
         episodeUrlCache[base] = fallbackResult;
         return fallbackResult;
@@ -982,7 +983,7 @@ if (!localStorage.getItem('syn_user_token')) { window.location.href = '/'; }
         updateBreadcrumb(currentMeta.title, episodeName(ep, currentEpisodeIdx));
 
         stopWatchdog();
-        var watchdogMs = resolved.weak ? 9000 : 18000;
+        var watchdogMs = resolved.weak ? 15000 : 18000;
         loadWatchdog = setTimeout(function () {
             if (currentSourceIdx < vodSources.length - 1) {
                 tryNextLine(currentEpisodeIdx);

@@ -94,26 +94,126 @@ async function fetchSegmentWithRetry(targetUrl, referer, retries = 2) {
   throw lastErr;
 }
 
-async function proxyM3U8(req, res) {
-  const targetUrl = req.query.url;
+function isM3U8Text(payload) {
+  const text = String(payload || '');
+  if (!text) return false;
+  return /#EXTM3U/i.test(text) || /#EXTINF/i.test(text);
+}
+
+function looksLikeHtmlPayload(payload, contentType) {
+  const ct = String(contentType || '').toLowerCase();
+  if (ct.includes('text/html') || ct.includes('application/xhtml+xml')) return true;
+  const head = String(payload || '').slice(0, 300).toLowerCase();
+  return head.includes('<!doctype html') || head.includes('<html');
+}
+
+function normalizeMediaUrl(raw, baseUrl) {
+  if (!raw) return '';
+  const cleaned = String(raw)
+    .trim()
+    .replace(/\\\//g, '/')
+    .replace(/&amp;/g, '&');
+  if (!cleaned) return '';
+  return resolveUrl(cleaned, baseUrl);
+}
+
+function looksLikePlaylistUrl(url) {
+  const low = String(url || '').toLowerCase();
+  if (!low) return false;
+  if (low.includes('.m3u8') || low.includes('.m3u')) return true;
+  return /\/(share|play)\//.test(low);
+}
+
+function looksLikeSegmentUrl(url) {
+  return /\.(ts|m4s|m4a|aac|mp4|flv|mp3|key)(?:$|[?#])/i.test(String(url || ''));
+}
+
+function extractCandidatesFromHtml(html, pageUrl) {
+  const body = String(html || '');
+  if (!body) return [];
+
+  const patterns = [
+    /"url"\s*:\s*"([^"]+)"/gi,
+    /var\s+main\s*=\s*"([^"]+)"/gi,
+    /var\s+mp4\s*=\s*"([^"]+)"/gi,
+    /video\s*:\s*\{[\s\S]{0,300}?url\s*:\s*['"]([^'"]+)['"]/gi,
+    /https?:\/\/[^"'\\\s]+(?:\.m3u8|\.mp4|\.flv)(?:\?[^"'\\\s]*)?/gi,
+    /['"]((?:\/|\.\/|\.\.\/)[^'"]+\.(?:m3u8|mp4|flv)(?:\?[^'"]*)?)['"]/gi
+  ];
+
+  const candidates = [];
+  const seen = new Set();
+  const baseUrl = getBaseUrl(pageUrl);
+  const push = (value) => {
+    const normalized = normalizeMediaUrl(value, baseUrl);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    candidates.push(normalized);
+  };
+
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(body)) !== null) {
+      const value = match[1] || match[0];
+      push(value);
+      if (candidates.length >= 16) break;
+    }
+    if (candidates.length >= 16) break;
+  }
+
+  candidates.sort((a, b) => {
+    const as = a.toLowerCase();
+    const bs = b.toLowerCase();
+    const score = (u) => (u.includes('.m3u8') || u.includes('.m3u')) ? 2 : (u.includes('.mp4') || u.includes('.flv')) ? 1 : 0;
+    return score(bs) - score(as);
+  });
+
+  return candidates;
+}
+
+async function proxyM3U8(req, res, targetOverride, depth = 0, refererOverride) {
+  const targetUrl = targetOverride || req.query.url;
   if (!targetUrl) return res.status(400).json({ error: 'Missing url parameter' });
+  if (depth > 4) throw new Error('Resolve depth exceeded');
 
   try {
-    const referer = req.query.referer || extractReferer(targetUrl);
+    const referer = refererOverride || req.query.referer || extractReferer(targetUrl);
     const { response, referer: usedReferer } = await fetchWithRetry(targetUrl, referer);
-    let playlist = response.data;
+    let playlist = String(response.data || '');
 
-    // Rewrite all .ts and sub-m3u8 links to go through our proxy
+    if (!isM3U8Text(playlist)) {
+      if (looksLikeHtmlPayload(playlist, response.headers && response.headers['content-type'])) {
+        const candidates = extractCandidatesFromHtml(playlist, targetUrl);
+        for (const candidate of candidates) {
+          if (!candidate || candidate === targetUrl) continue;
+          if (looksLikePlaylistUrl(candidate)) {
+            try {
+              return await proxyM3U8(req, res, candidate, depth + 1, usedReferer);
+            } catch {
+              // continue probing the next candidate
+            }
+            continue;
+          }
+          if (looksLikeSegmentUrl(candidate)) {
+            return proxySegment(req, res, candidate, depth + 1, usedReferer);
+          }
+        }
+      }
+      throw new Error(`Upstream did not return m3u8: ${targetUrl}`);
+    }
+
+    // Rewrite all non-comment media/resource lines to go through our proxy.
     const baseUrl = getBaseUrl(targetUrl);
     const proxyBase = `${req.protocol}://${req.get('host')}/api/vod/m3u8-proxy?referer=${encodeURIComponent(usedReferer)}&url=`;
 
-    // Rewrite relative and absolute URIs in the playlist
-    playlist = playlist.replace(/^([^#\s].+\.(ts|m3u8|key))$/gm, (match, fileUri) => {
+    playlist = playlist.replace(/^(?!#)(.+)$/gm, (match, line) => {
+      const fileUri = String(line || '').trim();
+      if (!fileUri) return match;
       const absolute = resolveUrl(fileUri, baseUrl);
-      return `${proxyBase}${encodeURIComponent(absolute)}`;
+      return absolute ? `${proxyBase}${encodeURIComponent(absolute)}` : match;
     });
 
-    // Also rewrite URI="" in EXT-X-KEY for AES-128 key proxying
+    // Rewrite URI="" in EXT-X-KEY/EXT-X-MAP for key/init segment proxying.
     playlist = playlist.replace(/URI="([^"]+)"/g, (match, keyUri) => {
       const absolute = resolveUrl(keyUri, baseUrl);
       return `URI="${proxyBase}${encodeURIComponent(absolute)}"`;
@@ -132,12 +232,12 @@ async function proxyM3U8(req, res) {
 }
 
 // --------------- Proxy: .ts segments and .key files ---------------
-async function proxySegment(req, res) {
-  const targetUrl = req.query.url;
+async function proxySegment(req, res, targetOverride, _depth = 0, refererOverride) {
+  const targetUrl = targetOverride || req.query.url;
   if (!targetUrl) return res.status(400).json({ error: 'Missing url parameter' });
 
   try {
-    const referer = req.query.referer || extractReferer(targetUrl);
+    const referer = refererOverride || req.query.referer || extractReferer(targetUrl);
     const { response } = await fetchSegmentWithRetry(targetUrl, referer);
 
     const contentType = response.headers['content-type'] || 'video/mp2t';
@@ -169,12 +269,11 @@ async function proxyHandler(req, res) {
   const targetUrl = req.query.url;
   if (!targetUrl) return res.status(400).json({ error: 'Missing url parameter' });
 
-  const lower = targetUrl.toLowerCase();
-  if (lower.includes('.m3u8') || lower.includes('.m3u')) {
-    return proxyM3U8(req, res);
+  if (looksLikeSegmentUrl(targetUrl)) {
+    return proxySegment(req, res);
   }
-  // .ts, .key, .m4s, .mp4 segments
-  return proxySegment(req, res);
+  // Non-segment URLs (including /share/* and /play/* pages) are resolved as playlists first.
+  return proxyM3U8(req, res);
 }
 
 // --------------- Utility functions ---------------
