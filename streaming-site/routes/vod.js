@@ -573,7 +573,12 @@ router.get('/image-proxy', (req, res) => {
     return sendPlaceholder(res);
   }
 
-  const parsed = new URL(imgUrl);
+  let parsed;
+  try {
+    parsed = new URL(imgUrl);
+  } catch {
+    return sendPlaceholder(res);
+  }
   const isHttps = parsed.protocol === 'https:';
   const transport = isHttps ? require('https') : require('http');
 
@@ -593,9 +598,15 @@ router.get('/image-proxy', (req, res) => {
     if ([301, 302, 303, 307, 308].includes(imgRes.statusCode)) {
       const redirectUrl = imgRes.headers.location;
       if (redirectUrl) {
-        const redirectParsed = new URL(redirectUrl, imgUrl);
+        let redirectParsed;
+        try {
+          redirectParsed = new URL(redirectUrl, imgUrl);
+        } catch {
+          return sendPlaceholder(res);
+        }
         const redirectTransport = redirectParsed.protocol === 'https:' ? require('https') : require('http');
-        opts.headers.Referer = parsed.origin + '/';
+        // Use redirect target origin as Referer to reduce hotlink failures on cross-origin redirects.
+        opts.headers.Referer = redirectParsed.origin + '/';
         const redirectReq = redirectTransport.get(redirectParsed.href, opts, (redirectRes) => {
           pipeImageResponse(redirectRes, res);
         });
