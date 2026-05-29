@@ -34,6 +34,7 @@ async function initDB() {
         vod_score VARCHAR(10),
         vod_type VARCHAR(255),
         type_name VARCHAR(100),
+        vod_play_from TEXT,
         source_name VARCHAR(100),
         tmdb_id VARCHAR(50),
         tmdb_data JSON,
@@ -56,11 +57,18 @@ async function initDB() {
     try { await conn.query('CREATE INDEX idx_vod_hits ON vods(vod_hits)'); } catch(e) {}
     // Add featured column for hero carousel support
     try { await conn.query('ALTER TABLE vods ADD COLUMN featured INT DEFAULT 0'); } catch(e) {}
+    try { await conn.query('ALTER TABLE vods ADD COLUMN vod_play_from TEXT'); } catch(e) {}
     // Add enrichment columns from TMDB/Douban
     try { await conn.query('ALTER TABLE vods ADD COLUMN poster TEXT'); } catch(e) {}
     try { await conn.query('ALTER TABLE vods ADD COLUMN backdrop TEXT'); } catch(e) {}
+    try { await conn.query('ALTER TABLE vods ADD COLUMN backdrop_url TEXT'); } catch(e) {}
     try { await conn.query('ALTER TABLE vods ADD COLUMN douban_id VARCHAR(50)'); } catch(e) {}
     try { await conn.query('ALTER TABLE vods ADD COLUMN douban_rating VARCHAR(10)'); } catch(e) {}
+    try { await conn.query('ALTER TABLE vods ADD COLUMN duration VARCHAR(50) DEFAULT ""'); } catch(e) {}
+    try { await conn.query('ALTER TABLE vods ADD COLUMN genre VARCHAR(255) DEFAULT ""'); } catch(e) {}
+    try { await conn.query('ALTER TABLE vods ADD COLUMN series_title VARCHAR(255) DEFAULT ""'); } catch(e) {}
+    try { await conn.query('ALTER TABLE vods ADD COLUMN season_label VARCHAR(100) DEFAULT ""'); } catch(e) {}
+    try { await conn.query('ALTER TABLE vods ADD COLUMN release_date VARCHAR(50) DEFAULT ""'); } catch(e) {}
     // Playback-health columns (auto disable dead sources)
     try { await conn.query('ALTER TABLE vods ADD COLUMN playback_fail_count INT DEFAULT 0'); } catch(e) {}
     try { await conn.query('ALTER TABLE vods ADD COLUMN playback_last_failed_at TIMESTAMP NULL'); } catch(e) {}

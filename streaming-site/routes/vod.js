@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
-const { searchAcrossSources, getRecentUpdates, parsePlayUrls, parseWithLines, checkUrlValid } = require('../services/collect');
+const { searchAcrossSources, getRecentUpdates, parsePlayUrls, parseWithLines, checkUrlValid, enrichWithPlayUrls } = require('../services/collect');
 const { dedupVods } = require('../utils/dedup');
 const cache = require('../services/cache');
 const { authMiddleware } = require('../middleware/auth');
@@ -32,6 +32,17 @@ function proxyImageUrl(url) {
   if (raw.startsWith('//')) return `/api/vod/image-proxy?url=${encodeURIComponent('https:' + raw)}`;
   if (/^https?:\/\//i.test(raw)) return `/api/vod/image-proxy?url=${encodeURIComponent(raw)}`;
   return raw;
+}
+
+function sourceSearchTitle(raw) {
+  return String(raw || '')
+    .replace(/\s*\u7b2c[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\d]+[\u5b63\u90e8]\s*$/g, '')
+    .replace(/\s*S(?:eason)?\s*\d+\s*$/i, '')
+    .trim();
+}
+
+function compactTitle(raw) {
+  return sourceSearchTitle(raw).replace(/\s+/g, '').toLowerCase();
 }
 
 // Unified DB helper — tries MySQL (with connection test), falls back to SQLite
@@ -442,6 +453,108 @@ router.get('/detail/:vodId', async (req, res) => {
       }
     }
 
+    // If the stored source id is stale or empty, search enabled sources by title and attach
+    // the best playable match. This keeps admin edit and player pages from dead-ending.
+    if (vod && (!vod.vod_play_url || parseWithLines(vod.vod_play_url || '', vod.vod_play_from || '').length === 0) && vod.vod_name) {
+      try {
+        const fullTitle = vod.vod_name;
+        const baseTitle = sourceSearchTitle(fullTitle);
+        let results = [];
+        const firstSearch = await searchAcrossSources(fullTitle);
+        results = firstSearch.results || [];
+        if (!results.length && baseTitle && baseTitle !== fullTitle) {
+          const secondSearch = await searchAcrossSources(baseTitle);
+          results = secondSearch.results || [];
+        }
+
+        if (results.length) {
+          const fullKey = compactTitle(fullTitle);
+          const baseKey = compactTitle(baseTitle);
+          const scored = results.map(item => {
+            const itemKey = compactTitle(item.vod_name || '');
+            let score = 0;
+            if (itemKey === fullKey) score += 500;
+            if (baseKey && itemKey === baseKey) score += 300;
+            if (itemKey.includes(fullKey) || fullKey.includes(itemKey)) score += 160;
+            if (baseKey && (itemKey.includes(baseKey) || baseKey.includes(itemKey))) score += 120;
+            if (item.vod_year && vod.vod_year && String(item.vod_year) === String(vod.vod_year)) score += 60;
+            if (item.vod_play_url) score += 40;
+            return { ...item, _score: score };
+          }).sort((a, b) => b._score - a._score);
+
+          const enriched = await enrichWithPlayUrls(scored.slice(0, 5));
+          const playable = enriched.find(item => item && item.vod_play_url);
+          if (playable) {
+            const pu = playable.vod_play_url || '';
+            const pf = playable.vod_play_from || '';
+            const pp = playable.vod_pic || '';
+            const pc = playable.vod_content || '';
+            const pa = playable.vod_actor || '';
+            const pd = playable.vod_director || '';
+            const py = playable.vod_year || '';
+            const pl = playable.vod_lang || '';
+            const ar = playable.vod_area || '';
+            const ps = playable.vod_score || '';
+            const pt = playable.vod_type || '';
+            const tn = playable.type_name || '';
+            const sn = playable.source_name || vod.source_name || '';
+
+            if (vdb.type === 'mysql') {
+              await vdb.pool.query(
+                `UPDATE vods SET vod_play_url = ?, vod_play_from = ?,
+                  vod_pic = CASE WHEN ? != '' THEN ? ELSE vod_pic END,
+                  vod_content = CASE WHEN ? != '' THEN ? ELSE vod_content END,
+                  vod_actor = CASE WHEN ? != '' THEN ? ELSE vod_actor END,
+                  vod_director = CASE WHEN ? != '' THEN ? ELSE vod_director END,
+                  vod_year = CASE WHEN ? != '' THEN ? ELSE vod_year END,
+                  vod_lang = CASE WHEN ? != '' THEN ? ELSE vod_lang END,
+                  vod_area = CASE WHEN ? != '' THEN ? ELSE vod_area END,
+                  vod_score = CASE WHEN ? != '' THEN ? ELSE vod_score END,
+                  vod_type = CASE WHEN ? != '' THEN ? ELSE vod_type END,
+                  type_name = CASE WHEN ? != '' THEN ? ELSE type_name END,
+                  source_name = CASE WHEN ? != '' THEN ? ELSE source_name END,
+                  updated_at = CURRENT_TIMESTAMP WHERE vod_id = ?`,
+                [pu, pf, pp, pp, pc, pc, pa, pa, pd, pd, py, py, pl, pl, ar, ar, ps, ps, pt, pt, tn, tn, sn, sn, vodId]
+              );
+            } else if (vdb.type === 'sqlite') {
+              vdb.sqlite.prepare(
+                `UPDATE vods SET vod_play_url = ?, vod_play_from = ?,
+                  vod_pic = CASE WHEN ? != '' THEN ? ELSE vod_pic END,
+                  vod_content = CASE WHEN ? != '' THEN ? ELSE vod_content END,
+                  vod_actor = CASE WHEN ? != '' THEN ? ELSE vod_actor END,
+                  vod_director = CASE WHEN ? != '' THEN ? ELSE vod_director END,
+                  vod_year = CASE WHEN ? != '' THEN ? ELSE vod_year END,
+                  vod_lang = CASE WHEN ? != '' THEN ? ELSE vod_lang END,
+                  vod_area = CASE WHEN ? != '' THEN ? ELSE vod_area END,
+                  vod_score = CASE WHEN ? != '' THEN ? ELSE vod_score END,
+                  vod_type = CASE WHEN ? != '' THEN ? ELSE vod_type END,
+                  type_name = CASE WHEN ? != '' THEN ? ELSE type_name END,
+                  source_name = CASE WHEN ? != '' THEN ? ELSE source_name END,
+                  updated_at = datetime('now','localtime') WHERE vod_id = ?`
+              ).run(pu, pf, pp, pp, pc, pc, pa, pa, pd, pd, py, py, pl, pl, ar, ar, ps, ps, pt, pt, tn, tn, sn, sn, vodId);
+            }
+
+            vod.vod_play_url = pu || vod.vod_play_url;
+            vod.vod_play_from = pf || vod.vod_play_from;
+            if (pp) vod.vod_pic = pp;
+            if (pc) vod.vod_content = pc;
+            if (pa) vod.vod_actor = pa;
+            if (pd) vod.vod_director = pd;
+            if (py) vod.vod_year = py;
+            if (pl) vod.vod_lang = pl;
+            if (ar) vod.vod_area = ar;
+            if (ps) vod.vod_score = ps;
+            if (pt) vod.vod_type = pt;
+            if (tn) vod.type_name = tn;
+            if (sn) vod.source_name = sn;
+            console.log(`[VOD] Fallback source attached for ${vodId} from ${sn || 'search'}`);
+          }
+        }
+      } catch (err) {
+        console.error(`[VOD] Fallback source search for ${vodId} failed:`, err.message);
+      }
+    }
+
     if (vod) {
       // Cross-source enrichment: find same title from other sources
       const title = vod.vod_name;
@@ -489,8 +602,11 @@ router.get('/detail/:vodId', async (req, res) => {
           vod.episodes.push({ ...ep, source_name: src.source_name });
         }
       }
-      // Attach proxied poster URL for hotlink/CORS/SSL bypass
-      vod.poster_url = proxyImageUrl(vod.poster || vod.vod_pic || '');
+      // Attach both raw and proxied image URLs for admin editing and public display.
+      vod.raw_poster_url = vod.poster || vod.vod_pic || '';
+      vod.poster_url = proxyImageUrl(vod.raw_poster_url);
+      vod.raw_backdrop_url = vod.backdrop_url || vod.backdrop || '';
+      vod.backdrop_url = proxyImageUrl(vod.raw_backdrop_url);
       await cache.set(cacheKey, vod, 1800);
       return res.json({ success: true, data: vod, source: 'local' });
     }

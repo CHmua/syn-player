@@ -88,6 +88,36 @@ function cleanTitle(raw) {
     .trim();
 }
 
+// Helpers for metadata matching and admin edit normalization.
+function cleanMetadataTitle(raw) {
+  if (!raw) return '';
+  return String(raw)
+    .replace(/\s*\(\u8c46\u74e3\)\s*$/, '')
+    .replace(/\s*\[\u8c46\u74e3\]\s*$/, '')
+    .replace(/\s*-\s*\u8c46\u74e3\s*$/, '')
+    .replace(/\s*\([^)]*(?:\u7535\u89c6|\u5267\u96c6|\u7535\u5f71)[^)]*\)\s*$/i, '')
+    .replace(/\s*-\s*(?:\u7535\u89c6\u5267|\u7535\u5f71|\u7efc\u827a|\u52a8\u6f2b|\u7eaa\u5f55\u7247|\u52a8\u753b|\u771f\u4eba\u79c0|\u5267\u60c5|\u559c\u5267|\u52a8\u4f5c|\u79d1\u5e7b|\u6050\u6016|\u60ac\u7591|\u7231\u60c5)\s*$/, '')
+    .replace(/\s*\u7b2c[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\d]+[\u5b63\u90e8]\s*$/g, '')
+    .replace(/\s*S(?:eason)?\s*\d+\s*$/i, '')
+    .replace(/\s*\d{4}\s*$/, '')
+    .trim();
+}
+
+function containsCJK(value) {
+  return /[\u3400-\u9fff]/.test(String(value || ''));
+}
+
+function preferChineseTitle(candidateTitle, fallbackTitle) {
+  if (!candidateTitle) return fallbackTitle || '';
+  if (containsCJK(candidateTitle)) return candidateTitle;
+  if (fallbackTitle && containsCJK(fallbackTitle)) return fallbackTitle;
+  return candidateTitle || fallbackTitle || '';
+}
+
+function looksLikeSeries(category, title) {
+  return /[\u5267\u5b63\u96c6\u7efc\u827a\u52a8\u6f2b\u52a8\u753b]/.test(`${category || ''} ${title || ''}`);
+}
+
 // Get all categories — homepage sections first, then any additional from DB
 router.get('/categories', /* public — pages already require auth */ (req, res) => {
   const homepageSections = [
@@ -182,16 +212,23 @@ router.get('/videos', /* public — pages already require auth */ async (req, re
     adminRows = db.prepare('SELECT * FROM videos ORDER BY featured DESC, sort_order').all();
   }
 
-  const adminVideos = adminRows.map(r => ({
-    ...r,
-    vod_id: r.vod_id || String(r.id),
-    poster: r.poster_url || r.poster || '',
-    poster_url: posterProxyUrl(r.poster_url || r.poster || ''),
-    backdrop_url: posterProxyUrl(r.backdrop_url || r.backdrop || ''),
-    rating_source: r.rating && parseFloat(r.rating) > 0 ? 'TMDB' : '',
-    featured: r.featured || 0,
-    source: 'video'
-  }));
+  const adminVideos = adminRows.map(r => {
+    const rawPoster = r.poster_url || r.poster || '';
+    const rawBackdrop = r.backdrop_url || r.backdrop || '';
+    return {
+      ...r,
+      vod_id: r.vod_id || String(r.id),
+      poster: rawPoster,
+      raw_poster_url: rawPoster,
+      poster_url: posterProxyUrl(rawPoster),
+      backdrop: rawBackdrop,
+      raw_backdrop_url: rawBackdrop,
+      backdrop_url: posterProxyUrl(rawBackdrop),
+      rating_source: r.rating && parseFloat(r.rating) > 0 ? 'TMDB' : '',
+      featured: r.featured || 0,
+      source: 'video'
+    };
+  });
   // Featured videos: only return admin-managed videos — user controls hero carousel manually
   if (featuredOnly) {
     return res.json(adminVideos);
@@ -263,6 +300,8 @@ router.get('/videos', /* public — pages already require auth */ async (req, re
 
     vodRows = mysqlRows.map(r => {
       const rating = r.douban_rating || r.vod_score || '';
+      const rawPoster = r.poster || r.vod_pic || '';
+      const rawBackdrop = r.backdrop_url || r.backdrop || '';
       // Detect source: douban_id means Douban enriched this record
       let ratingSource = '';
       if (rating && parseFloat(rating) > 0) {
@@ -272,9 +311,12 @@ router.get('/videos', /* public — pages already require auth */ async (req, re
         id: r.vod_id,
         title: r.vod_name,
         category: r.type_name,
-        poster_url: posterProxyUrl(r.poster || r.vod_pic || ''),
-        poster: r.poster || r.vod_pic || '',
-        backdrop_url: posterProxyUrl(r.backdrop_url || r.backdrop || ''),
+        poster_url: posterProxyUrl(rawPoster),
+        poster: rawPoster,
+        raw_poster_url: rawPoster,
+        backdrop_url: posterProxyUrl(rawBackdrop),
+        backdrop: rawBackdrop,
+        raw_backdrop_url: rawBackdrop,
         video_url: r.vod_play_url || '',
         year: r.vod_year,
         release_date: r.release_date || '',
@@ -283,7 +325,8 @@ router.get('/videos', /* public — pages already require auth */ async (req, re
         rating_source: ratingSource,
         featured: r.featured || 0,
         description: r.vod_content || '',
-        genre: r.genre || r.vod_type || '',
+        genre: r.genre || r.vod_type || r.type_name || '',
+        badge: r.vod_remarks || '',
         series_title: r.series_title || '',
         season_label: r.season_label || '',
         vod_id: r.vod_id,
@@ -297,11 +340,19 @@ router.get('/videos', /* public — pages already require auth */ async (req, re
 
   // Keep API responses fast: normalize media URLs immediately.
   // Full metadata enrichment can still be requested explicitly via ?enrich=1.
-  vodRows = vodRows.map(v => ({
-    ...v,
-    poster_url: posterProxyUrl(v.poster || v.poster_url || v.vod_pic || ''),
-    backdrop_url: posterProxyUrl(v.backdrop_url || v.backdrop || '')
-  }));
+  vodRows = vodRows.map(v => {
+    const rawPoster = v.raw_poster_url || v.poster || v.vod_pic || v.poster_url || '';
+    const rawBackdrop = v.raw_backdrop_url || v.backdrop || v.backdrop_url || '';
+    return {
+      ...v,
+      poster: rawPoster,
+      raw_poster_url: rawPoster,
+      poster_url: posterProxyUrl(rawPoster),
+      backdrop: rawBackdrop,
+      raw_backdrop_url: rawBackdrop,
+      backdrop_url: posterProxyUrl(rawBackdrop)
+    };
+  });
 
   if (req.query.enrich === '1') {
     try {
@@ -330,11 +381,17 @@ router.get('/videos', /* public — pages already require auth */ async (req, re
       vodRows = vodRows.map(v => {
         const enriched = mergedById.get(String(v.vod_id || v.id));
         if (!enriched) return v;
+        const rawPoster = enriched.poster || enriched.vod_pic || v.raw_poster_url || v.poster || '';
+        const rawBackdrop = enriched.backdrop_url || enriched.backdrop || v.raw_backdrop_url || v.backdrop || '';
         return {
           ...v,
           ...enriched,
-          poster_url: posterProxyUrl(enriched.poster || enriched.poster_url || enriched.vod_pic || v.poster_url || ''),
-          backdrop_url: posterProxyUrl(enriched.backdrop_url || enriched.backdrop || v.backdrop_url || '')
+          poster: rawPoster,
+          raw_poster_url: rawPoster,
+          poster_url: posterProxyUrl(rawPoster),
+          backdrop: rawBackdrop,
+          raw_backdrop_url: rawBackdrop,
+          backdrop_url: posterProxyUrl(rawBackdrop)
         };
       });
     } catch (err) {
@@ -389,23 +446,46 @@ router.get('/videos/:id', /* public */ async (req, res) => {
 
   // 1. Try admin-managed videos table (SQLite)
   const row = db.prepare('SELECT * FROM videos WHERE id = ?').get(id);
-  if (row) return res.json({
-    ...row,
-    poster_url: posterProxyUrl(row.poster_url || row.poster || ''),
-    backdrop_url: posterProxyUrl(row.backdrop_url || row.backdrop || ''),
-    source: 'video'
-  });
+  if (row) {
+    const rawPoster = row.poster_url || row.poster || '';
+    const rawBackdrop = row.backdrop_url || row.backdrop || '';
+    return res.json({
+      ...row,
+      poster: rawPoster,
+      raw_poster_url: rawPoster,
+      poster_url: posterProxyUrl(rawPoster),
+      backdrop: rawBackdrop,
+      raw_backdrop_url: rawBackdrop,
+      backdrop_url: posterProxyUrl(rawBackdrop),
+      source: 'video'
+    });
+  }
 
   // 2. Try SQLite vods table
   const vod = db.prepare('SELECT * FROM vods WHERE vod_id = ?').get(id);
-  if (vod) return res.json({
-    id: vod.vod_id, title: vod.vod_name, category: vod.type_name,
-    description: vod.vod_content || '', poster_url: posterProxyUrl(vod.poster || vod.vod_pic || ''),
-    backdrop_url: posterProxyUrl(vod.backdrop_url || vod.backdrop || ''), video_url: vod.vod_play_url || '', year: vod.vod_year || '', duration: '',
-    genre: vod.vod_type || '', rating: parseFloat(vod.douban_rating || vod.vod_score) || 0,
-    badge: '', is_live: 0, sort_order: 0, source: 'vod',
-    vod_id: vod.vod_id
-  });
+  if (vod) {
+    const rawPoster = vod.poster || vod.vod_pic || '';
+    const rawBackdrop = vod.backdrop_url || vod.backdrop || '';
+    return res.json({
+      id: vod.vod_id, title: vod.vod_name, category: vod.type_name,
+      description: vod.vod_content || '',
+      poster: rawPoster,
+      raw_poster_url: rawPoster,
+      poster_url: posterProxyUrl(rawPoster),
+      backdrop: rawBackdrop,
+      raw_backdrop_url: rawBackdrop,
+      backdrop_url: posterProxyUrl(rawBackdrop),
+      video_url: vod.vod_play_url || '',
+      year: vod.vod_year || '',
+      release_date: vod.release_date || '',
+      duration: vod.duration || '',
+      genre: vod.genre || vod.vod_type || vod.type_name || '',
+      rating: parseFloat(vod.douban_rating || vod.vod_score) || 0,
+      badge: vod.vod_remarks || '', is_live: 0, featured: vod.featured || 0, sort_order: 0, source: 'vod',
+      series_title: vod.series_title || '', season_label: vod.season_label || '',
+      vod_id: vod.vod_id
+    });
+  }
 
   // 3. Try MySQL vods table
   try {
@@ -413,12 +493,25 @@ router.get('/videos/:id', /* public */ async (req, res) => {
     const [rows] = await vodDb.query('SELECT * FROM vods WHERE vod_id = ? AND is_active = 1', [id]);
     if (rows.length > 0) {
       const v = rows[0];
+      const rawPoster = v.poster || v.vod_pic || '';
+      const rawBackdrop = v.backdrop_url || v.backdrop || '';
       return res.json({
         id: v.vod_id, title: v.vod_name, category: v.type_name,
-        description: v.vod_content || '', poster_url: posterProxyUrl(v.poster || v.vod_pic || ''),
-        backdrop_url: posterProxyUrl(v.backdrop_url || v.backdrop || ''), video_url: v.vod_play_url || '', year: v.vod_year || '', duration: '',
-        genre: v.vod_type || '', rating: parseFloat(v.douban_rating || v.vod_score) || 0,
-        badge: '', is_live: 0, sort_order: 0, source: 'vod',
+        description: v.vod_content || '',
+        poster: rawPoster,
+        raw_poster_url: rawPoster,
+        poster_url: posterProxyUrl(rawPoster),
+        backdrop: rawBackdrop,
+        raw_backdrop_url: rawBackdrop,
+        backdrop_url: posterProxyUrl(rawBackdrop),
+        video_url: v.vod_play_url || '',
+        year: v.vod_year || '',
+        release_date: v.release_date || '',
+        duration: v.duration || '',
+        genre: v.genre || v.vod_type || v.type_name || '',
+        rating: parseFloat(v.douban_rating || v.vod_score) || 0,
+        badge: v.vod_remarks || '', is_live: 0, featured: v.featured || 0, sort_order: 0, source: 'vod',
+        series_title: v.series_title || '', season_label: v.season_label || '',
         vod_id: v.vod_id
       });
     }
@@ -429,9 +522,9 @@ router.get('/videos/:id', /* public */ async (req, res) => {
 
 // Create video (auth required)
 router.post('/videos', authMiddleware, (req, res) => {
-  const { title, category, description, poster_url, backdrop_url, video_url, year, duration, genre, rating, badge, is_live, featured, sort_order } = req.body;
-  const result = db.prepare(`INSERT INTO videos (title, category, description, poster_url, backdrop_url, video_url, year, duration, genre, rating, badge, is_live, featured, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
-    title || '', category || '', description || '', poster_url || '', backdrop_url || '', video_url || '', year || '', duration || '', genre || '', rating || 0, badge || '', is_live ? 1 : 0, featured ? 1 : 0, sort_order || 0
+  const { title, category, description, poster_url, backdrop_url, video_url, year, duration, genre, rating, badge, is_live, featured, sort_order, series_title, season_label } = req.body;
+  const result = db.prepare(`INSERT INTO videos (title, category, description, poster_url, backdrop_url, video_url, year, duration, genre, rating, badge, is_live, featured, sort_order, series_title, season_label) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    title || '', category || '', description || '', poster_url || '', backdrop_url || '', video_url || '', year || '', duration || '', genre || '', rating || 0, badge || '', is_live ? 1 : 0, featured ? 1 : 0, sort_order || 0, series_title || '', season_label || ''
   );
   res.json({ id: result.lastInsertRowid });
 });
@@ -517,12 +610,17 @@ router.put('/videos/:id', authMiddleware, async (req, res) => {
     if (title !== undefined) updates.vod_name = title;
     if (category !== undefined) updates.type_name = category;
     if (description !== undefined) updates.vod_content = description;
-    if (poster_url !== undefined) updates.poster = poster_url;
+    if (poster_url !== undefined) { updates.poster = poster_url; updates.vod_pic = poster_url; }
+    if (backdrop_url !== undefined) updates.backdrop_url = backdrop_url;
     if (video_url !== undefined) updates.vod_play_url = video_url;
     if (year !== undefined) updates.vod_year = year;
-    if (genre !== undefined) updates.vod_type = genre;
+    if (duration !== undefined) updates.duration = duration;
+    if (genre !== undefined) { updates.genre = genre; updates.vod_type = genre; }
     if (rating !== undefined) { updates.douban_rating = String(rating); updates.vod_score = String(rating); }
+    if (badge !== undefined) updates.vod_remarks = badge;
     if (featured !== undefined) updates.featured = featured ? 1 : 0;
+    if (series_title !== undefined) updates.series_title = series_title;
+    if (season_label !== undefined) updates.season_label = season_label;
     updates.updated_at = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
     const setClauses = Object.keys(updates).map(k => `${k}=?`).join(', ');
@@ -547,12 +645,17 @@ router.put('/videos/:id', authMiddleware, async (req, res) => {
       if (title !== undefined) updates.vod_name = title;
       if (category !== undefined) updates.type_name = category;
       if (description !== undefined) updates.vod_content = description;
-      if (poster_url !== undefined) updates.poster = poster_url;
+      if (poster_url !== undefined) { updates.poster = poster_url; updates.vod_pic = poster_url; }
+      if (backdrop_url !== undefined) { updates.backdrop_url = backdrop_url; updates.backdrop = backdrop_url; }
       if (video_url !== undefined) updates.vod_play_url = video_url;
       if (year !== undefined) updates.vod_year = year;
-      if (genre !== undefined) updates.vod_type = genre;
+      if (duration !== undefined) updates.duration = duration;
+      if (genre !== undefined) { updates.genre = genre; updates.vod_type = genre; }
       if (rating !== undefined) { updates.douban_rating = String(rating); updates.vod_score = String(rating); }
+      if (badge !== undefined) updates.vod_remarks = badge;
       if (featured !== undefined) updates.featured = featured ? 1 : 0;
+      if (series_title !== undefined) updates.series_title = series_title;
+      if (season_label !== undefined) updates.season_label = season_label;
 
       const setClauses = Object.keys(updates).map(k => `${k}=?`).join(', ');
       const values = Object.values(updates);
@@ -1041,16 +1144,17 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
       } catch (e) { console.error('[auto-fill] AppleCMS search error:', e.message); }
     }
 
-    // Step 3: Use the matching title for metadata search
+    // Step 3: Use the matched source title, but strip season/category suffixes for metadata search.
     const searchTitle = vodMatch ? (vodMatch.vod_name || title) : title;
+    const metadataTitle = cleanMetadataTitle(searchTitle) || searchTitle;
 
     // Step 4: Douban metadata (works in China, no proxy needed)
     try {
       const { searchMovie, getMobileSubjectDetail } = require('../services/douban');
-      const result = await searchMovie(searchTitle, year);
+      const result = await searchMovie(metadataTitle, year);
       if (result && result.douban_id) {
         const dbEntry = {
-          title: cleanTitle(preferChineseTitle(result.title, searchTitle)),
+          title: cleanMetadataTitle(preferChineseTitle(result.title, searchTitle)),
           poster: result.poster || '',
           year: result.year || '',
           rating: result.rating || '',
@@ -1064,7 +1168,7 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
           try {
             const mobileDetail = await getMobileSubjectDetail(result.douban_id);
             if (mobileDetail) {
-              if (mobileDetail.title && /[一-鿿]/.test(mobileDetail.title)) dbEntry.title = cleanTitle(mobileDetail.title);
+              if (mobileDetail.title && containsCJK(mobileDetail.title)) dbEntry.title = cleanMetadataTitle(mobileDetail.title);
               if (mobileDetail.summary) dbEntry.description = mobileDetail.summary;
               if (mobileDetail.rating && !dbEntry.rating) dbEntry.rating = mobileDetail.rating;
               if (mobileDetail.genres && mobileDetail.genres.length > 0) dbEntry.genre = mobileDetail.genres.join(' / ');
@@ -1083,14 +1187,17 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
         }
       } catch {}
 
-    // Step 5: TMDB fallback if Douban found nothing or no poster
-    if (!best || !best.poster) {
+    // Step 5: TMDB fills missing poster/backdrop/genre/duration, even when Douban found a poster.
+    if (!best || !best.poster || !best.backdrop_url || !best.genre || !best.duration || !best.description || !best.year || !best.rating) {
       try {
-        const { searchMovieFull: searchTMDB } = require('../services/tmdb');
-        const tmdbResult = await searchTMDB(searchTitle, year);
+        const { searchMovieFull: searchTMDB, searchTVFull } = require('../services/tmdb');
+        const preferTV = looksLikeSeries(category, searchTitle);
+        const tmdbResult = preferTV
+          ? (await searchTVFull(metadataTitle, year) || await searchTMDB(metadataTitle, year))
+          : (await searchTMDB(metadataTitle, year) || await searchTVFull(metadataTitle, year));
         if (tmdbResult) {
           const tmdbEntry = {
-            title: cleanTitle(tmdbResult.title || searchTitle),
+            title: cleanMetadataTitle(tmdbResult.title || searchTitle),
             poster: tmdbResult.poster || '',
             backdrop_url: tmdbResult.backdrop_w1280 || tmdbResult.backdrop || '',
             year: tmdbResult.year || '',
@@ -1110,21 +1217,49 @@ router.get('/auto-fill', authMiddleware, async (req, res) => {
             if (!best.rating && tmdbEntry.rating) best.rating = tmdbEntry.rating;
             if (!best.genre && tmdbEntry.genre) best.genre = tmdbEntry.genre;
             if (!best.description && tmdbEntry.description) best.description = tmdbEntry.description;
+            if (!best.backdrop_url && tmdbEntry.backdrop_url) best.backdrop_url = tmdbEntry.backdrop_url;
+            if (!best.duration && tmdbEntry.duration) best.duration = tmdbEntry.duration;
+            if (!best.director && tmdbEntry.director) best.director = tmdbEntry.director;
+            if (!best.actors && tmdbEntry.actors) best.actors = tmdbEntry.actors;
+            if (!best.tmdb_id && tmdbEntry.tmdb_id) best.tmdb_id = tmdbEntry.tmdb_id;
           }
         }
       } catch { /* TMDB optional */ }
     }
 
     // Step 6: Attach video source URL from AppleCMS/local match
-    if (best && vodMatch && vodMatch.vod_play_url) {
-      best.video_url = vodMatch.vod_play_url;
-      best.video_source = vodMatch.source_name || '';
+    if (vodMatch) {
+      if (!best) {
+        best = {
+          title: cleanMetadataTitle(vodMatch.vod_name || title) || vodMatch.vod_name || title,
+          poster: vodMatch.poster || vodMatch.vod_pic || '',
+          backdrop_url: vodMatch.backdrop_url || vodMatch.backdrop || '',
+          year: vodMatch.vod_year || '',
+          rating: vodMatch.douban_rating || vodMatch.vod_score || '',
+          genre: vodMatch.genre || vodMatch.vod_type || vodMatch.type_name || '',
+          description: vodMatch.vod_content || '',
+          duration: vodMatch.duration || '',
+          douban_id: vodMatch.douban_id || '',
+          tmdb_id: vodMatch.tmdb_id || ''
+        };
+      }
+      if (!best.poster && (vodMatch.poster || vodMatch.vod_pic)) best.poster = vodMatch.poster || vodMatch.vod_pic;
+      if (!best.backdrop_url && (vodMatch.backdrop_url || vodMatch.backdrop)) best.backdrop_url = vodMatch.backdrop_url || vodMatch.backdrop;
+      if (!best.year && vodMatch.vod_year) best.year = vodMatch.vod_year;
+      if (!best.rating && (vodMatch.douban_rating || vodMatch.vod_score)) best.rating = vodMatch.douban_rating || vodMatch.vod_score;
+      if (!best.genre && (vodMatch.genre || vodMatch.vod_type || vodMatch.type_name)) best.genre = vodMatch.genre || vodMatch.vod_type || vodMatch.type_name;
+      if (!best.description && vodMatch.vod_content) best.description = vodMatch.vod_content;
+      if (!best.duration && vodMatch.duration) best.duration = vodMatch.duration;
+      if (vodMatch.vod_play_url) {
+        best.video_url = vodMatch.vod_play_url;
+        best.video_source = vodMatch.source_name || '';
+      }
     }
 
     // Don't fall back to poster for backdrop — backdrop should be horizontal (16:9)
     // Poster is vertical and already used as the cover image
 
-    if (best && (best.title || best.poster)) {
+    if (best && (best.title || best.poster || best.video_url)) {
       return res.json({ success: true, data: best });
     }
 

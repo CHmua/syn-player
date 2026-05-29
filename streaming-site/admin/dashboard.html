@@ -406,8 +406,8 @@ function parseEpisodes(videoUrl) {
     }
   }
 
-  // Filter: only keep .m3u8 URLs (primary source), remove non-.m3u8 fallbacks
-  allEps = allEps.filter(function(ep) { return /\.m3u8/i.test(ep.url); });
+  // Keep any usable HTTP(S) playback URL so MP4 and resolved source links show in admin too.
+  allEps = allEps.filter(function(ep) { return /^https?:\/\//i.test(ep.url) || /^\/\//.test(ep.url); });
 
   if (allEps.length > 0) return allEps;
   return [{ name: '', url: '' }];
@@ -430,6 +430,21 @@ function normalizePosterPreviewUrl(url) {
   if (raw.indexOf('//') === 0) return '/api/vod/image-proxy?url=' + encodeURIComponent('https:' + raw);
   if (/^https?:\/\//i.test(raw)) return '/api/vod/image-proxy?url=' + encodeURIComponent(raw);
   return raw;
+}
+
+function unwrapProxyUrl(url) {
+  var raw = String(url || '').trim();
+  if (!raw) return '';
+  if (raw.indexOf('/api/vod/image-proxy?') !== 0 && raw.indexOf('/api/img-proxy?') !== 0 && raw.indexOf('/api/tmdb/image-proxy?') !== 0) {
+    return raw;
+  }
+  try {
+    var q = raw.indexOf('?');
+    var params = new URLSearchParams(raw.slice(q + 1));
+    return params.get('url') || raw;
+  } catch (_) {
+    return raw;
+  }
 }
 
 function updatePosterPreview(rawUrl) {
@@ -482,6 +497,73 @@ function rebuildEpisodeRows(episodes) {
     list.appendChild(createEpisodeRow(ep.name || '', ep.url || ''));
   });
   updateRemoveButtons();
+}
+
+function firstFilled() {
+  for (var i = 0; i < arguments.length; i++) {
+    var val = arguments[i];
+    if (val !== undefined && val !== null && String(val).trim() !== '') return val;
+  }
+  return '';
+}
+
+function sourcesToVideoUrl(sources) {
+  if (!Array.isArray(sources)) return '';
+  return sources.map(function(source) {
+    var episodes = Array.isArray(source.episodes) ? source.episodes : [];
+    return episodes.map(function(ep) {
+      var name = ep.episode_name || ep.name || '全集';
+      var url = ep.play_url || ep.url || '';
+      return url ? (name + '$' + url) : '';
+    }).filter(Boolean).join('#');
+  }).filter(Boolean).join('$$$');
+}
+
+function mergeVideoForEdit(base, detail) {
+  var d = detail && detail.data ? detail.data : (detail || {});
+  var merged = Object.assign({}, base || {});
+  merged.id = firstFilled(merged.id, d.id, d.vod_id);
+  merged.vod_id = firstFilled(merged.vod_id, d.vod_id, d.id);
+  merged.source = firstFilled(merged.source, d.source);
+  merged.title = firstFilled(d.title, d.vod_name, merged.title);
+  merged.category = firstFilled(d.category, d.type_name, merged.category);
+  merged.description = firstFilled(d.description, d.vod_content, merged.description);
+  merged.raw_poster_url = firstFilled(d.raw_poster_url, d.poster, d.vod_pic, merged.raw_poster_url, merged.poster);
+  merged.poster = firstFilled(merged.raw_poster_url, merged.poster);
+  merged.poster_url = firstFilled(d.poster_url, merged.poster_url);
+  merged.raw_backdrop_url = firstFilled(d.raw_backdrop_url, d.backdrop, d.backdrop_url_raw, merged.raw_backdrop_url, merged.backdrop);
+  merged.backdrop = firstFilled(merged.raw_backdrop_url, merged.backdrop);
+  merged.backdrop_url = firstFilled(d.backdrop_url, merged.backdrop_url);
+  merged.video_url = firstFilled(d.video_url, d.vod_play_url, sourcesToVideoUrl(d.sources), sourcesToVideoUrl(d.data && d.data.sources), merged.video_url);
+  merged.year = firstFilled(d.year, d.vod_year, merged.year);
+  merged.duration = firstFilled(d.duration, merged.duration);
+  merged.genre = firstFilled(d.genre, d.vod_type, d.type_name, merged.genre);
+  merged.rating = firstFilled(d.rating, d.douban_rating, d.vod_score, merged.rating);
+  merged.badge = firstFilled(d.badge, d.vod_remarks, merged.badge);
+  merged.series_title = firstFilled(d.series_title, merged.series_title);
+  merged.season_label = firstFilled(d.season_label, merged.season_label);
+  merged.sort_order = firstFilled(d.sort_order, merged.sort_order, 0);
+  merged.is_live = d.is_live !== undefined ? d.is_live : merged.is_live;
+  merged.featured = d.featured !== undefined ? d.featured : merged.featured;
+  return merged;
+}
+
+async function loadVideoForEdit(v) {
+  if (!v || !v.id) return v;
+  var merged = Object.assign({}, v);
+  try {
+    var res = await api('/api/videos/' + encodeURIComponent(v.id));
+    if (res && res.ok) merged = mergeVideoForEdit(merged, await res.json());
+  } catch (_) {}
+
+  var needsVodDetail = merged.source === 'vod' || v.source === 'vod' || (!merged.video_url && merged.vod_id);
+  if (needsVodDetail) {
+    try {
+      var detailRes = await api('/api/vod/detail/' + encodeURIComponent(merged.vod_id || merged.id));
+      if (detailRes && detailRes.ok) merged = mergeVideoForEdit(merged, await detailRes.json());
+    } catch (_) {}
+  }
+  return merged;
 }
 
 document.getElementById('addEpisodeBtn').addEventListener('click', () => {
@@ -549,7 +631,17 @@ async function loadVideos() {
   renderPagination(hasMore);
 
   // Bind edit buttons
-  tbody.querySelectorAll('.btn-edit').forEach(btn => btn.addEventListener('click', () => editVideo(videos.find(v => v.id == btn.dataset.id))));
+  tbody.querySelectorAll('.btn-edit').forEach(btn => btn.addEventListener('click', async () => {
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '加载...';
+    try {
+      await editVideo(videos.find(v => v.id == btn.dataset.id));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  }));
   tbody.querySelectorAll('.btn-del').forEach(btn => btn.addEventListener('click', () => deleteVideo(btn.dataset.id, btn.dataset.source)));
 
   // Bind featured toggle checkboxes
@@ -641,7 +733,9 @@ async function loadCategories() {
   });
 }
 
-function editVideo(v) {
+async function editVideo(v) {
+  if (!v) return;
+  v = await loadVideoForEdit(v);
   editingId = v.id;
   document.getElementById('modalTitle').textContent = '编辑视频';
   document.getElementById('vid').value = v.id;
@@ -656,8 +750,8 @@ function editVideo(v) {
   }
   catSel.value = v.category;
   document.getElementById('vdesc').value = v.description || '';
-  document.getElementById('vposter').value = v.poster_url || v.poster || '';
-  document.getElementById('vbackdrop').value = v.backdrop_url || '';
+  document.getElementById('vposter').value = unwrapProxyUrl(v.raw_poster_url || v.poster || v.vod_pic || v.poster_url || '');
+  document.getElementById('vbackdrop').value = unwrapProxyUrl(v.raw_backdrop_url || v.backdrop || v.backdrop_url || '');
   updatePosterPreview(document.getElementById('vposter').value);
   rebuildEpisodeRows(parseEpisodes(v.video_url || ''));
   document.getElementById('vyear').value = v.year || '';
