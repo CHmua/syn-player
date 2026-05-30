@@ -782,22 +782,93 @@ router.get('/series', /* public */ (req, res) => {
 });
 
 // Get series detail — all seasons with episodes
-router.get('/series/:encodedTitle', apiAuthMiddleware, (req, res) => {
-  const title = decodeURIComponent(req.params.encodedTitle);
-  const videos = db.prepare(`
-    SELECT * FROM videos WHERE series_title = ? ORDER BY season_label, sort_order, id
-  `).all(title);
+router.get('/series/:encodedTitle', apiAuthMiddleware, async (req, res) => {
+  const rawTitle = String(req.params.encodedTitle || '').trim();
+  const titleSet = new Set();
+  if (rawTitle) titleSet.add(rawTitle);
+  try {
+    const decodedOnce = decodeURIComponent(rawTitle);
+    if (decodedOnce) titleSet.add(String(decodedOnce).trim());
+    try {
+      const decodedTwice = decodeURIComponent(decodedOnce);
+      if (decodedTwice) titleSet.add(String(decodedTwice).trim());
+    } catch {}
+  } catch {}
 
-  if (videos.length === 0) {
+  const titleCandidates = [...titleSet].filter(Boolean);
+  if (titleCandidates.length === 0) {
+    return res.status(400).json({ error: 'Missing series title' });
+  }
+
+  const placeholders = titleCandidates.map(() => '?').join(',');
+  const videoRows = db.prepare(`
+    SELECT * FROM videos
+    WHERE TRIM(series_title) IN (${placeholders})
+    ORDER BY season_label, sort_order, id
+  `).all(...titleCandidates);
+
+  let rows = videoRows;
+
+  // Fallback: homepage cards may come from VOD datasets with series_title in vods.
+  if (rows.length === 0) {
+    let vodRows = [];
+
+    // 1) Try MySQL vods table.
+    try {
+      const vodDb = require('../db');
+      const [mysqlRows] = await vodDb.query(
+        `SELECT * FROM vods WHERE is_active = 1 AND TRIM(series_title) IN (${placeholders}) ORDER BY season_label, vod_id`,
+        titleCandidates
+      );
+      vodRows = mysqlRows || [];
+    } catch {}
+
+    // 2) Fallback to local SQLite vods table.
+    if (vodRows.length === 0) {
+      try {
+        vodRows = db.prepare(`
+          SELECT * FROM vods
+          WHERE is_active = 1 AND TRIM(series_title) IN (${placeholders})
+          ORDER BY season_label, vod_id
+        `).all(...titleCandidates);
+      } catch {
+        try {
+          vodRows = db.prepare(`
+            SELECT * FROM vods
+            WHERE TRIM(series_title) IN (${placeholders})
+            ORDER BY season_label, vod_id
+          `).all(...titleCandidates);
+        } catch {}
+      }
+    }
+
+    rows = vodRows.map(v => ({
+      id: v.vod_id,
+      vod_id: v.vod_id,
+      title: v.vod_name || '',
+      category: v.type_name || '',
+      description: v.vod_content || '',
+      poster_url: v.poster || v.vod_pic || '',
+      backdrop_url: v.backdrop_url || v.backdrop || '',
+      video_url: v.vod_play_url || '',
+      year: v.vod_year || '',
+      duration: v.duration || '',
+      genre: v.genre || v.vod_type || v.type_name || '',
+      rating: parseFloat(v.douban_rating || v.vod_score) || 0,
+      badge: v.vod_remarks || '',
+      series_title: v.series_title || '',
+      season_label: v.season_label || '',
+      source: 'vod'
+    }));
+  }
+
+  if (rows.length === 0) {
     return res.status(404).json({ error: 'Series not found' });
   }
 
-  // Build seasons array, each with episodes from video_url
-  const seasons = [];
   const seenLabels = new Map();
-
-  for (const v of videos) {
-    const label = v.season_label || '默认';
+  for (const v of rows) {
+    const label = String(v.season_label || '').trim() || '\u9ed8\u8ba4';
     let season = seenLabels.get(label);
     if (!season) {
       season = { label, videos: [] };
@@ -805,19 +876,22 @@ router.get('/series/:encodedTitle', apiAuthMiddleware, (req, res) => {
     }
     season.videos.push({
       ...v,
-      poster_url: posterProxyUrl(v.poster_url || v.poster || ''),
+      poster_url: posterProxyUrl(v.poster_url || v.poster || v.vod_pic || ''),
       backdrop_url: posterProxyUrl(v.backdrop_url || v.backdrop || '')
     });
   }
 
+  const first = rows[0];
+  const resolvedSeriesTitle = String(first.series_title || titleCandidates[0] || '').trim();
+
   res.json({
-    series_title: title,
-    video_count: videos.length,
-    poster_url: posterProxyUrl(videos[0].poster_url || videos[0].poster || videos[0].backdrop_url || ''),
-    backdrop_url: posterProxyUrl(videos[0].backdrop_url || videos[0].backdrop || ''),
-    category: videos[0].category || '',
-    year: videos[0].year || '',
-    description: videos[0].description || '',
+    series_title: resolvedSeriesTitle,
+    video_count: rows.length,
+    poster_url: posterProxyUrl(first.poster_url || first.poster || first.vod_pic || first.backdrop_url || ''),
+    backdrop_url: posterProxyUrl(first.backdrop_url || first.backdrop || ''),
+    category: first.category || first.type_name || '',
+    year: first.year || first.vod_year || '',
+    description: first.description || first.vod_content || '',
     seasons: [...seenLabels.values()],
   });
 });
