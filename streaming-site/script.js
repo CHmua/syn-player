@@ -574,20 +574,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Inject mobile search toggle button (visible only at ≤992px)
-    var navRight = document.querySelector('.nav-right');
-    if (navRight) {
-        var mobileSearchBtn = document.createElement('button');
-        mobileSearchBtn.className = 'search-toggle-mobile';
-        mobileSearchBtn.title = '搜索';
-        mobileSearchBtn.innerHTML = '<i class="fas fa-search"></i>';
-        mobileSearchBtn.addEventListener('click', function() {
-            var q = (document.getElementById('searchInput') && document.getElementById('searchInput').value.trim()) || '';
-            showSearchOverlay(q || '推荐');
-        });
-        navRight.insertBefore(mobileSearchBtn, navRight.firstChild);
-    }
-
     // ============ Back to Top Button ============
     var backToTopBtn = document.getElementById('backToTop');
     if (!backToTopBtn) {
@@ -958,6 +944,24 @@ document.addEventListener('DOMContentLoaded', function() {
         return html;
     }
 
+    function renderLiveChannelCard(channel) {
+        var title = channel.title || channel.vod_name || '直播频道';
+        var group = channel.genre || '直播';
+        var imgSrc = channel.poster_url || channel.poster || '/api/vod/image-proxy?fallback=1';
+        var clickUrl = 'live-tv.html?channel=' + encodeURIComponent(channel.id || channel.vod_id || '');
+
+        var html = '<div class="thumb-card poster-year-card" onclick="location.href=\'' + clickUrl + '\'">';
+        html += '<div class="thumb-poster">';
+        html += '<img src="' + imgSrc + '" alt="' + title + '" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=\'/api/vod/image-proxy?fallback=1\';">';
+        html += '<span class="thumb-badge">直播</span>';
+        html += '</div>';
+        html += '<div class="thumb-info">';
+        html += '<div class="thumb-title">' + title + '</div>';
+        html += '<div class="thumb-subtitle">' + group + '</div>';
+        html += '</div></div>';
+        return html;
+    }
+
     // Poster-wall card for 更多推荐 — uniform grid, no cropping
     function renderPosterWallCard(video, index) {
         var rating = parseFloat(video.rating) || parseFloat(video.douban_rating) || 0;
@@ -1247,7 +1251,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function loadSections() {
         // Phase 1: Load homepage sections in parallel, track shown vod_ids
-        var mainSections = ['hotRecommend', 'trendingMovies', 'trendingTV', 'trendingAnime', 'trendingVariety', 'liveTV'];
+        var mainSections = ['hotRecommend', 'trendingMovies', 'trendingTV', 'trendingAnime', 'trendingVariety', 'liveTV', 'liveChannels'];
         var posterYearSections = {
             trendingTV: true,
             trendingAnime: true,
@@ -1262,8 +1266,12 @@ document.addEventListener('DOMContentLoaded', function() {
             var sectionLimit = sectionId === 'hotRecommend' ? 12 : 32;
             var sectionApi = sectionId === 'hotRecommend'
                 ? '/api/videos?featured=1&limit=' + sectionLimit
-                : '/api/videos?category=' + sectionId + '&limit=' + sectionLimit;
-            return fetch(sectionApi).then(function(r) { return r.json(); }).then(function(videos) {
+                : sectionId === 'liveChannels'
+                    ? '/api/live/channels?limit=' + sectionLimit
+                    : '/api/videos?category=' + sectionId + '&limit=' + sectionLimit;
+            return fetch(sectionApi).then(function(r) { return r.json(); }).then(function(payload) {
+                var videos = sectionId === 'liveChannels' ? (payload.channels || []) : payload;
+                if (!Array.isArray(videos)) videos = [];
                 if (!videos.length) { container.innerHTML = '<p style="color:#999;padding:20px;">暂无内容</p>'; return; }
                 var limit = sectionId === 'hotRecommend' ? 8 : 16;
                 var useBackdrop = false;
@@ -1284,6 +1292,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             return renderVideoCard(v, { useBackdrop: false });
                         }).join('');
                     }
+                } else if (sectionId === 'liveChannels') {
+                    container.innerHTML = rendered.map(function(v) {
+                        return renderLiveChannelCard(v);
+                    }).join('');
                 } else if (posterYearSections[sectionId]) {
                     container.innerHTML = rendered.map(function(v) {
                         return renderPosterYearCard(v);

@@ -13,6 +13,7 @@ const tmdbRoutes = require('./routes/tmdb');
 const doubanRoutes = require('./routes/douban');
 const { userAuthMiddleware } = require('./middleware/auth');
 const { initRedis } = require('./services/cache');
+const { startLiveSyncScheduler } = require('./services/live-sync');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -94,6 +95,14 @@ async function start() {
 
   // Initialize Redis/Memory cache
   await initRedis();
+
+  // Live M3U auto-sync scheduler
+  try {
+    startLiveSyncScheduler();
+    console.log('[LiveSync] Scheduler started');
+  } catch (err) {
+    console.error('[LiveSync] Failed to start scheduler:', err.message);
+  }
 
   app.listen(PORT, () => {
     console.log(`Syn Player 服务器已启动: http://localhost:${PORT}`);

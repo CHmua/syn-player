@@ -126,6 +126,7 @@ router.get('/categories', /* public — pages already require auth */ (req, res)
     { value: 'trendingAnime', label: '热门动漫' },
     { value: 'trendingVariety', label: '热门综艺' },
     { value: 'liveTV', label: '纪录解说' },
+    { value: 'liveChannels', label: 'Live TV' },
     { value: 'moreRecommend', label: '更多推荐' },
   ];
 
@@ -163,13 +164,15 @@ const SECTION_TYPE_MAP = {
   trendingAnime: ['国产动漫', '日韩动漫', '中国动漫', '日本动漫', '漫剧', '动漫电影', '欧美动漫', '动画片'],
   trendingVariety: ['大陆综艺', '日韩综艺', '港台综艺', '欧美综艺', '综艺'],
   liveTV: ['纪录片', '记录片', '电影解说', '影视解说'],
-  moreRecommend: ['*']  // '*' = all types, no filter
+  moreRecommend: ['*'],  // '*' = all types, no filter
+  liveChannels: ['__NO_VOD__'],
 };
 
 function getCategoryCondition(category) {
   const types = SECTION_TYPE_MAP[category];
   if (!types || types.length === 0) return null;
   if (types.length === 1 && types[0] === '*') return null; // wildcard = all types
+  if (types.length === 1 && types[0] === '__NO_VOD__') return { sql: '1=0', params: [] };
   const placeholders = types.map(() => '?').join(', ');
   return { sql: `type_name IN (${placeholders})`, params: types };
 }
@@ -198,7 +201,8 @@ router.get('/videos', /* public — pages already require auth */ async (req, re
       trendingAnime: ['动漫', '热门动漫'],
       trendingVariety: ['综艺', '热门综艺'],
       liveTV: ['纪录片', '记录解说', '电影解说', '影视解说'],
-    };
+      liveChannels: ['liveChannels', 'Live TV', 'LIVE'],
+};
     const matchLabels = chineseLabel[category] || [];
     if (matchLabels.length > 0) {
       const placeholders = matchLabels.map(() => '?').join(', ');
@@ -868,7 +872,7 @@ router.get('/series/:encodedTitle', apiAuthMiddleware, async (req, res) => {
 
   const seenLabels = new Map();
   for (const v of rows) {
-    const label = String(v.season_label || '').trim() || '\u9ed8\u8ba4';
+    const label = String(v.season_label || '').trim() || 'Default';
     let season = seenLabels.get(label);
     if (!season) {
       season = { label, videos: [] };
@@ -989,6 +993,10 @@ router.get('/admin/sync-status', authMiddleware, async (req, res) => {
       "SELECT * FROM collect_logs WHERE status = 'success' ORDER BY created_at DESC LIMIT 1"
     ).get();
 
+    // Live channel stats
+    const liveChannelCount = db.prepare("SELECT COUNT(*) as c FROM videos WHERE category = 'liveChannels' AND is_live = 1").get().c;
+    const lastLiveLog = db.prepare("SELECT * FROM collect_logs WHERE collect_type = 'live_m3u' ORDER BY created_at DESC LIMIT 1").get();
+
     // VOD count by type
     const typeStats = db.prepare(
       "SELECT type_name, COUNT(*) as c FROM vods WHERE is_active = 1 AND type_name != '' GROUP BY type_name ORDER BY c DESC LIMIT 20"
@@ -1006,7 +1014,17 @@ router.get('/admin/sync-status', authMiddleware, async (req, res) => {
         duration_ms: lastLog.duration_ms,
         time: lastLog.created_at
       } : null,
-      type_stats: typeStats
+      type_stats: typeStats,
+      live_channel_count: liveChannelCount,
+      last_live_sync: lastLiveLog ? {
+        status: lastLiveLog.status || '',
+        fetched: lastLiveLog.total_fetched || 0,
+        added: lastLiveLog.new_added || 0,
+        updated: lastLiveLog.updated_existing || 0,
+        duration_ms: lastLiveLog.duration_ms || 0,
+        time: lastLiveLog.created_at || '',
+        error: lastLiveLog.error_msg || ''
+      } : null
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1058,6 +1076,67 @@ router.post('/admin/reset-collection', authMiddleware, async (req, res) => {
       resetInProgress = false;
     }
   })();
+});
+
+// Live channels list
+router.get('/live/channels', /* public */ (req, res) => {
+  const limitNum = Math.max(1, Math.min(1000, parseInt(req.query.limit) || 300));
+  const group = String(req.query.group || '').trim();
+
+  let rows;
+  if (group) {
+    rows = db.prepare(`
+      SELECT * FROM videos
+      WHERE category = 'liveChannels' AND is_live = 1 AND genre = ?
+      ORDER BY sort_order ASC, id ASC
+      LIMIT ?
+    `).all(group, limitNum);
+  } else {
+    rows = db.prepare(`
+      SELECT * FROM videos
+      WHERE category = 'liveChannels' AND is_live = 1
+      ORDER BY sort_order ASC, id ASC
+      LIMIT ?
+    `).all(limitNum);
+  }
+
+  const grouped = rows.reduce((acc, row) => {
+    const key = String(row.genre || '???').trim() || '???';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push({
+      ...row,
+      poster_url: posterProxyUrl(row.poster_url || row.poster || ''),
+      backdrop_url: posterProxyUrl(row.backdrop_url || row.backdrop || '')
+    });
+    return acc;
+  }, {});
+
+  const groups = Object.keys(grouped).map((g) => ({
+    group: g,
+    count: grouped[g].length
+  }));
+
+  res.json({
+    total: rows.length,
+    groups,
+    channels: rows.map((row) => ({
+      ...row,
+      poster_url: posterProxyUrl(row.poster_url || row.poster || ''),
+      backdrop_url: posterProxyUrl(row.backdrop_url || row.backdrop || '')
+    }))
+  });
+});
+
+// Manual live M3U sync trigger
+router.post('/admin/sync-live', authMiddleware, async (req, res) => {
+  try {
+    const { syncLiveChannels, DEFAULT_LIVE_M3U_URL } = require('../services/live-sync');
+    const sourceUrl = (req.body && req.body.url) ? String(req.body.url).trim() : DEFAULT_LIVE_M3U_URL;
+    const result = await syncLiveChannels({ url: sourceUrl });
+    res.json(result);
+  } catch (err) {
+    res.json({ success: false, error: err.message || String(err) });
+  }
 });
 
 // Online user count (public)

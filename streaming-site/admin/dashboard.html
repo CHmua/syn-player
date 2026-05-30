@@ -84,6 +84,7 @@
                     <button class="btn-users" id="usersBtn" title="查看注册用户"><i class="fas fa-users"></i> 用户管理</button>
                     <button class="btn-series" id="seriesBtn" title="系列管理（季/部归类）"><i class="fas fa-layer-group"></i> 系列管理</button>
                     <button class="btn-sync" id="syncNowBtn" title="立即从资源站采集最新内容"><i class="fas fa-sync-alt"></i> 立即采集</button>
+                    <button class="btn-sync" id="syncLiveBtn" title="从M3U地址同步直播频道"><i class="fas fa-broadcast-tower"></i> 同步直播源</button>
                     <button class="btn-reset" id="resetCollectBtn" title="删除采集影片并全量重新采集"><i class="fas fa-undo-alt"></i> 重置采集</button>
                     <button class="btn-del-batch" id="batchDelBtn" title="批量删除选中视频" style="display:none"><i class="fas fa-trash"></i> 批量删除 (<span id="selCount">0</span>)</button>
                 </div>
@@ -201,6 +202,7 @@
                         <option value="trendingAnime">🎨 热门动漫</option>
                         <option value="trendingVariety">🎪 热门综艺</option>
                         <option value="liveTV">📡 纪录解说</option>
+                        <option value="liveChannels">📺 直播专栏</option>
                         <option value="moreRecommend">⭐ 更多推荐</option>
                     </select>
                 </div>
@@ -338,7 +340,7 @@ let editingId = null;
 // Category label lookup
 const CAT_LABELS = {
   trendingMovies: '热门电影', trendingTV: '热门电视剧', trendingAnime: '热门动漫',
-  trendingVariety: '热门综艺', liveTV: '纪录解说', moreRecommend: '更多推荐'
+  trendingVariety: '热门综艺', liveTV: '纪录解说', liveChannels: '直播专栏', moreRecommend: '更多推荐'
 };
 function catLabel(key) { return CAT_LABELS[key] || key; }
 
@@ -1311,6 +1313,14 @@ async function loadSyncStatus() {
       const t = data.last_sync.time.replace('T', ' ').substring(0, 16);
       text += ` | 上次采集: ${t} (+${data.last_sync.added}条)`;
     }
+    text += ` | 直播: ${data.live_channel_count || 0} 路`;
+    if (data.last_live_sync && data.last_live_sync.time) {
+      const lt = data.last_live_sync.time.replace('T', ' ').substring(0, 16);
+      text += ` | 上次直播同步: ${lt} (+${data.last_live_sync.added || 0})`;
+      if (data.last_live_sync.status === 'failed' && data.last_live_sync.error) {
+        text += ` [失败: ${data.last_live_sync.error}]`;
+      }
+    }
     el.textContent = text;
   } catch {}
 }
@@ -1336,6 +1346,32 @@ document.getElementById('syncNowBtn').addEventListener('click', async function()
   } finally {
     this.disabled = false;
     this.innerHTML = '<i class="fas fa-sync-alt"></i> 立即采集';
+    loadSyncStatus();
+    loadVideos();
+  }
+});
+
+// Live M3U sync button
+document.getElementById('syncLiveBtn').addEventListener('click', async function() {
+  this.disabled = true;
+  this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同步中...';
+  document.getElementById('syncStatus').textContent = '正在同步直播源...';
+  try {
+    const res = await api('/api/admin/sync-live', { method: 'POST' });
+    if (!res) return;
+    const data = await res.json();
+    if (data.success) {
+      alert(`直播同步完成！总计 ${data.total} 路，新增 ${data.inserted}，更新 ${data.updated}，删除 ${data.deleted}。`);
+    } else if (data.status === 'already_running') {
+      alert(data.error || '直播同步任务正在执行中');
+    } else {
+      alert('直播同步失败: ' + (data.error || '未知错误'));
+    }
+  } catch (err) {
+    alert('直播同步失败: ' + err.message);
+  } finally {
+    this.disabled = false;
+    this.innerHTML = '<i class="fas fa-broadcast-tower"></i> 同步直播源';
     loadSyncStatus();
     loadVideos();
   }

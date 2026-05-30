@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <title>电视直播 - Syn Player</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="mobile.css">
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body class="player-page">
@@ -103,54 +103,180 @@
     </div>
 </nav>
 
-<!-- ===== Live TV Placeholder ===== -->
+<!-- ===== Live TV Content ===== -->
 <div class="live-tv-container">
-    <div class="live-placeholder">
-        <div class="live-placeholder-icon">
-            <i class="fas fa-broadcast-tower"></i>
-        </div>
-        <h2>电视直播</h2>
-        <p>频道列表即将上线，敬请期待</p>
-        <div class="live-channel-list-static">
-            <div class="live-channel-row">
-                <span class="channel-tag">CCTV-1 综合</span>
-                <span class="channel-tag">CCTV-13 新闻</span>
-                <span class="channel-tag">湖南卫视</span>
-                <span class="channel-tag">浙江卫视</span>
-                <span class="channel-tag">东方卫视</span>
-                <span class="channel-tag">江苏卫视</span>
-                <span class="channel-tag">北京卫视</span>
-                <span class="channel-tag">CCTV-5 体育</span>
+    <section class="live-player-section">
+        <div class="live-video-wrapper">
+            <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+            <video id="liveVideo" controls playsinline></video>
+            <div class="live-overlay" id="liveOverlay">
+                <i class="fas fa-broadcast-tower"></i>
+                <p>Select a channel on the right to start</p>
+                <small>If this line fails, we will open the full player page</small>
             </div>
         </div>
-    </div>
+        <div class="live-player-info">
+            <h2 id="liveTitle">Live Channels</h2>
+            <p id="liveMeta">List is synced by backend scheduler</p>
+        </div>
+    </section>
+
+    <section class="live-channel-section">
+        <div class="live-section-header">
+            <h3 class="live-section-title"><i class="fas fa-satellite-dish"></i> Live Column</h3>
+            <button class="refresh-sources-btn" id="refreshLiveBtn"><i class="fas fa-sync-alt"></i> Refresh</button>
+        </div>
+        <span class="source-status" id="liveSourceStatus">Loading channels...</span>
+        <div id="liveGroups"></div>
+    </section>
 </div>
 
-<script src="server-config.js"></script>
+<script>
+(function() {
+    var liveVideo = document.getElementById('liveVideo');
+    var liveOverlay = document.getElementById('liveOverlay');
+    var liveTitle = document.getElementById('liveTitle');
+    var liveMeta = document.getElementById('liveMeta');
+    var liveGroups = document.getElementById('liveGroups');
+    var liveSourceStatus = document.getElementById('liveSourceStatus');
+    var refreshBtn = document.getElementById('refreshLiveBtn');
+    var channelsCache = [];
+
+    function esc(v) {
+        return String(v == null ? '' : v)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function getInitial(name) {
+        var s = String(name || '').trim();
+        return s ? s.charAt(0).toUpperCase() : 'L';
+    }
+
+    function playChannel(channel, cardEl) {
+        if (!channel) return;
+
+        var title = channel.title || 'Live Channel';
+        var group = channel.genre || 'Live';
+        liveTitle.textContent = title;
+        liveMeta.textContent = group + ' ? ' + (channel.video_url || '');
+
+        document.querySelectorAll('.live-channel-card').forEach(function(el) { el.classList.remove('active'); });
+        if (cardEl) cardEl.classList.add('active');
+
+        var url = channel.video_url || '';
+        if (!url) {
+            liveOverlay.style.opacity = '1';
+            liveOverlay.style.pointerEvents = 'auto';
+            return;
+        }
+
+        liveOverlay.style.opacity = '0';
+        liveOverlay.style.pointerEvents = 'none';
+
+        try {
+            liveVideo.pause();
+            liveVideo.src = url;
+            liveVideo.load();
+            var p = liveVideo.play();
+            if (p && typeof p.catch === 'function') {
+                p.catch(function() {
+                    window.location.href = 'video-player.html?id=' + encodeURIComponent(channel.id);
+                });
+            }
+        } catch (_) {
+            window.location.href = 'video-player.html?id=' + encodeURIComponent(channel.id);
+        }
+    }
+
+    function renderGroups(channels) {
+        var grouped = {};
+        channels.forEach(function(ch) {
+            var g = (ch.genre || 'Other').trim() || 'Other';
+            if (!grouped[g]) grouped[g] = [];
+            grouped[g].push(ch);
+        });
+
+        var html = '';
+        Object.keys(grouped).sort().forEach(function(groupName) {
+            html += '<div class="live-channel-section">';
+            html += '<h4 class="live-section-title"><i class="fas fa-layer-group"></i>' + esc(groupName) + '</h4>';
+            html += '<div class="live-channel-grid">';
+            grouped[groupName].forEach(function(ch) {
+                var hasSource = ch.video_url ? 'has-source' : 'no-source';
+                html += '<div class="live-channel-card ' + hasSource + '" data-id="' + esc(ch.id) + '">';
+                if (ch.poster_url) {
+                    html += '<img src="' + esc(ch.poster_url) + '" style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex-shrink:0;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">';
+                    html += '<div class="live-channel-placeholder" style="display:none;"><span>' + esc(getInitial(ch.title)) + '</span></div>';
+                } else {
+                    html += '<div class="live-channel-placeholder"><span>' + esc(getInitial(ch.title)) + '</span></div>';
+                }
+                html += '<div class="live-channel-card-info">';
+                html += '<h4>' + esc(ch.title || 'Live Channel') + '</h4>';
+                html += '<p>' + esc(groupName) + '</p>';
+                html += '</div>';
+                html += '<span class="live-channel-status"></span>';
+                html += '</div>';
+            });
+            html += '</div></div>';
+        });
+
+        liveGroups.innerHTML = html || '<p style="color:#999;padding:20px;">No live channels yet</p>';
+
+        liveGroups.querySelectorAll('.live-channel-card').forEach(function(card) {
+            card.addEventListener('click', function() {
+                var id = this.getAttribute('data-id');
+                var channel = channelsCache.find(function(c) { return String(c.id) === String(id); });
+                playChannel(channel, this);
+            });
+        });
+    }
+
+    function loadChannels(preferredId) {
+        liveSourceStatus.textContent = 'Loading channels...';
+        fetch('/api/live/channels?limit=800')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var channels = Array.isArray(data.channels) ? data.channels : [];
+                channelsCache = channels;
+                liveSourceStatus.textContent = 'Loaded ' + channels.length + ' channels';
+                renderGroups(channels);
+
+                if (!channels.length) return;
+
+                var selected = null;
+                if (preferredId) {
+                    selected = channels.find(function(c) { return String(c.id) === String(preferredId); });
+                }
+                if (!selected) selected = channels[0];
+
+                var defaultCard = liveGroups.querySelector('.live-channel-card[data-id="' + String(selected.id) + '"]');
+                playChannel(selected, defaultCard);
+            })
+            .catch(function(err) {
+                liveSourceStatus.textContent = 'Load failed: ' + (err.message || 'unknown error');
+                liveGroups.innerHTML = '<p style="color:#999;padding:20px;">Failed to load channels</p>';
+            });
+    }
+
+    var params = new URLSearchParams(window.location.search);
+    var preferredId = params.get('channel');
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            loadChannels(preferredId);
+        });
+    }
+
+    loadChannels(preferredId);
+})();
+</script>
+
 <script src="script.js"></script>
-<!-- ===== Mobile Bottom Navigation ===== -->
-<nav class="mobile-bottom-nav" id="mobileBottomNav">
-    <a href="index.html" class="mobile-nav-item">
-        <i class="fas fa-home"></i>
-        <span>首页</span>
-    </a>
-    <a href="browse.html?section=trendingMovies&title=电影" class="mobile-nav-item">
-        <i class="fas fa-film"></i>
-        <span>电影</span>
-    </a>
-    <a href="series.html" class="mobile-nav-item">
-        <i class="fas fa-tv"></i>
-        <span>剧集</span>
-    </a>
-    <a href="browse.html?section=trendingAnime&title=动漫" class="mobile-nav-item">
-        <i class="fas fa-laptop"></i>
-        <span>动漫</span>
-    </a>
-    <a href="news.html" class="mobile-nav-item">
-        <i class="fas fa-newspaper"></i>
-        <span>资讯</span>
-    </a>
-</nav>
-<script src="capacitor-init.js"></script>
+
+
 </body>
 </html>
